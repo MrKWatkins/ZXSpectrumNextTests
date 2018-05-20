@@ -5,10 +5,10 @@
 	INCLUDE "..\..\Constants.asm"
 	INCLUDE "..\..\Macros.asm"
 	INCLUDE "..\..\TestData.asm"
+	INCLUDE "..\..\TestFunctions.asm"
 
 Start
-	di
-	ld sp, 0
+	call StartTest
 
 	NEXTREG_nn SPRITE_CONTROL_REGISTER, %00010100	; Set ULA over Layer2 over sprites, with sprites not visible.
 
@@ -17,7 +17,7 @@ Start
 	ld a, %01011000
 	call SetPaperWithA
 
-	call InfiniteLoop
+	call EndTest
 
 SetPaperWithA
 	ld hl, $5800
@@ -27,9 +27,6 @@ SetPaperWithA
 	ld bc, 767
 	ldir				; For 767 bytes we fill DE with the value from HL, i.e. copy the previous byte to the next.
 	ret
-
-InfiniteLoop
-	jr InfiniteLoop
 
 
 

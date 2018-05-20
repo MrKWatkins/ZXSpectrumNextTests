@@ -5,10 +5,10 @@
 	INCLUDE "..\..\Constants.asm"
 	INCLUDE "..\..\Macros.asm"
 	INCLUDE "..\..\TestData.asm"
+	INCLUDE "..\..\TestFunctions.asm"
 
 Start
-	di
-	ld sp, 0
+	call StartTest
 
 	NEXTREG_nn SPRITE_CONTROL_REGISTER, %00010100	; Set ULA over Layer2 over sprites, with sprites not visible.
 
@@ -16,7 +16,7 @@ Start
 
 	call ChangeUlaPalette
 
-	call InfiniteLoop
+	call EndTest
 
 ChangeUlaPalette
 	NEXTREG_nn PALETTE_CONTROL_REGISTER, 0		; We're changing the ULA palette.
@@ -24,9 +24,6 @@ ChangeUlaPalette
 	NEXTREG_nn PALETTE_VALUE_BIT9_REGISTER, $e3
 	NEXTREG_nn PALETTE_VALUE_BIT9_REGISTER, 0	;Set to default transparent colour.
 	ret
-
-InfiniteLoop
-	jr InfiniteLoop
 
 
 
