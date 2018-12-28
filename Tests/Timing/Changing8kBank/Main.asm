@@ -27,6 +27,6 @@ TestLoop
 
 	call EndTiming
 
-	call TestLoop
+	jr TestLoop
 
 	savesna "Chg8kBan.sna", Start
