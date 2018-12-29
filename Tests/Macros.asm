@@ -12,3 +12,8 @@
 	db register
 	db value
 	ENDM
+
+; Set breakpoint for CSpect emulator (when it is executed with "-brk" option)
+    MACRO CSPECT_BRK
+        db  $DD, $01
+    ENDM
