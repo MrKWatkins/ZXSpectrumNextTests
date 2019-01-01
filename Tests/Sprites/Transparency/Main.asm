@@ -10,7 +10,7 @@
 Start
 	call StartTest
 
-	NEXTREG_nn SPRITE_CONTROL_NR15, %00000001	; Set sprites over Layer2 and ULA and enable sprites.
+	NEXTREG_nn SPRITE_CONTROL_NR_15, %00000001	; Set sprites over Layer2 and ULA and enable sprites.
 
 	call LoadPattern
 
@@ -21,10 +21,10 @@ Start
 	call EndTest
 
 SetFirstColourInSpritePaletteToTransparent
-	NEXTREG_nn PALETTE_CONTROL_NR43, $20	; We're changing the sprite palette.
-	NEXTREG_nn PALETTE_INDEX_NR40, 0		; Change the first colour in the palette, index 0.
-	NEXTREG_nn PALETTE_VALUE_9BIT_NR44, $e3
-	NEXTREG_nn PALETTE_VALUE_9BIT_NR44, 0	; Set to default transparent colour.
+	NEXTREG_nn PALETTE_CONTROL_NR_43, $20	; We're changing the sprite palette.
+	NEXTREG_nn PALETTE_INDEX_NR_40, 0		; Change the first colour in the palette, index 0.
+	NEXTREG_nn PALETTE_VALUE_9BIT_NR_44, $e3
+	NEXTREG_nn PALETTE_VALUE_9BIT_NR_44, 0	; Set to default transparent colour.
 	ret
 
 ShowSprite

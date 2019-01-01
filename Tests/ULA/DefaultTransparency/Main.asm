@@ -10,7 +10,7 @@
 Start
 	call StartTest
 
-	NEXTREG_nn SPRITE_CONTROL_NR15, %00010100	; Set ULA over Layer2 over sprites, with sprites not visible.
+	NEXTREG_nn SPRITE_CONTROL_NR_15, %00010100	; Set ULA over Layer2 over sprites, with sprites not visible.
 
 	call FillLayer2WithTestData
 

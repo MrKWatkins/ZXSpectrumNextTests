@@ -143,70 +143,70 @@ TURBO_SOUND_CONTROL_P_FFFD      equ $FFFD   ; write with bit 7 = 1 (port shared 
 
 ;-----------------------------------------------------------------------------
 ;-- NEXT HW Registers (NextReg)
-MACHINE_ID_NR00                 equ $00
-NEXT_VERSION_NR01               equ $01
-NEXT_RESET_NR02                 equ $02
-MACHINE_TYPE_NR03               equ $03
-ROM_MAPPING_NR04                equ $04     ;In config mode, allows RAM to be mapped to ROM area.
-PERIPHERAL_1_NR05               equ $05     ;Sets joystick mode, video frequency and Scandoubler.
-PERIPHERAL_2_NR06               equ $06     ;Enables Acceleration, Lightpen, DivMMC, Multiface, Mouse and AY audio.
-TURBO_CONTROL_NR07              equ $07
-PERIPHERAL_3_NR08               equ $08     ;Enables Stereo, Internal Speaker, SpecDrum, Timex Video Modes, Turbo Sound Next and NTSC/PAL selection.
-PERIPHERAL_4_NR09               equ $09     ;Sets scanlines, AY mono output, disables Kempston and divMMC ports.
-NEXT_VERSION_MINOR_NR0E         equ $0E
-ANTI_BRICK_NR10                 equ $10
-VIDEO_TIMING_NR11               equ $11
-LAYER2_RAM_PAGE_NR12            equ $12     ;bank number where Layer 2 video memory begins.
-LAYER2_RAM_SHADOW_PAGE_NR13     equ $13     ;bank number for Layer2 "shadow" write-over-rom
-GLOBAL_TRANSPARENCY_NR14        equ $14     ;Sets the color treated as transparent for ULA/Layer2/LoRes
-SPRITE_CONTROL_NR15             equ $15     ;LoRes mode, Sprites configuration, layers priority
-LAYER2_XOFFSET_NR16             equ $16
-LAYER2_YOFFSET_NR17             equ $17
-CLIP_LAYER2_NR18                equ $18
-CLIP_SPRITE_NR19                equ $19
-CLIP_ULA_LORES_NR1A             equ $1a
-CLIP_WINDOW_CONTROL_NR1C        equ $1C     ;set to 7 to reset all clip-window indices to 0
-RASTER_LINE_MSB_NR1E            equ $1E
-RASTER_LINE_LSB_NR1F            equ $1F
-RASTER_INTERUPT_CONTROL_NR22    equ $22     ;Controls the timing of raster interrupts and the ULA frame interrupt.
-RASTER_INTERUPT_VALUE_NR23      equ $23
-HIGH_ADRESS_KEYMAP_NR28         equ $28
-LOW_ADRESS_KEYMAP_NR29          equ $29
-HIGH_DATA_TO_KEYMAP_NR2A        equ $2A
-LOW_DATA_TO_KEYMAP_NR2B         equ $2B
-SOUNDDRIVE_DF_MIRROR_NR2D       equ $2D     ;Nextreg port-mirror of port 0xDF
-LORES_XOFFSET_NR32              equ $32
-LORES_YOFFSET_NR33              equ $33
-SPRITE_ATTR_SLOT_SEL_NR34       equ $34     ;Sprite-attribute slot index for $35-$39/$75-$79 port $57 mirrors
-SPRITE_ATTR0_NR35               equ $35     ;port $57 mirror in nextreg space (accessible to copper)
-SPRITE_ATTR1_NR36               equ $36
-SPRITE_ATTR2_NR37               equ $37
-SPRITE_ATTR3_NR38               equ $38
-SPRITE_ATTR4_NR39               equ $39
-PALETTE_INDEX_NR40              equ $40     ;Chooses a ULANext palette number to configure.
-PALETTE_VALUE_NR41              equ $41     ;Used to upload 8-bit colors to the ULANext palette.
-PALETTE_FORMAT_NR42             equ $42     ;ink-mask for ULANext modes
-PALETTE_CONTROL_NR43            equ $43     ;Enables or disables ULANext interpretation of attribute values and toggles active palette.
-PALETTE_VALUE_9BIT_NR44         equ $44     ;Holds the additional blue color bit for RGB333 color selection.
-TRANSPARENCY_FALLBACK_COL_NR4A  equ $4A     ;8-bit colour to be drawn when all layers are transparent
-SPRITE_TRANSPARENCY_I_NR4B      equ $4B     ;index of transparent colour in sprite palette (only bottom 4 bits for 4-bit patterns)
-MMU0_0000_NR50                  equ $50     ;Set a Spectrum RAM page at position 0x0000 to 0x1fff
-MMU1_2000_NR51                  equ $51     ;Set a Spectrum RAM page at position 0x2000 to 0x3fff
-MMU2_4000_NR52                  equ $52     ;Set a Spectrum RAM page at position 0x4000 to 0x5fff
-MMU3_6000_NR53                  equ $53     ;Set a Spectrum RAM page at position 0x6000 to 0x7fff
-MMU4_8000_NR54                  equ $54     ;Set a Spectrum RAM page at position 0x8000 to 0x9fff
-MMU5_A000_NR55                  equ $55     ;Set a Spectrum RAM page at position 0xa000 to 0xbfff
-MMU6_C000_NR56                  equ $56     ;Set a Spectrum RAM page at position 0xC000 to 0xDFFF
-MMU7_E000_NR57                  equ $57     ;Set a Spectrum RAM page at position 0xE000 to 0xFFFF
-COPPER_DATA_NR60                equ $60
-COPPER_CONTROL_LO_NR61          equ $61
-COPPER_CONTROL_HI_NR62          equ $62
-SPRITE_ATTR0_INC_NR75           equ $75     ;port $57 mirror in nextreg space (accessible to copper) (slot index++)
-SPRITE_ATTR1_INC_NR76           equ $76
-SPRITE_ATTR2_INC_NR77           equ $77
-SPRITE_ATTR3_INC_NR78           equ $78
-SPRITE_ATTR4_INC_NR79           equ $79
-DEBUG_LED_CONTROL_NRFF          equ $FF     ;Turns debug LEDs on and off on TBBlue implementations that have them.
+MACHINE_ID_NR_00                equ $00
+NEXT_VERSION_NR_01              equ $01
+NEXT_RESET_NR_02                equ $02
+MACHINE_TYPE_NR_03              equ $03
+ROM_MAPPING_NR_04               equ $04     ;In config mode, allows RAM to be mapped to ROM area.
+PERIPHERAL_1_NR_05              equ $05     ;Sets joystick mode, video frequency and Scandoubler.
+PERIPHERAL_2_NR_06              equ $06     ;Enables Acceleration, Lightpen, DivMMC, Multiface, Mouse and AY audio.
+TURBO_CONTROL_NR_07             equ $07
+PERIPHERAL_3_NR_08              equ $08     ;Enables Stereo, Internal Speaker, SpecDrum, Timex Video Modes, Turbo Sound Next and NTSC/PAL selection.
+PERIPHERAL_4_NR_09              equ $09     ;Sets scanlines, AY mono output, disables Kempston and divMMC ports.
+NEXT_VERSION_MINOR_NR_0E        equ $0E
+ANTI_BRICK_NR_10                equ $10
+VIDEO_TIMING_NR_11              equ $11
+LAYER2_RAM_PAGE_NR_12           equ $12     ;bank number where Layer 2 video memory begins.
+LAYER2_RAM_SHADOW_PAGE_NR_13    equ $13     ;bank number for Layer2 "shadow" write-over-rom
+GLOBAL_TRANSPARENCY_NR_14       equ $14     ;Sets the color treated as transparent for ULA/Layer2/LoRes
+SPRITE_CONTROL_NR_15            equ $15     ;LoRes mode, Sprites configuration, layers priority
+LAYER2_XOFFSET_NR_16            equ $16
+LAYER2_YOFFSET_NR_17            equ $17
+CLIP_LAYER2_NR_18               equ $18
+CLIP_SPRITE_NR_19               equ $19
+CLIP_ULA_LORES_NR_1A            equ $1a
+CLIP_WINDOW_CONTROL_NR_1C       equ $1C     ;set to 7 to reset all clip-window indices to 0
+RASTER_LINE_MSB_NR_1E           equ $1E
+RASTER_LINE_LSB_NR_1F           equ $1F
+RASTER_INTERUPT_CONTROL_NR_22   equ $22     ;Controls the timing of raster interrupts and the ULA frame interrupt.
+RASTER_INTERUPT_VALUE_NR_23     equ $23
+HIGH_ADRESS_KEYMAP_NR_28        equ $28
+LOW_ADRESS_KEYMAP_NR_29         equ $29
+HIGH_DATA_TO_KEYMAP_NR_2A       equ $2A
+LOW_DATA_TO_KEYMAP_NR_2B        equ $2B
+SOUNDDRIVE_DF_MIRROR_NR_2D      equ $2D     ;Nextreg port-mirror of port 0xDF
+LORES_XOFFSET_NR_32             equ $32
+LORES_YOFFSET_NR_33             equ $33
+SPRITE_ATTR_SLOT_SEL_NR_34      equ $34     ;Sprite-attribute slot index for $35-$39/$75-$79 port $57 mirrors
+SPRITE_ATTR0_NR_35              equ $35     ;port $57 mirror in nextreg space (accessible to copper)
+SPRITE_ATTR1_NR_36              equ $36
+SPRITE_ATTR2_NR_37              equ $37
+SPRITE_ATTR3_NR_38              equ $38
+SPRITE_ATTR4_NR_39              equ $39
+PALETTE_INDEX_NR_40             equ $40     ;Chooses a ULANext palette number to configure.
+PALETTE_VALUE_NR_41             equ $41     ;Used to upload 8-bit colors to the ULANext palette.
+PALETTE_FORMAT_NR_42            equ $42     ;ink-mask for ULANext modes
+PALETTE_CONTROL_NR_43           equ $43     ;Enables or disables ULANext interpretation of attribute values and toggles active palette.
+PALETTE_VALUE_9BIT_NR_44        equ $44     ;Holds the additional blue color bit for RGB333 color selection.
+TRANSPARENCY_FALLBACK_COL_NR_4A equ $4A     ;8-bit colour to be drawn when all layers are transparent
+SPRITE_TRANSPARENCY_I_NR_4B     equ $4B     ;index of transparent colour in sprite palette (only bottom 4 bits for 4-bit patterns)
+MMU0_0000_NR_50                 equ $50     ;Set a Spectrum RAM page at position 0x0000 to 0x1fff
+MMU1_2000_NR_51                 equ $51     ;Set a Spectrum RAM page at position 0x2000 to 0x3fff
+MMU2_4000_NR_52                 equ $52     ;Set a Spectrum RAM page at position 0x4000 to 0x5fff
+MMU3_6000_NR_53                 equ $53     ;Set a Spectrum RAM page at position 0x6000 to 0x7fff
+MMU4_8000_NR_54                 equ $54     ;Set a Spectrum RAM page at position 0x8000 to 0x9fff
+MMU5_A000_NR_55                 equ $55     ;Set a Spectrum RAM page at position 0xa000 to 0xbfff
+MMU6_C000_NR_56                 equ $56     ;Set a Spectrum RAM page at position 0xC000 to 0xDFFF
+MMU7_E000_NR_57                 equ $57     ;Set a Spectrum RAM page at position 0xE000 to 0xFFFF
+COPPER_DATA_NR_60               equ $60
+COPPER_CONTROL_LO_NR_61         equ $61
+COPPER_CONTROL_HI_NR_62         equ $62
+SPRITE_ATTR0_INC_NR_75          equ $75     ;port $57 mirror in nextreg space (accessible to copper) (slot index++)
+SPRITE_ATTR1_INC_NR_76          equ $76
+SPRITE_ATTR2_INC_NR_77          equ $77
+SPRITE_ATTR3_INC_NR_78          equ $78
+SPRITE_ATTR4_INC_NR_79          equ $79
+DEBUG_LED_CONTROL_NR_FF         equ $FF     ;Turns debug LEDs on and off on TBBlue implementations that have them.
 
 ;-----------------------------------------------------------------------------
 ;-- common memory addresses
