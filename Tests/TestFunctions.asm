@@ -16,3 +16,20 @@ EndTiming
     ld a, BLACK
     out (ULA_P_FE), a
     ret
+
+ReadNextReg:
+    ; reads nextreg in A into A (does modify currently selected NextReg on I/O port)
+    push    bc
+    ld      bc, TBBLUE_REGISTER_SELECT_P_243B
+    out     (c),a
+    inc     b       ; bc = TBBLUE_REGISTER_ACCESS_P_253B
+    in      a,(c)   ; read desired NextReg state
+    pop     bc
+    ret
+
+; Read NextReg into A (does modify A, and NextReg selected on the I/O port)
+; is not optimized for speed + restores BC
+    MACRO NEXTREG2A register
+        ld     a, register
+        call   ReadNextReg
+    ENDM
