@@ -19,8 +19,8 @@ TestLoop
 	ld a, 0				; Repeat switch 256 times.
 
 @BankSwitchWithNextReg
-	NEXTREG_nn MMU6_C000_NR56, 32
-	NEXTREG_nn MMU6_C000_NR56, 33
+	NEXTREG_nn MMU6_C000_NR_56, 32
+	NEXTREG_nn MMU6_C000_NR_56, 33
 
         dec a
         jr nz, @BankSwitchWithNextReg
