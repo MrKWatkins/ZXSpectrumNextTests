@@ -2,6 +2,7 @@
 
 	org	$6000
 
+	INCLUDE "..\..\Constants.asm"
 	INCLUDE "..\..\TestFunctions.asm"
 
 Start
@@ -11,8 +12,8 @@ Start
 
 	halt		; Test should not proceed past this point!
 
-	ld a, 2
-       	out (254), a	; Set the border to red.
+    ld a, RED
+    out (ULA_P_FE), a	; Set the border to red.
 
 	call EndTest
 
