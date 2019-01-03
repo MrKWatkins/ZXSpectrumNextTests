@@ -160,6 +160,9 @@ LAYER2_RAM_PAGE_NR_12           equ $12     ;bank number where Layer 2 video mem
 LAYER2_RAM_SHADOW_PAGE_NR_13    equ $13     ;bank number for Layer2 "shadow" write-over-rom
 GLOBAL_TRANSPARENCY_NR_14       equ $14     ;Sets the color treated as transparent for ULA/Layer2/LoRes
 SPRITE_CONTROL_NR_15            equ $15     ;LoRes mode, Sprites configuration, layers priority
+    ; bit 7: enable LoRes mode, bits 6-5: reserved, write 0
+    ; 4-2: layers priority: 000=SLU, 001=LSU, 010=SUL, 011=LUS, 100=USL, 101=ULS, 110=S,mix(U+L), 111=S,mix(U+L-5)
+    ; bit 1: enable sprites over border, bit 0: show sprites
 LAYER2_XOFFSET_NR_16            equ $16
 LAYER2_YOFFSET_NR_17            equ $17
 CLIP_LAYER2_NR_18               equ $18
