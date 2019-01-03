@@ -1,4 +1,4 @@
-FillLayer2WithTestData:
+FillLayer2WithTestData:     ; takes roughly about 16 frames at 3.5MHz (~0.3s)
     ; Fills current Layer2 memory with pattern: 0,1,2,...,255 for every line
         ld  a, LAYER2_ACCESS_WRITE_OVER_ROM+LAYER2_ACCESS_L2_ENABLED+LAYER2_ACCESS_OVER_ROM_BANK_2
             ; enable layer2, write-over-ROM, and select bank 2 for write
