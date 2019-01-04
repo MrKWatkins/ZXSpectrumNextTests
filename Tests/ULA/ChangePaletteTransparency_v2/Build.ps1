@@ -1,0 +1,1 @@
+&..\..\..\Tools\sjasmplus.exe Main.asm
