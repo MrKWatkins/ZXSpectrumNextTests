@@ -4,13 +4,20 @@
   Z80 assembly syntax (trying to cover several assemblers: pasmo, sjasm, z80, snasm, ...)
 
   Created: Peter Helcmanovsky <ped@7gods.org>
-  Version: 0.1 30/12/2018
+  Version: 0.2 06/01/2019
 
 Changelog:
-  dd/mm/yyyy: version x.y (keep changelog in descending order)
-    what was modified
+  // dd/mm/yyyy: version x.y (keep changelog in descending order)
+  //   what was modified
+
+  06/01/2019: version 0.2
+    + instructions split into general group and control-flow group
+    + comments now have TODO/FIXME/FIX ME highlighting support
+
+  30/12/2018: version 0.1
+    Initial version, released as part of ZXNextTests project (as "work in progress")
 -->
-<language name="Z80 (pasmo, sjasm, ...)" section="Assembler" version="1" kateversion="5.0" extensions="*.asm" mimetype="" author="Peter Helcmanovsky (ped@7gods.org)" license="MIT">
+<language name="Z80 (pasmo, sjasm, ...)" section="Assembler" version="2" kateversion="5.0" extensions="*.asm" mimetype="" author="Peter Helcmanovsky (ped@7gods.org)" license="MIT">
   <!-- TODO
     pasmo: PC, $, local labels, "??" operator (banknum) ... all operators having extra style?
     sjasm: many IFcc, ELSEIFcc variants
@@ -50,12 +57,22 @@ Changelog:
       <item>i</item>
       <item>r</item>
     </list>
+    <list name="flow-instructions">
+      <item>call</item>
+      <item>djnz</item>
+      <item>halt</item>
+      <item>jp</item>
+      <item>jr</item>
+      <item>ret</item>
+      <item>reti</item>
+      <item>retn</item>
+      <item>rst</item>
+    </list>
     <list name="instructions">
       <item>adc</item>
       <item>add</item>
       <item>and</item>
       <item>bit</item>
-      <item>call</item>
       <item>ccf</item>
       <item>cp</item>
       <item>cpd</item>
@@ -66,11 +83,9 @@ Changelog:
       <item>daa</item>
       <item>dec</item>
       <item>di</item>
-      <item>djnz</item>
       <item>ei</item>
       <item>ex</item>
       <item>exx</item>
-      <item>halt</item>
       <item>im</item>
       <item>in</item>
       <item>inc</item>
@@ -78,8 +93,6 @@ Changelog:
       <item>indr</item>
       <item>ini</item>
       <item>inir</item>
-      <item>jp</item>
-      <item>jr</item>
       <item>ld</item>
       <item>ldd</item>
       <item>lddr</item>
@@ -96,9 +109,6 @@ Changelog:
       <item>pop</item>
       <item>push</item>
       <item>res</item>
-      <item>ret</item>
-      <item>reti</item>
-      <item>retn</item>
       <item>rl</item>
       <item>rla</item>
       <item>rlc</item>
@@ -109,7 +119,6 @@ Changelog:
       <item>rrc</item>
       <item>rrca</item>
       <item>rrd</item>
-      <item>rst</item>
       <item>sbc</item>
       <item>scf</item>
       <item>set</item>
@@ -139,10 +148,10 @@ Changelog:
       <item>pixelad</item>
       <item>pixeldn</item>
       <item>setae</item>
-      <item>swap</item>
       <item>swapnib</item>
       <item>test</item>
-      <!-- some alias version of instructions (mul, sla, test) -->
+      <!-- some alias version of instructions (swapnib, mul, sl1, sla, test) -->
+      <item>swap</item>
       <item>mlt</item>
       <item>sli</item>
       <item>sll</item>
@@ -267,12 +276,13 @@ Changelog:
                lineEmptyContext="#stay" fallthrough="true" fallthroughContext="Arguments">
         <DetectSpaces attribute="Normal Text" context="#stay"/>
         <RegExpr attribute="Data" context="Hexastring" insensitive="true" String="hex\s+"/>
-        <RegExpr attribute="Instructions" context="Arguments" insensitive="true"
+        <RegExpr attribute="Control Flow ins." context="Arguments" insensitive="true"
                  String="(call|jp)\s+(nz|z|nc|c|po|pe|p|m|ns|s)\s*,"/>
-        <RegExpr attribute="Instructions" context="Arguments" insensitive="true"
+        <RegExpr attribute="Control Flow ins." context="Arguments" insensitive="true"
                  String="jr\s+(nz|z|nc|c)\s*,"/>
-        <RegExpr attribute="Instructions" context="Arguments" insensitive="true"
+        <RegExpr attribute="Control Flow ins." context="Arguments" insensitive="true"
                  String="ret\s+(nz|z|nc|c|po|pe|p|m|ns|s)(\s+|$)"/>
+        <keyword attribute="Control Flow ins." context="Arguments" String="flow-instructions"/>
         <keyword attribute="Instructions" context="Arguments" String="instructions"/>
         <keyword attribute="Data" context="Arguments" String="data"/>
         <keyword attribute="Directives" context="Arguments" String="directives"/>
@@ -303,7 +313,9 @@ Changelog:
 <!--        <HlCHex attribute="BaseN" context="#stay"/>-->
         <HlCChar attribute="Char" context="#stay"/>
       </context>
-      <context name="Comment" attribute="Comment" lineEndContext="#pop"/>
+      <context name="Comment" attribute="Comment" lineEndContext="#pop">
+          <RegExpr attribute="Alert" context="#stay" String="\b(TODO|FIX\s?ME)\b"/>
+      </context>
       <context name="String" attribute="String" lineEndContext="#pop">
         <AnyChar attribute="String" context="#pop" String="&quot;'"/>
       </context>
@@ -313,8 +325,10 @@ Changelog:
       <itemData name="Normal Text" defStyleNum="dsNormal"/>
       <itemData name="Registers" defStyleNum="dsVariable"/>
       <itemData name="Instructions" defStyleNum="dsKeyword"/>
+      <itemData name="Control Flow ins." defStyleNum="dsControlFlow"/>
       <itemData name="Directives" defStyleNum="dsPreprocessor"/>
       <itemData name="Comment" defStyleNum="dsComment"/>
+      <itemData name="Alert" defStyleNum="dsAlert"/>
       <itemData name="Label" defStyleNum="dsFunction"/>
       <itemData name="Data" defStyleNum="dsDataType"/>
       <itemData name="BaseN" defStyleNum="dsBaseN"/>
