@@ -33,3 +33,16 @@ ReadNextReg:
         ld     a, register
         call   ReadNextReg
     ENDM
+
+WriteNextRegByIo:
+    ; writes value A into nextreg B (does modify currently selected NextReg on I/O port)
+    push    bc
+    push    af
+    ld      a,b
+    ld      bc, TBBLUE_REGISTER_SELECT_P_243B
+    out     (c),a
+    inc     b       ; bc = TBBLUE_REGISTER_ACCESS_P_253B
+    pop     af
+    out     (c),a   ; write value
+    pop     bc
+    ret
