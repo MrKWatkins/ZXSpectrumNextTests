@@ -11,6 +11,7 @@
 ; * AdvanceVramHlByAChars           - HL += A chars, adjusts for VRAM thirds
 ; * AdvanceVramHlToNextChar         - HL += 1 char, adjusts for VRAM thirds
 ; * AdvanceVramHlToNextLine         - HL += 32 chars (next line), adjusts for VRAM thirds
+; * AdvanceAttrHlToNextLine         - HL += 32
 ; * OutChar                         - output char A at VRAM (OutCurrentAdr)++
 ; * OutString                       - output zero-terminated string (HL) at OutCurrentAdr
 ; * OutStringAtDe                   - as OutString, but sets OutCurrentAdr to DE first
@@ -41,6 +42,16 @@ AdvanceVramHlByAChars:
 AdvanceVramHlToNextLine:
     ld      a,32
     jr      AdvanceVramHlByAChars
+
+; advances HL by 32 (works as "next line" in ZX attributes VRAM area)
+; modifies: A and HL
+AdvanceAttrHlToNextLine:
+    ld      a,32
+    add     a,l
+    ld      l,a
+    ret     nc
+    inc     h
+    ret
 
 ; A = ASCII char to output, output is done by XOR (!) mode, to "OutCurrentAdr" cell
 OutChar:
