@@ -213,6 +213,7 @@ DEBUG_LED_CONTROL_NR_FF         equ $FF     ;Turns debug LEDs on and off on TBBl
 
 ;-----------------------------------------------------------------------------
 ;-- common memory addresses
+MEM_ROM_CHARS_3C00              equ $3C00   ; actual chars start at $3D00 with space
 MEM_ZX_SCREEN_4000              equ $4000
 MEM_ZX_ATTRIB_5800              equ $5800
 MEM_LORES0_4000                 equ $4000
