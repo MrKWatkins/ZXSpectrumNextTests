@@ -126,19 +126,16 @@ WARNING: palette tests need to be fixed, the actual HW does not work like this:
 
 $40: palette index is set to $70 (as first thing of them)
 $41:
- - first read is expected to read colour[$70] = $00 black (ULA palette0)
-   -- from the docs it doesn't say the read does increment index, only write (?!)
-   -- but needs confirmation to be sure that's how it works
- - writes $1F colour into it (should increment index to $71)
- - verify write read should then read $02 (blue colour in ULA palette0[$71])
+ - first read colour[$70] = $00 black (ULA palette0) (no index increment, only write does)
+ - writes $1F colour into it (increments index to $71)
+ - "verify write" read should then read $02 (blue colour in ULA palette0[$71])
 $42: INK_mask 7 is written (instead of default 15)
 $43: writes %0110_1000: select secondary Sprite palette for R/W and display, ULANext off
-$44: now the index is still $71 I guess? So colour $71, $01 from second Sprite palette is
- expected as "default" read (maybe it's $71, $00?). Then colour $79, $01 is written,
- which will increment the palette index to $72. As write-verify the colour $$72, $01 is
- expected to be read back.
- - If also reading does auto-increment palette index, these tests are wrong, and will
- report errors then also on real board.
+$44: the index is still $71, the read should see "second" byte of colour $7101 from
+ second Sprite palette, i.e. value is expected $01 to be read (in "default value test").
+ Then colour $79, $00 is written, which will increment the palette index to $72.
+ As write-verify the "second" byte of colour $$72, $01 is expected to be read back.
+ (to read "first" byte of colours, one would have to read NextReg $41 - not done in test)
 
 $4A, $4B: transparency fallback colour and sprite-transparency-index both set to $1F
 
