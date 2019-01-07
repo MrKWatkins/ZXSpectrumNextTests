@@ -15,11 +15,11 @@ NextRegDefaultRead:
     ; Clip-window registers $18..$1A require also writing to read them, so they are
     ; tested fully in the custom-write mode, skipping read-only phase.
     ;    x0  x1  x2  x3  x4  x5  x6  x7  x8  x9  xA  xB  xC  xD  xE  xF
-    db  $FD,$FD,$FE,$FD,$FF,$FE,$00,$00,$10,$00,$FF,$FF,$FF,$FF,$FE,$FF ; $00..0F
+    db  $FD,$FD,$FE,$FD,$FF,$FE,$FE,$00,$10,$00,$FF,$FF,$FF,$FF,$FE,$FF ; $00..0F
     db  $00,$FF,$08,$0B,$E3,$00,$00,$00,$FF,$FF,$FF,$FF,$2A,$FF,$FE,$FE ; $10..1F
     db  $FF,$FF,$00,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $20..2F
     db  $FF,$FF,$00,$00,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $30..3F
-    db  $00,$00,$0F,$00,$FC,$FF,$FF,$FF,$FF,$FF,$00,$E3,$FF,$FF,$FF,$FF ; $40..4F
+    db  $00,$00,$0F,$00,$01,$FF,$FF,$FF,$FF,$FF,$00,$E3,$FF,$FF,$FF,$FF ; $40..4F
     db  $FD,$FD,$0A,$0B,$04,$05,$00,$01,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $50..5F
     db  $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $60..6F
     db  $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $70..7F
@@ -104,6 +104,9 @@ DataDefaultClipWindow:
     db      0, 255, 0, 191
     db      0, 0, 0, 0          ; buffer for new coordinates (phase1) (at +4 address)
     db      0, 0, 0, 0          ; buffer for new coordinates (phase2) (at +8 address)
+
+Data9bColourWrite:
+    db      $79, $01
 
 LegendBoxGfx:
     db      $D5, $80, $01, $80, $01, $80, $01, $AB, 0
@@ -245,33 +248,9 @@ DisplayResults:
     jp      TestOneNextReg
 
 CustomReadDefaultTest:
-    ld      e,RESULT_DEF_READ_OK
-    ld      a,b
-    cp      $44
-    jr      z,.Read9bPal
+    ; currently no Read-phase custom code is used
     ld      e,RESULT_DEBUG
     jr      TestWrite
-.Read9bPal:
-    ; at this point palette index $40 was set to 0x70, one write on $41 (index => 0x71),
-    ; palette sprite2 was selected by $43 write, so I would expect colour $7101 here
-    ; (or $7100?) on real board, but needs confirmation that it works really like this.
-    ld      iy,Data9bColourRead
-    ld      c,2
-    call    CheckMultiReads
-    jr      TestWrite
-
-; IY=data to compare with, C = data size, B = next reg to read
-CheckMultiReads:
-    ld      a,b
-    call    ReadNextReg         ; A = NextReg[register-to-test]
-    cp      (iy)                ; compare with expected values
-    jr      z,.DataMatched      ; set error result if even one does not match
-    ld      e,RESULT_DEF_READ_ERR
-.DataMatched:
-    inc     iy
-    dec     c
-    jr      nz,CheckMultiReads
-    ret
 
 CustomWriteTest:
     ld      a,b
@@ -284,24 +263,20 @@ CustomWriteTest:
 
 ; set 9bit palette custom test
 .Set9bPal:
-    ld      iy,Data9bColourWrite
-    ld      c,2
-    call    .MultiWrites
-    ld      iy,Data9bColourVerify
-    ld      c,2
-    call    CheckMultiReads
-    jp      DisplayResults
-
-; IY=data to write, C = data size, B = next reg to read, does end with IY+=<size>
-.MultiWrites:
-    ld      a,(iy)
-    ; A=value to write, B=NextReg - write it to next reg (through I/O ports)
+    ; write colour $79, $00
+    ld      a,$79
+    call    WriteNextRegByIo
+    ld      a,$00
     call    WriteNextRegByIo
     set     3,e                 ; E |= 0x08 to signal write survival
-    inc     iy
-    dec     c
-    jr      nz,.MultiWrites
-    ret
+    ; index was auto-incremented to $72 (colour $72, $01 by default)
+    ; verify-write: read $44, should result into $01 byte ("second" of $72 colour)
+    ld      a,b
+    call    ReadNextReg
+    dec     a                   ; test for expected $01 value
+    jp      z,DisplayResults
+    ld      e,RESULT_DEF_READ_ERR
+    jp      DisplayResults      ; else set error result
 
 ; 18..1A clip windows: write 4 coordinates: port^$1A, 278-port, 2*(port^$1A), 214-port
 ; (also validates the default {0, 255, 0, 191} content
@@ -352,15 +327,6 @@ CustomWriteTest:
     dec     c
     jr      nz,.ReadWriteClipWindowLoop
     ret
-
-Data9bColourRead:
-    db      $71, $01
-
-Data9bColourWrite:
-    db      $79, $01
-
-Data9bColourVerify:
-    db      $72, $01
 
 DrawLegend:
     ld      hl,LegendText
