@@ -86,8 +86,8 @@ NextRegWriteInfo:       ; must follow NextRegDefaultRead in memory, at 256B boun
     ALIGN 256
 ResultToPaperColourConversion:
     ;   none, any-read, read-OK, read-ERR
-    db  P_WHITE, P_CYAN|A_BRIGHT, P_GREEN|A_BRIGHT, P_RED
-    db  P_WHITE|A_BRIGHT, P_CYAN, P_GREEN, P_RED        ; variants of result for W-skip
+    db  P_WHITE, P_CYAN|A_BRIGHT, P_GREEN|A_BRIGHT, P_RED|A_BRIGHT
+    db  P_WHITE|A_BRIGHT, P_CYAN, P_GREEN, P_RED|A_BRIGHT   ; variants of result for W-skip
     db  P_MAGENTA|A_BRIGHT, P_CYAN|A_BRIGHT, P_GREEN|A_BRIGHT, P_YELLOW   ; variants of result for W-done
     db  P_MAGENTA|A_FLASH                               ; DEBUG
 
@@ -113,7 +113,7 @@ LegendBoxGfx:
 
 LegendPapersData:
     db      P_WHITE, P_WHITE|A_BRIGHT, P_GREEN|A_BRIGHT, P_CYAN|A_BRIGHT
-    db      P_GREEN, P_CYAN, P_MAGENTA|A_BRIGHT, P_YELLOW, P_RED, P_BLUE
+    db      P_GREEN, P_CYAN, P_MAGENTA|A_BRIGHT, P_YELLOW, P_RED|A_BRIGHT, P_BLUE|A_BRIGHT
 LegendPapersDataSize    equ $ - LegendPapersData
 
 LegendText:
@@ -155,7 +155,7 @@ TestOneNextReg:
     ld      c,a                 ; keep READ info also in C
     inc     a                   ; test for $FF => no next reg readable there
     jr      z,TestWrite
-    ld      (hl),P_BLUE         ; turn the grid-element into PAPER BLUE (signal "read")
+    ld      (hl),P_BLUE|A_BRIGHT    ; turn the grid-cell into PAPER BLUE: signal "read"
     cp      $FC+1               ; test for $FC => requires custom code for test
     jp      z,CustomReadDefaultTest
     ; generic READ test of default value
@@ -194,6 +194,7 @@ TestWrite:
     jr      z,DisplayResults
     inc     a                   ; test for $FE => NextReg too specific for test
     jr      z,.SpecificWriteFeatureSkipped
+    ld      (hl),P_BLUE|A_BRIGHT    ; turn the grid-cell into PAPER BLUE: signal "write"
     cp      $FC+2               ; test for $FC => requires custom code for test
     jr      z,CustomWriteTest
     ; prepare value to be written (if top bit is set, it should be OR-ed with read value)
