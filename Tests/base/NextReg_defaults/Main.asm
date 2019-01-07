@@ -12,12 +12,14 @@ NextRegDefaultRead:
     ; $FC = extra code should handle the test
     ; Other values are expected default value (must match strictly)
     ; NextReg $22 may rarely fail the test (when INT was high during read, timing issue)
+    ; Clip-window registers $18..$1A require also writing to read them, so they are
+    ; tested fully in the custom-write mode, skipping read-only phase.
     ;    x0  x1  x2  x3  x4  x5  x6  x7  x8  x9  xA  xB  xC  xD  xE  xF
-    db  $FD,$FD,$FE,$FD,$FF,$FE,$00,$00,$10,$00,$FF,$FF,$FF,$FF,$FE,$FF ; $00..0F
-    db  $00,$FF,$08,$0B,$E3,$00,$00,$00,$FC,$FC,$FC,$FF,$2A,$FF,$FE,$FE ; $10..1F
+    db  $FD,$FD,$FE,$FD,$FF,$FE,$FE,$00,$10,$00,$FF,$FF,$FF,$FF,$FE,$FF ; $00..0F
+    db  $00,$FF,$08,$0B,$E3,$00,$00,$00,$FF,$FF,$FF,$FF,$2A,$FF,$FE,$FE ; $10..1F
     db  $FF,$FF,$00,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $20..2F
     db  $FF,$FF,$00,$00,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $30..3F
-    db  $00,$00,$0F,$00,$FC,$FF,$FF,$FF,$FF,$FF,$00,$E3,$FF,$FF,$FF,$FF ; $40..4F
+    db  $00,$00,$0F,$00,$01,$FF,$FF,$FF,$FF,$FF,$00,$E3,$FF,$FF,$FF,$FF ; $40..4F
     db  $FD,$FD,$0A,$0B,$04,$05,$00,$01,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $50..5F
     db  $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $60..6F
     db  $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $70..7F
@@ -82,10 +84,10 @@ NextRegWriteInfo:       ; must follow NextRegDefaultRead in memory, at 256B boun
     db  $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $F0..FF
 
     ALIGN 256
-ResultToPaperColurConversion:
+ResultToPaperColourConversion:
     ;   none, any-read, read-OK, read-ERR
-    db  P_WHITE, P_CYAN|A_BRIGHT, P_GREEN|A_BRIGHT, P_RED
-    db  P_WHITE|A_BRIGHT, P_CYAN, P_GREEN, P_RED        ; variants of result for W-skip
+    db  P_WHITE, P_CYAN|A_BRIGHT, P_GREEN|A_BRIGHT, P_RED|A_BRIGHT
+    db  P_WHITE|A_BRIGHT, P_CYAN, P_GREEN, P_RED|A_BRIGHT   ; variants of result for W-skip
     db  P_MAGENTA|A_BRIGHT, P_CYAN|A_BRIGHT, P_GREEN|A_BRIGHT, P_YELLOW   ; variants of result for W-done
     db  P_MAGENTA|A_FLASH                               ; DEBUG
 
@@ -98,6 +100,38 @@ RESULT_WRITE_DONE_FLAG  equ 8
 RESULT_WRITE_VERIFY_ERR equ RESULT_DEF_READ_ERR
 RESULT_DEBUG            equ 12
 
+DataDefaultClipWindow:
+    db      0, 255, 0, 191
+    db      0, 0, 0, 0          ; buffer for new coordinates (phase1) (at +4 address)
+    db      0, 0, 0, 0          ; buffer for new coordinates (phase2) (at +8 address)
+
+Data9bColourWrite:
+    db      $79, $01
+
+LegendBoxGfx:
+    db      $D5, $80, $01, $80, $01, $80, $01, $AB
+
+LegendPapersData:
+    db      P_WHITE, P_WHITE|A_BRIGHT, P_GREEN|A_BRIGHT, P_CYAN|A_BRIGHT
+    db      P_GREEN, P_CYAN, P_MAGENTA|A_BRIGHT, P_YELLOW, P_RED|A_BRIGHT, P_BLUE|A_BRIGHT
+LegendPapersDataSize    equ $ - LegendPapersData
+
+LegendText:
+    db      '** Legend **',0
+    db      ' no NextReg',0
+    db      ' W      skip',0
+    db      ' R+W      OK',0
+    db      ' R+W  weakOK',0
+    db      ' Wskip,R  OK',0
+    db      ' Wskip,R wOK',0
+    db      ' W      done',0
+    db      ' R+W OK,dERR',0
+    db      ' R/W/d ERROR',0
+    db      ' R/W  freeze',0
+    ; count of legend-labels is deducted from LegendPapersDataSize -> keep it synced
+ReadmeNoticeText:
+    db      'For details check: ReadMe.txt',0
+
     INCLUDE "..\..\TestFunctions.asm"
     INCLUDE "..\..\OutputFunctions.asm"
 
@@ -105,6 +139,9 @@ Start:
     call Draw16x16GridWithHexaLabels
 
     call DrawLegend
+    ; Set output address for bad values logging (into last third of screen)
+    ld      hl,$5020
+    ld      (OutCurrentAdr),hl
 
     call StartTest
 
@@ -118,15 +155,15 @@ TestOneNextReg:
     ld      c,a                 ; keep READ info also in C
     inc     a                   ; test for $FF => no next reg readable there
     jr      z,TestWrite
-    ld      (hl),P_BLUE         ; turn the grid-element into PAPER BLUE (signal "read")
+    ld      (hl),P_BLUE|A_BRIGHT    ; turn the grid-cell into PAPER BLUE: signal "read"
     cp      $FC+1               ; test for $FC => requires custom code for test
-    jr      z,CustomReadDefaultTest
+    jp      z,CustomReadDefaultTest
     ; generic READ test of default value
     ld      a,b
     call    ReadNextReg         ; A = NextReg[register-to-test]
     ld      d,a                 ; D = copy of value read from port
     cp      c                   ; compare with expected value
-    jr      z,.ReadsCorrectDefaultValue     ; may accidentally colide with $FE and $FD (!)
+    jr      z,.ReadsCorrectDefaultValue ; may accidentally collide with $FE and $FD (!)
         ; but the risk is so unlikely, and code simplicity gain high, that it's done.
     inc     c                   ; detect $FE => "any value" requirement
     inc     c
@@ -139,6 +176,9 @@ TestOneNextReg:
 .ReadIncorrectValue:
     ; expected value does not match, report error
     ld      e,RESULT_DEF_READ_ERR
+    ; output the wrong value into log
+    ld      c,P_YELLOW
+    call    OutErrValue
     jr      TestWrite
 .ReadsCorrectDefaultValue:
     ld      e,RESULT_DEF_READ_OK
@@ -154,6 +194,7 @@ TestWrite:
     jr      z,DisplayResults
     inc     a                   ; test for $FE => NextReg too specific for test
     jr      z,.SpecificWriteFeatureSkipped
+    ld      (hl),P_BLUE|A_BRIGHT    ; turn the grid-cell into PAPER BLUE: signal "write"
     cp      $FC+2               ; test for $FC => requires custom code for test
     jr      z,CustomWriteTest
     ; prepare value to be written (if top bit is set, it should be OR-ed with read value)
@@ -189,13 +230,16 @@ TestWrite:
     cp      c
     jr      z,DisplayResults
     ld      e,RESULT_WRITE_VERIFY_ERR
+    ; output the wrong value into log
+    ld      c,P_RED|A_BRIGHT
+    call    OutErrValue
     jr      DisplayResults
 .SpecificWriteFeatureSkipped:
     set     2,e                 ; E |= 0x04 to signal write-test-skip
 DisplayResults:
     dec     ixh                 ; restore IX to the READ info table
     ; change grid cell colour according to result
-    ld      d,ResultToPaperColurConversion>>8
+    ld      d,ResultToPaperColourConversion>>8
     ld      a,(de)
     ld      (hl),a
     ; move to next register
@@ -206,7 +250,7 @@ DisplayResults:
     ; detect "new line" in terms of 16x16 grid
     ld      a,$0F
     and     b
-    jr      nz,TestOneNextReg
+    jp      nz,TestOneNextReg
     ld      a,16
     add     a,l
     ld      l,a
@@ -215,174 +259,183 @@ DisplayResults:
     jp      TestOneNextReg
 
 CustomReadDefaultTest:
-    ld      e,RESULT_DEF_READ_OK
+    ; currently no Read-phase custom code is used
+    ld      e,RESULT_DEBUG
+    ; output the wrongly defined NextReg into log
+    ld      c,P_MAGENTA|A_BRIGHT
     ld      a,b
-    cp      $44
-    jr      z,.Read9bPal
-    ; 18..1A clip windows: all should read 0,255,0,191
-    ld      iy,DataDefaultClipWindow
-    ld      c,4
-    call    CheckMultiReads
+    call    OutErrValue.OutAOnce
     jr      TestWrite
-.Read9bPal:
-    ; at this point palette index $40 was set to 0x70, one write on $41 (index => 0x71),
-    ; palette sprite2 was selected by $43 write, so I would expect colour $7101 here
-    ; (or $7100?) on real board, but needs confirmation that it works really like this.
-    ld      iy,Data9bColourRead
-    ld      c,2
-    call    CheckMultiReads
-    jr      TestWrite
-
-; IY=data to compare with, C = data size, B = next reg to read
-CheckMultiReads:
-    ld      a,b
-    call    ReadNextReg         ; A = NextReg[register-to-test]
-    cp      (iy)                ; compare with expected values
-    jr      z,.DataMatched      ; set error result if even one does not match
-    ld      e,RESULT_DEF_READ_ERR
-.DataMatched:
-    inc     iy
-    dec     c
-    jr      nz,CheckMultiReads
-    ret
 
 CustomWriteTest:
     ld      a,b
+    cp      $1B
+    jr      c,.ClipWindowCustomTest
     cp      $44
     jr      z,.Set9bPal
-    ; 18..1A clip windows: write 4 coordinates: port^$1A, 278-port, 2*(port^$1A), 214-port
-    ; prepare coordinates data into buffer
-    ld      iy,DataWriteClipWindow
-    ld      a,22                ; to end with (278-port) result (8b wrapped around)
-    sub     b
-    ld      (iy+1),a
-    ld      a,214
-    sub     b
-    ld      (iy+3),a
+    ld      e,RESULT_DEBUG
+    ; output the wrongly defined NextReg into log
+    ld      c,P_MAGENTA|A_BRIGHT
     ld      a,b
-    xor     $1A
-    ld      (iy+0),a
-    add     a,a
-    ld      (iy+2),a
-    ; write prepared data to nextReg
-    ld      c,4
-    call    .MultiWrites
-    ; now verify the data were written successfully (plus reset clip-reg-index back to 0)
-    ld      iy,DataWriteClipWindow
-    ld      c,4
-    call    CheckMultiReads
-    ; do two more reads to move internal index of clip window register from 0 to 2
-    ld      a,b
-    call    ReadNextReg
-    ld      a,b
-    call    ReadNextReg
+    call    OutErrValue.OutAOnce
     jp      DisplayResults
 
+; set 9bit palette custom test
 .Set9bPal:
-    ld      iy,Data9bColourWrite
-    ld      c,2
-    call    .MultiWrites
-    ld      iy,Data9bColourVerify
-    ld      c,2
-    call    CheckMultiReads
-    jp      DisplayResults
-
-; IY=data to write, C = data size, B = next reg to read, does end with IY+=<size>
-.MultiWrites:
-    ld      a,(iy)
-    ; A=value to write, B=NextReg - write it to next reg (through I/O ports)
+    ; write colour $79, $00
+    ld      a,$79
+    call    WriteNextRegByIo
+    ld      a,$00
     call    WriteNextRegByIo
     set     3,e                 ; E |= 0x08 to signal write survival
+    ; index was auto-incremented to $72 (colour $72, $01 by default)
+    ; verify-write: read $44, should result into $01 byte ("second" of $72 colour)
+    ld      a,b
+    call    ReadNextReg
+    dec     a                   ; test for expected $01 value
+    jp      z,DisplayResults
+    ld      e,RESULT_DEF_READ_ERR
+    ; output the wrong value into log
+    inc     a                   ; restore the value
+    ld      c,P_RED|A_BRIGHT
+    call    OutErrValue
+    jp      DisplayResults      ; else set error result
+
+; 18..1A clip windows: write 4 coordinates: port^$1A, 278-port, 2*(port^$1A), 214-port
+; (also validates the default {0, 255, 0, 191} content
+.ClipWindowCustomTest:
+    ; prepare new coordinates data into buffer (twice, at +4 and +8 offsets)
+    ld      iy,DataDefaultClipWindow
+    ld      a,22                ; to end with (278-port) result (8b wrapped around)
+    sub     b
+    ld      (iy+1+4),a          ; X2
+    ld      (iy+1+8),a
+    ld      a,214
+    sub     b
+    ld      (iy+3+4),a          ; Y2
+    ld      (iy+3+8),a
+    ld      a,b
+    xor     $1A
+    ld      (iy+0+4),a          ; X1
+    ld      (iy+0+8),a
+    add     a,a
+    ld      (iy+2+4),a          ; Y1
+    ld      (iy+2+8),a
+    ; the sub-index of particular clip window register is incremented only upon write
+    ; so the following test has to both verify default value and then write new value
+    ld      de,(P_YELLOW<<8) + RESULT_DEF_READ_OK   ; D = colour for LOG output
+    call    .ReadWriteClipWindowTest
+    set     3,e                 ; E |= 0x08 to signal write survival
+    ; do the second round of read+write (new value check, new value write) = verification
+    ld      d,P_RED|A_BRIGHT    ; D = colour for LOG output
+    call    .ReadWriteClipWindowTest
+    ; do two more writes just to bump index of clip register to 2
+    ld      a,(iy+0)
+    call    WriteNextRegByIo
+    ld      a,(iy+1)
+    call    WriteNextRegByIo
+    ; check if some LOG was emitted, if yes, output NextReg number too
+    ld      a,RESULT_WRITE_SKIP_FLAG-1
+    and     e
+    cp      RESULT_DEF_READ_ERR
+    jp      nz,DisplayResults
+    ; display NextRegNumber in LOG
+    ld      a,b
+    ld      c,P_CYAN
+    call    OutErrValue.OutAOnce
+    jp      DisplayResults
+.ReadWriteClipWindowTest:
+    ld      c,4
+.ReadWriteClipWindowLoop:       ; will test default value and write new value then
+    ld      a,b
+    call    ReadNextReg
+    cp      (iy)
+    jr      z,.ClipWindowDataMatched
+    ld      e,RESULT_DEF_READ_ERR   ; set error result if even one does not match
+    ; output the wrong value into log
+    push    bc
+    ld      c,d
+    call    OutErrValue.OutAOnce
+    pop     bc
+.ClipWindowDataMatched:
+    ld      a,(iy+4)
+    ; A=value to write, B=NextReg - write it to next reg (through I/O ports)
+    call    WriteNextRegByIo
     inc     iy
     dec     c
-    jr      nz,.MultiWrites
+    jr      nz,.ReadWriteClipWindowLoop
     ret
-
-DataDefaultClipWindow:
-    db      0, 255, 0, 191
-
-Data9bColourRead:
-    db      $71, $01
-
-Data9bColourWrite:
-    db      $79, $01
-
-Data9bColourVerify:
-    db      $72, $01
-
-DataWriteClipWindow:
-    db      0, 0, 0, 0
 
 DrawLegend:
     ld      hl,LegendText
     ld      de,$4033
     call    OutStringAtDe       ; legend title
     ld      e,$73               ; +2 lines
+    ld      c,LegendPapersDataSize  ; B is used by DrawLegendPaperBox
 .LineLoop:
     call    DrawLegendPaperBox
     call    OutStringAtDe
     ex      de,hl
     call    AdvanceVramHlToNextLine
     ex      de,hl
-    xor     a
-    cp      (hl)
+    dec     c
     jr      nz,.LineLoop
-    ; draw the general "ReadMe.txt" message at bottom (HL points ahead of it)
-    inc     hl
-    ld      de,$5040
+    ; draw the general "ReadMe.txt" message at bottom (HL already points at it)
+    ld      de,$50C0            ; and HL = ReadmeNoticeText
     call    OutStringAtDe
     ; color the label boxes
     ld      hl,$5873
     ld      de,LegendPapersData
-    jr      .BoxColourLoopEntry
+    ld      b,LegendPapersDataSize
 .BoxColourLoop:
+    ld      a,(de)
     ld      (hl),a
     inc     de
     call    AdvanceAttrHlToNextLine
-.BoxColourLoopEntry:
-    ld      a,(de)
-    or      a
-    jr      nz,.BoxColourLoop
+    djnz    .BoxColourLoop
     ret
 
 DrawLegendPaperBox:
     push    hl
     push    de
     ld      hl,LegendBoxGfx
-    jr      .LoopEntry
+    ld      b,8
 .BoxLoop:
+    ld      a,(hl)
     ld      (de),a
     inc     hl
     inc     d
-.LoopEntry:
-    ld      a,(hl)
-    or      a
-    jr      nz,.BoxLoop
+    djnz    .BoxLoop
     pop     de
     pop     hl
     ret
 
-LegendBoxGfx:
-    db      $D5, $80, $01, $80, $01, $80, $01, $AB, 0
-
-LegendText:
-    db      '** Legend **',0
-    db      ' no NextReg',0
-    db      ' W      skip',0
-    db      ' R+W      OK',0
-    db      ' R+W  weakOK',0
-    db      ' Wskip,R  OK',0
-    db      ' Wskip,R wOK',0
-    db      ' W      done',0
-    db      ' R+W OK,dERR',0
-    db      ' R/W/d ERROR',0
-    db      ' R/W  freeze',0
-    db      0                       ; empty string to terminate legend loop
-    db      'For details check: ReadMe.txt',0
-
-LegendPapersData:
-    db      P_WHITE, P_WHITE|A_BRIGHT, P_GREEN|A_BRIGHT, P_CYAN|A_BRIGHT
-    db      P_GREEN, P_CYAN, P_MAGENTA|A_BRIGHT, P_YELLOW, P_RED, P_BLUE
-    db      0
+; A = value to output, C = attribute, B = nextReg, modifies A and C (!)
+; The attribute addressing is very hacky (expecting OutCurrentAdr to belong to last third)
+; I mean, this whole routine is one huge hack, working only under precise conditions...
+OutErrValue:
+    call    .OutAOnce           ; write the wrong value
+    ld      a,b                 ; show also NextReg value right after it
+    ld      c,P_CYAN
+.OutAOnce:
+    push    hl
+    ld      hl,(OutCurrentAdr)  ; convert $50xx -> $5Axx
+    set     1,h
+    set     3,h
+    ; set attributes
+    ld      (hl),c
+    inc     l
+    ld      (hl),c
+    ; detect if next write would reach $50C0 character (where the ReadMe notice is)
+    inc     l
+    jp      p,.LogNotFullYet
+    bit     6,l
+    jr      z,.LogNotFullYet
+    ; if yes, disable further log output
+    ld      hl,OutErrValue      ; self-modify routine entry to just return next time
+    ld      (hl),201            ; "RET" instruction code
+.LogNotFullYet:
+    pop     hl
+    jp      OutHexaValue
 
     savesna "NRdefaul.sna", Start

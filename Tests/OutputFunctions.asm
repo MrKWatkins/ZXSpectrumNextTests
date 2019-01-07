@@ -13,6 +13,8 @@
 ; * AdvanceVramHlToNextLine         - HL += 32 chars (next line), adjusts for VRAM thirds
 ; * AdvanceAttrHlToNextLine         - HL += 32
 ; * OutChar                         - output char A at VRAM (OutCurrentAdr)++
+; * OutHexaDigit                    - output value A[3:0] as hexa-digit at OutCurrentAdr
+; * OutHexaValue                    - output value A as two hexa-digits at OutCurrentAdr
 ; * OutString                       - output zero-terminated string (HL) at OutCurrentAdr
 ; * OutStringAtDe                   - as OutString, but sets OutCurrentAdr to DE first
 ; * FillSomeUlaLines                - Fills C char-lines with pattern D (B columns only)
@@ -88,6 +90,31 @@ OutChar:
     pop     af
     ret
 
+; output value in A[3:0] as hexa-digit at "OutCurrentAdr", modifies OutCurrentAdr
+OutHexaDigit:
+    push    af
+    ; convert 0..15 value in A to ASCII character for hexa-digit
+    or      $F0             ; nifty trick from:
+    daa                     ; http://map.grauw.nl/sources/external/z80bits.html
+    add     a,$A0
+    adc     a,$40
+    call    OutChar
+    pop     af
+    ret
+
+; output value in A as two hexa-digits (without any prefix/suffix), at "OutCurrentAdr"
+; modifies OutCurrentAdr and flags only (A is preserved)
+OutHexaValue:
+    call    .OutFourBits
+.OutFourBits:
+    ; swap nibbles (by Z80 instructions only, for "base" tests usage)
+    rrca
+    rrca
+    rrca
+    rrca
+    call    OutHexaDigit
+    ret
+
 ; output zero terminated string from HL address into VRAM at DE (HL points after zero)
 OutStringAtDe:
     ld      (OutCurrentAdr),de
@@ -147,27 +174,24 @@ Draw16x16GridWithHexaLabels:
     ld      bc,$1210        ; 18 columns (B), 16 lines (C)
     call    FillSomeUlaLines
     ; output bottom side labels (column labels)
-    ld      de,$5000
-    ld      hl,.StrLine1
-    call    OutStringAtDe
+    ld      hl,$5000        ; set up target address
+    ld      (OutCurrentAdr),hl
+    ld      a,$F0
+.ColumnLabels:
+    call    OutHexaDigit
+    inc     a
+    jr      nz,.ColumnLabels
     ; output right side labels (row labels)
-    ld      de,$4010
-    ld      bc,.StrLine1    ; source of 0,1,2,... chars
+    ld      hl,$4010
+    ld      a,$F0
 .YLinesLabels:
-    ; fetch character 0,1,...,F (they are zero terminated)
-    ld      a,(bc)
-    or      a
-    ret     z               ; when zero terminator is hit, finish
-    inc     bc
-    ; modify line-label text in memory and output it
-    ld      hl,.StrYLines
-    ld      (hl),a
-    call    OutStringAtDe
-    ; do "newline" on target address
-    ex      de,hl
-    call    AdvanceVramHlToNextLine
-    ex      de,hl
-    jr      .YLinesLabels
-
-.StrLine1:  db  "0123456789ABCDEF",0
-.StrYLines: db  "xx",0
+    ld      (OutCurrentAdr),hl
+    call    OutHexaDigit    ; output hexa digit
+    push    af
+    ld      a,'x'           ; followed by "x" char to form "4x" string
+    call    OutChar
+    call    AdvanceVramHlToNextLine ; do it while AF is on stack
+    pop     af
+    inc     a
+    jr      nz,.YLinesLabels
+    ret
