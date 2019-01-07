@@ -109,12 +109,12 @@ Data9bColourWrite:
     db      $79, $01
 
 LegendBoxGfx:
-    db      $D5, $80, $01, $80, $01, $80, $01, $AB, 0
+    db      $D5, $80, $01, $80, $01, $80, $01, $AB
 
 LegendPapersData:
     db      P_WHITE, P_WHITE|A_BRIGHT, P_GREEN|A_BRIGHT, P_CYAN|A_BRIGHT
     db      P_GREEN, P_CYAN, P_MAGENTA|A_BRIGHT, P_YELLOW, P_RED, P_BLUE
-    db      0
+LegendPapersDataSize    equ $ - LegendPapersData
 
 LegendText:
     db      '** Legend **',0
@@ -128,7 +128,8 @@ LegendText:
     db      ' R+W OK,dERR',0
     db      ' R/W/d ERROR',0
     db      ' R/W  freeze',0
-    db      0                       ; empty string to terminate legend loop
+    ; count of legend-labels is deducted from LegendPapersDataSize -> keep it synced
+ReadmeNoticeText:
     db      'For details check: ReadMe.txt',0
 
     INCLUDE "..\..\TestFunctions.asm"
@@ -333,46 +334,41 @@ DrawLegend:
     ld      de,$4033
     call    OutStringAtDe       ; legend title
     ld      e,$73               ; +2 lines
+    ld      c,LegendPapersDataSize  ; B is used by DrawLegendPaperBox
 .LineLoop:
     call    DrawLegendPaperBox
     call    OutStringAtDe
     ex      de,hl
     call    AdvanceVramHlToNextLine
     ex      de,hl
-    xor     a
-    cp      (hl)
+    dec     c
     jr      nz,.LineLoop
-    ; draw the general "ReadMe.txt" message at bottom (HL points ahead of it)
-    inc     hl
-    ld      de,$5040
+    ; draw the general "ReadMe.txt" message at bottom (HL already points at it)
+    ld      de,$50C0            ; and HL = ReadmeNoticeText
     call    OutStringAtDe
     ; color the label boxes
     ld      hl,$5873
     ld      de,LegendPapersData
-    jr      .BoxColourLoopEntry
+    ld      b,LegendPapersDataSize
 .BoxColourLoop:
+    ld      a,(de)
     ld      (hl),a
     inc     de
     call    AdvanceAttrHlToNextLine
-.BoxColourLoopEntry:
-    ld      a,(de)
-    or      a
-    jr      nz,.BoxColourLoop
+    djnz    .BoxColourLoop
     ret
 
 DrawLegendPaperBox:
     push    hl
     push    de
     ld      hl,LegendBoxGfx
-    jr      .LoopEntry
+    ld      b,8
 .BoxLoop:
+    ld      a,(hl)
     ld      (de),a
     inc     hl
     inc     d
-.LoopEntry:
-    ld      a,(hl)
-    or      a
-    jr      nz,.BoxLoop
+    djnz    .BoxLoop
     pop     de
     pop     hl
     ret
