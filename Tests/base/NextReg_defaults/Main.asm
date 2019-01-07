@@ -139,6 +139,9 @@ Start:
     call Draw16x16GridWithHexaLabels
 
     call DrawLegend
+    ; Set output address for bad values logging (into last third of screen)
+    ld      hl,$5020
+    ld      (OutCurrentAdr),hl
 
     call StartTest
 
@@ -154,7 +157,7 @@ TestOneNextReg:
     jr      z,TestWrite
     ld      (hl),P_BLUE         ; turn the grid-element into PAPER BLUE (signal "read")
     cp      $FC+1               ; test for $FC => requires custom code for test
-    jr      z,CustomReadDefaultTest
+    jp      z,CustomReadDefaultTest
     ; generic READ test of default value
     ld      a,b
     call    ReadNextReg         ; A = NextReg[register-to-test]
@@ -173,6 +176,9 @@ TestOneNextReg:
 .ReadIncorrectValue:
     ; expected value does not match, report error
     ld      e,RESULT_DEF_READ_ERR
+    ; output the wrong value into log
+    ld      c,P_YELLOW
+    call    OutErrValue
     jr      TestWrite
 .ReadsCorrectDefaultValue:
     ld      e,RESULT_DEF_READ_OK
@@ -223,6 +229,9 @@ TestWrite:
     cp      c
     jr      z,DisplayResults
     ld      e,RESULT_WRITE_VERIFY_ERR
+    ; output the wrong value into log
+    ld      c,P_RED|A_BRIGHT
+    call    OutErrValue
     jr      DisplayResults
 .SpecificWriteFeatureSkipped:
     set     2,e                 ; E |= 0x04 to signal write-test-skip
@@ -240,7 +249,7 @@ DisplayResults:
     ; detect "new line" in terms of 16x16 grid
     ld      a,$0F
     and     b
-    jr      nz,TestOneNextReg
+    jp      nz,TestOneNextReg
     ld      a,16
     add     a,l
     ld      l,a
@@ -251,6 +260,10 @@ DisplayResults:
 CustomReadDefaultTest:
     ; currently no Read-phase custom code is used
     ld      e,RESULT_DEBUG
+    ; output the wrongly defined NextReg into log
+    ld      c,P_MAGENTA|A_BRIGHT
+    ld      a,b
+    call    OutErrValue.OutAOnce
     jr      TestWrite
 
 CustomWriteTest:
@@ -260,6 +273,10 @@ CustomWriteTest:
     cp      $44
     jr      z,.Set9bPal
     ld      e,RESULT_DEBUG
+    ; output the wrongly defined NextReg into log
+    ld      c,P_MAGENTA|A_BRIGHT
+    ld      a,b
+    call    OutErrValue.OutAOnce
     jp      DisplayResults
 
 ; set 9bit palette custom test
@@ -277,6 +294,10 @@ CustomWriteTest:
     dec     a                   ; test for expected $01 value
     jp      z,DisplayResults
     ld      e,RESULT_DEF_READ_ERR
+    ; output the wrong value into log
+    inc     a                   ; restore the value
+    ld      c,P_RED|A_BRIGHT
+    call    OutErrValue
     jp      DisplayResults      ; else set error result
 
 ; 18..1A clip windows: write 4 coordinates: port^$1A, 278-port, 2*(port^$1A), 214-port
@@ -301,16 +322,26 @@ CustomWriteTest:
     ld      (iy+2+8),a
     ; the sub-index of particular clip window register is incremented only upon write
     ; so the following test has to both verify default value and then write new value
-    ld      e,RESULT_DEF_READ_OK
+    ld      de,(P_YELLOW<<8) + RESULT_DEF_READ_OK   ; D = colour for LOG output
     call    .ReadWriteClipWindowTest
     set     3,e                 ; E |= 0x08 to signal write survival
     ; do the second round of read+write (new value check, new value write) = verification
+    ld      d,P_RED|A_BRIGHT    ; D = colour for LOG output
     call    .ReadWriteClipWindowTest
     ; do two more writes just to bump index of clip register to 2
     ld      a,(iy+0)
     call    WriteNextRegByIo
     ld      a,(iy+1)
     call    WriteNextRegByIo
+    ; check if some LOG was emitted, if yes, output NextReg number too
+    ld      a,RESULT_WRITE_SKIP_FLAG-1
+    and     e
+    cp      RESULT_DEF_READ_ERR
+    jp      nz,DisplayResults
+    ; display NextRegNumber in LOG
+    ld      a,b
+    ld      c,P_CYAN
+    call    OutErrValue.OutAOnce
     jp      DisplayResults
 .ReadWriteClipWindowTest:
     ld      c,4
@@ -320,6 +351,11 @@ CustomWriteTest:
     cp      (iy)
     jr      z,.ClipWindowDataMatched
     ld      e,RESULT_DEF_READ_ERR   ; set error result if even one does not match
+    ; output the wrong value into log
+    push    bc
+    ld      c,d
+    call    OutErrValue.OutAOnce
+    pop     bc
 .ClipWindowDataMatched:
     ld      a,(iy+4)
     ; A=value to write, B=NextReg - write it to next reg (through I/O ports)
@@ -372,5 +408,33 @@ DrawLegendPaperBox:
     pop     de
     pop     hl
     ret
+
+; A = value to output, C = attribute, B = nextReg, modifies A and C (!)
+; The attribute addressing is very hacky (expecting OutCurrentAdr to belong to last third)
+; I mean, this whole routine is one huge hack, working only under precise conditions...
+OutErrValue:
+    call    .OutAOnce           ; write the wrong value
+    ld      a,b                 ; show also NextReg value right after it
+    ld      c,P_CYAN
+.OutAOnce:
+    push    hl
+    ld      hl,(OutCurrentAdr)  ; convert $50xx -> $5Axx
+    set     1,h
+    set     3,h
+    ; set attributes
+    ld      (hl),c
+    inc     l
+    ld      (hl),c
+    ; detect if next write would reach $50C0 character (where the ReadMe notice is)
+    inc     l
+    jp      p,.LogNotFullYet
+    bit     6,l
+    jr      z,.LogNotFullYet
+    ; if yes, disable further log output
+    ld      hl,OutErrValue      ; self-modify routine entry to just return next time
+    ld      (hl),201            ; "RET" instruction code
+.LogNotFullYet:
+    pop     hl
+    jp      OutHexaValue
 
     savesna "NRdefaul.sna", Start
