@@ -12,9 +12,11 @@ NextRegDefaultRead:
     ; $FC = extra code should handle the test
     ; Other values are expected default value (must match strictly)
     ; NextReg $22 may rarely fail the test (when INT was high during read, timing issue)
+    ; Clip-window registers $18..$1A require also writing to read them, so they are
+    ; tested fully in the custom-write mode, skipping read-only phase.
     ;    x0  x1  x2  x3  x4  x5  x6  x7  x8  x9  xA  xB  xC  xD  xE  xF
     db  $FD,$FD,$FE,$FD,$FF,$FE,$00,$00,$10,$00,$FF,$FF,$FF,$FF,$FE,$FF ; $00..0F
-    db  $00,$FF,$08,$0B,$E3,$00,$00,$00,$FC,$FC,$FC,$FF,$2A,$FF,$FE,$FE ; $10..1F
+    db  $00,$FF,$08,$0B,$E3,$00,$00,$00,$FF,$FF,$FF,$FF,$2A,$FF,$FE,$FE ; $10..1F
     db  $FF,$FF,$00,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $20..2F
     db  $FF,$FF,$00,$00,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $30..3F
     db  $00,$00,$0F,$00,$FC,$FF,$FF,$FF,$FF,$FF,$00,$E3,$FF,$FF,$FF,$FF ; $40..4F
@@ -97,6 +99,11 @@ RESULT_WRITE_SKIP_FLAG  equ 4
 RESULT_WRITE_DONE_FLAG  equ 8
 RESULT_WRITE_VERIFY_ERR equ RESULT_DEF_READ_ERR
 RESULT_DEBUG            equ 12
+
+DataDefaultClipWindow:
+    db      0, 255, 0, 191
+    db      0, 0, 0, 0          ; buffer for new coordinates (phase1) (at +4 address)
+    db      0, 0, 0, 0          ; buffer for new coordinates (phase2) (at +8 address)
 
 LegendBoxGfx:
     db      $D5, $80, $01, $80, $01, $80, $01, $AB, 0
@@ -242,10 +249,7 @@ CustomReadDefaultTest:
     ld      a,b
     cp      $44
     jr      z,.Read9bPal
-    ; 18..1A clip windows: all should read 0,255,0,191
-    ld      iy,DataDefaultClipWindow
-    ld      c,4
-    call    CheckMultiReads
+    ld      e,RESULT_DEBUG
     jr      TestWrite
 .Read9bPal:
     ; at this point palette index $40 was set to 0x70, one write on $41 (index => 0x71),
@@ -271,36 +275,14 @@ CheckMultiReads:
 
 CustomWriteTest:
     ld      a,b
+    cp      $1B
+    jr      c,.ClipWindowCustomTest
     cp      $44
     jr      z,.Set9bPal
-    ; 18..1A clip windows: write 4 coordinates: port^$1A, 278-port, 2*(port^$1A), 214-port
-    ; prepare coordinates data into buffer
-    ld      iy,DataWriteClipWindow
-    ld      a,22                ; to end with (278-port) result (8b wrapped around)
-    sub     b
-    ld      (iy+1),a
-    ld      a,214
-    sub     b
-    ld      (iy+3),a
-    ld      a,b
-    xor     $1A
-    ld      (iy+0),a
-    add     a,a
-    ld      (iy+2),a
-    ; write prepared data to nextReg
-    ld      c,4
-    call    .MultiWrites
-    ; now verify the data were written successfully (plus reset clip-reg-index back to 0)
-    ld      iy,DataWriteClipWindow
-    ld      c,4
-    call    CheckMultiReads
-    ; do two more reads to move internal index of clip window register from 0 to 2
-    ld      a,b
-    call    ReadNextReg
-    ld      a,b
-    call    ReadNextReg
+    ld      e,RESULT_DEBUG
     jp      DisplayResults
 
+; set 9bit palette custom test
 .Set9bPal:
     ld      iy,Data9bColourWrite
     ld      c,2
@@ -321,8 +303,55 @@ CustomWriteTest:
     jr      nz,.MultiWrites
     ret
 
-DataDefaultClipWindow:
-    db      0, 255, 0, 191
+; 18..1A clip windows: write 4 coordinates: port^$1A, 278-port, 2*(port^$1A), 214-port
+; (also validates the default {0, 255, 0, 191} content
+.ClipWindowCustomTest:
+    ; prepare new coordinates data into buffer (twice, at +4 and +8 offsets)
+    ld      iy,DataDefaultClipWindow
+    ld      a,22                ; to end with (278-port) result (8b wrapped around)
+    sub     b
+    ld      (iy+1+4),a          ; X2
+    ld      (iy+1+8),a
+    ld      a,214
+    sub     b
+    ld      (iy+3+4),a          ; Y2
+    ld      (iy+3+8),a
+    ld      a,b
+    xor     $1A
+    ld      (iy+0+4),a          ; X1
+    ld      (iy+0+8),a
+    add     a,a
+    ld      (iy+2+4),a          ; Y1
+    ld      (iy+2+8),a
+    ; the sub-index of particular clip window register is incremented only upon write
+    ; so the following test has to both verify default value and then write new value
+    ld      e,RESULT_DEF_READ_OK
+    call    .ReadWriteClipWindowTest
+    set     3,e                 ; E |= 0x08 to signal write survival
+    ; do the second round of read+write (new value check, new value write) = verification
+    call    .ReadWriteClipWindowTest
+    ; do two more writes just to bump index of clip register to 2
+    ld      a,(iy+0)
+    call    WriteNextRegByIo
+    ld      a,(iy+1)
+    call    WriteNextRegByIo
+    jp      DisplayResults
+.ReadWriteClipWindowTest:
+    ld      c,4
+.ReadWriteClipWindowLoop:       ; will test default value and write new value then
+    ld      a,b
+    call    ReadNextReg
+    cp      (iy)
+    jr      z,.ClipWindowDataMatched
+    ld      e,RESULT_DEF_READ_ERR   ; set error result if even one does not match
+.ClipWindowDataMatched:
+    ld      a,(iy+4)
+    ; A=value to write, B=NextReg - write it to next reg (through I/O ports)
+    call    WriteNextRegByIo
+    inc     iy
+    dec     c
+    jr      nz,.ReadWriteClipWindowLoop
+    ret
 
 Data9bColourRead:
     db      $71, $01
@@ -332,9 +361,6 @@ Data9bColourWrite:
 
 Data9bColourVerify:
     db      $72, $01
-
-DataWriteClipWindow:
-    db      0, 0, 0, 0
 
 DrawLegend:
     ld      hl,LegendText
