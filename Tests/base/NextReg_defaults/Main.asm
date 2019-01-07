@@ -82,7 +82,7 @@ NextRegWriteInfo:       ; must follow NextRegDefaultRead in memory, at 256B boun
     db  $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $F0..FF
 
     ALIGN 256
-ResultToPaperColurConversion:
+ResultToPaperColourConversion:
     ;   none, any-read, read-OK, read-ERR
     db  P_WHITE, P_CYAN|A_BRIGHT, P_GREEN|A_BRIGHT, P_RED
     db  P_WHITE|A_BRIGHT, P_CYAN, P_GREEN, P_RED        ; variants of result for W-skip
@@ -97,6 +97,29 @@ RESULT_WRITE_SKIP_FLAG  equ 4
 RESULT_WRITE_DONE_FLAG  equ 8
 RESULT_WRITE_VERIFY_ERR equ RESULT_DEF_READ_ERR
 RESULT_DEBUG            equ 12
+
+LegendBoxGfx:
+    db      $D5, $80, $01, $80, $01, $80, $01, $AB, 0
+
+LegendPapersData:
+    db      P_WHITE, P_WHITE|A_BRIGHT, P_GREEN|A_BRIGHT, P_CYAN|A_BRIGHT
+    db      P_GREEN, P_CYAN, P_MAGENTA|A_BRIGHT, P_YELLOW, P_RED, P_BLUE
+    db      0
+
+LegendText:
+    db      '** Legend **',0
+    db      ' no NextReg',0
+    db      ' W      skip',0
+    db      ' R+W      OK',0
+    db      ' R+W  weakOK',0
+    db      ' Wskip,R  OK',0
+    db      ' Wskip,R wOK',0
+    db      ' W      done',0
+    db      ' R+W OK,dERR',0
+    db      ' R/W/d ERROR',0
+    db      ' R/W  freeze',0
+    db      0                       ; empty string to terminate legend loop
+    db      'For details check: ReadMe.txt',0
 
     INCLUDE "..\..\TestFunctions.asm"
     INCLUDE "..\..\OutputFunctions.asm"
@@ -126,7 +149,7 @@ TestOneNextReg:
     call    ReadNextReg         ; A = NextReg[register-to-test]
     ld      d,a                 ; D = copy of value read from port
     cp      c                   ; compare with expected value
-    jr      z,.ReadsCorrectDefaultValue     ; may accidentally colide with $FE and $FD (!)
+    jr      z,.ReadsCorrectDefaultValue ; may accidentally collide with $FE and $FD (!)
         ; but the risk is so unlikely, and code simplicity gain high, that it's done.
     inc     c                   ; detect $FE => "any value" requirement
     inc     c
@@ -195,7 +218,7 @@ TestWrite:
 DisplayResults:
     dec     ixh                 ; restore IX to the READ info table
     ; change grid cell colour according to result
-    ld      d,ResultToPaperColurConversion>>8
+    ld      d,ResultToPaperColourConversion>>8
     ld      a,(de)
     ld      (hl),a
     ; move to next register
@@ -361,28 +384,5 @@ DrawLegendPaperBox:
     pop     de
     pop     hl
     ret
-
-LegendBoxGfx:
-    db      $D5, $80, $01, $80, $01, $80, $01, $AB, 0
-
-LegendText:
-    db      '** Legend **',0
-    db      ' no NextReg',0
-    db      ' W      skip',0
-    db      ' R+W      OK',0
-    db      ' R+W  weakOK',0
-    db      ' Wskip,R  OK',0
-    db      ' Wskip,R wOK',0
-    db      ' W      done',0
-    db      ' R+W OK,dERR',0
-    db      ' R/W/d ERROR',0
-    db      ' R/W  freeze',0
-    db      0                       ; empty string to terminate legend loop
-    db      'For details check: ReadMe.txt',0
-
-LegendPapersData:
-    db      P_WHITE, P_WHITE|A_BRIGHT, P_GREEN|A_BRIGHT, P_CYAN|A_BRIGHT
-    db      P_GREEN, P_CYAN, P_MAGENTA|A_BRIGHT, P_YELLOW, P_RED, P_BLUE
-    db      0
 
     savesna "NRdefaul.sna", Start
