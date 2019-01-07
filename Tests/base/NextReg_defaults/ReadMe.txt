@@ -3,14 +3,13 @@ in some cases for known default values (keeping it relaxed where the default val
 unclear and may depend on user config, like 50/60Hz, etc.).
 
 The implemented set of Next registers is according to info about core 2.00.23, at least
-how I parsed it from the update/forum posts by core-team members, but I don't have the
-board or core to validate all of these on actual HW, so at this moment the test may
-contain inacurracte/invalid assumptions.
+how I parsed it from the update/forum posts by core-team members. There were some
+mistakes in first version, and the fixing is going on (both wiki pages and this code).
 
 The machine is expected to be configured as ZX48 with NEXT functionality allowed, but
 mostly OFF (expected: turbo speed OFF, memory contention as ZX48, ...)
-(or to put it in other words, most of the defaults are expected as after power-on/reset
-specified in https://www.specnext.com/tbblue-io-port-system/ )
+Or to put it in other words, the expected defaults are as after power-on and booting
+into ZX48 mode, defaults specified in: https://www.specnext.com/tbblue-io-port-system/
 
 There is 16x16 grid making up for 256 possible NextReg values (see labels for hexa
 notation for number of particular grid cell), which is being colour coded as the test
@@ -64,7 +63,7 @@ understand what kind of error is reported (check the source code for extra comme
 some particular cases), or open an issue on github to get extra explanation.
 
 - the preconditions to make this test (at least somewhat) functional is to have:
-* Z80 emulation (Z80N is not needed, only standard Z80 instructions are used)
+* Z80 emulation (Z80N is not needed, only Z80 instructions are used)
 * ZX48 ROM mapped into address space, precisely the character graphics ($3D00..$3FFF)
 * ZX48 standard ULA graphics mode (256x192 bitmap at $4000 with attributes at $5800)
 * ZXN "NextRegs" being readable/writeable through I/O ports $243B and $253B
@@ -107,8 +106,9 @@ $16, $17: Layer2 [x,y] scroll set to [$55, $56]
 
 $18, $19, $1A: clip windows are set to {port^$1A, 278-port, (port^$1A)*2, 214-port},
  i.e. L2: {2, 254, 4, 190}, Sprites: {3, 253, 6, 189}, ULA: {0, 252, 0, 188}
- - all reads and writes are done for all four values, and finally two more reads are done,
- so the internal indices for $1C "default" read should be {2, 2, 2} ($2A)
+ - the reads don't increment particular register-index, so the tests skip "read-only"
+ phase, and all testing is done in custom-write part of code. The test will leave
+ each index at Y1 (after X2 write), i.e. index==2, so the $1C read should produce $2A.
 
 $1C: reset of all internal clip-window-indices is requested
 
@@ -121,6 +121,8 @@ $32, $33: LoRes scroll [x,y] set to [$66, $67].
 
 $34: Sprite attribute-index is set to $3B, in unlinked fashion
 $35, $36, $37, $38, $39: some sprite attributes for sprite $3B: {$00,$00,$0F,$3F,$0A}
+
+WARNING: palette tests need to be fixed, the actual HW does not work like this:
 
 $40: palette index is set to $70 (as first thing of them)
 $41:
