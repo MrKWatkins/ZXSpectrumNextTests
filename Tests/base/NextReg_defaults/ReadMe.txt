@@ -3,11 +3,12 @@ Next-register availability and default-value test
 
 This test does very basic read+write to every Next-register known to it, testing also
 in some cases for known default values (keeping it relaxed where the default value is
-unclear and may depend on user config, like 50/60Hz, etc.).
+unclear and may depend on user configuration, like 50/60Hz, etc.).
 
-The implemented set of Next registers is according to info about core 2.00.23, at least
-how I parsed it from the update/forum posts by core-team members. There were some
-mistakes in first version, and the fixing is going on (both wiki pages and this code).
+The implemented set of Next registers is according to info about core 2.00.24. The current
+version of test works on real board - the photo shows results with core 2.00.23, where
+sprite index read fails, but that one works in 2.00.24 (as can be seen on older photo,
+where the fails in other registers were mistakes in the test code, now fixed).
 
 The machine is expected to be configured as ZX48 with NEXT functionality allowed, but
 mostly OFF (expected: turbo speed OFF, memory contention as ZX48, ...)
@@ -43,11 +44,12 @@ bright green
       - (R/W) - as (R), then write, read expected value back (strict test of W result)
 
 The "default" value is either defined strictly (exact value) or weakly (non-zero value
-expected as default, then zero value will be reported as "red" colour code)
+expected as default, then zero value will be reported as "red" colour code), or not
+tested at all (any value is ok).
 
 Unfortunately, the colour coding is not as simple as I expected, as the total amount
-of combinations is quite a bit higher, so use source code + debugging to get more precise
-info.
+of combinations is quite a bit higher. You can use source code + debugging to get more
+precise info about what is being tested and at which stage it failed.
 
 As an observable side-effect, the test will also set clip window and transparency fallback
 registers in such way, that right + bottom of pixel-area (256x192) should display 3 pixel
@@ -58,10 +60,10 @@ In case of failure, the unexpected value is printed into "LOG" (bottom third of 
 * yellow = "default value" kind of test
 * red = "verify write" kind of test
 * cyan = NextRegister number for the previously reported "bad values"
-* any colours without numbers = the ROM char gfx got unmapped due to MMU1 read failure.
+* empty/garbage colours boxes = the ROM char gfx got unmapped due to MMU1 read failure.
 
 For clip-window test there may be printed multiple wrong values for single NextReg (one
-to four for "defaults", and one to four for "verify", but there's no indentification
+to four for "defaults", and one to four for "verify", but there's no identification
 which value was printed - except when all four are printed :) ), other test should always
 produce value+NextReg pairs (sorry for NextReg being second, but it made the code a bit
 shorter). This info may still require full code review of test to fully understand why
@@ -130,15 +132,18 @@ $15: %0000_0010: all default, except sprites over border allowed (but invisible)
 
 $16, $17: Layer2 [x,y] scroll set to [$55, $56]
 
-WARNING: clip-window tests need to be confirmed, that they work as HW is designed
-
 $18, $19, $1A: clip windows are set to {port^$1A, 278-port, (port^$1A)*2, 214-port},
  i.e. L2: {2, 254, 4, 190}, Sprites: {3, 253, 6, 189}, ULA: {0, 252, 0, 188}
  - the reads don't increment particular register-index, so the tests skip "read-only"
  phase, and all testing is done in custom-write part of code. The test will leave
  each index at Y1 (after X2 write), i.e. index==2, so the $1C read should produce $2A.
+ The test consists of reading the register (i.e. X1 value on first read is expected),
+ then writing the new X1, and so on. It does two rounds, first time expecting default
+ clip window 0,255,0,191, second time expecting (and writing back again) the new
+ clip window coordinates, as mentioned above. Finally two more re-writes are done to set
+ index to "2" (pointing at Y1). Fails in 1st round are yellow, 2nd round fails are red.
 
-$1C: reset of all internal clip-window-indices is requested
+$1C: reset of all internal clip-window-indices (pointing back to X1) is requested
 
 $22, $23: line interrupt is set to $102, but not enabled (original ULA interrupt is kept)
 
@@ -149,8 +154,6 @@ $32, $33: LoRes scroll [x,y] set to [$66, $67].
 
 $34: Sprite attribute-index is set to $3B, in unlinked fashion
 $35, $36, $37, $38, $39: some sprite attributes for sprite $3B: {$00,$00,$0F,$3F,$0A}
-
-WARNING: palette tests need to be confirmed, that they work as HW is designed
 
 $40: palette index is set to $70 (as first thing of them)
 $41:
