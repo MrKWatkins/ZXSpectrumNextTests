@@ -1,0 +1,3 @@
+Test ideas:
+
+- CSpect seems to render 9b colours $B600/$B601 weird, the blue value seems shifted in either case.
