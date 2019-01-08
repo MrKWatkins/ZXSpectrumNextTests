@@ -129,6 +129,9 @@ LegendText:
     db      ' R/W/d ERROR',0
     db      ' R/W  freeze',0
     ; count of legend-labels is deducted from LegendPapersDataSize -> keep it synced
+LegendMachineId:
+    db      'MachineID:',0
+    db      'core',0
 ReadmeNoticeText:
     db      'For details check: ReadMe.txt',0
 
@@ -162,6 +165,8 @@ TestOneNextReg:
     ld      a,b
     call    ReadNextReg         ; A = NextReg[register-to-test]
     ld      d,a                 ; D = copy of value read from port
+    ld      (ix),a              ; also store it directly in default-read table
+        ; will be used at the very end of test to display HW info, plus backup for debug.
     cp      c                   ; compare with expected value
     jr      z,.ReadsCorrectDefaultValue ; may accidentally collide with $FE and $FD (!)
         ; but the risk is so unlikely, and code simplicity gain high, that it's done.
@@ -245,8 +250,8 @@ DisplayResults:
     ; move to next register
     inc     ix
     inc     hl
-    inc     b
-    call    z,EndTest           ; terminate on B=0
+    inc     b                   ; terminate on B=0
+    jp      z,DrawMachineInfoAndFinish
     ; detect "new line" in terms of 16x16 grid
     ld      a,$0F
     and     b
@@ -366,6 +371,44 @@ CustomWriteTest:
     jr      nz,.ReadWriteClipWindowLoop
     ret
 
+DrawMachineInfoAndFinish:
+    ; fix MMU1 mapping to make my life easier when testing with CSpect emulator
+    ld      a,$FF
+    ld      b,MMU1_2000_NR_51
+    call    WriteNextRegByIo
+    ; Display MachineID and core version values
+    ld      ix,NextRegDefaultRead
+    ld      hl,MEM_ZX_SCREEN_4000 + 32*64 + (14-8)*32 + 29    ; char pos [14,29] (2nd 1/3)
+    ld      (OutCurrentAdr),hl
+    ld      a,(ix+MACHINE_ID_NR_00)
+    call    OutDecimalValue
+    ; show major version number (upper 4 bits)
+    ld      hl,MEM_ZX_SCREEN_4000 + 32*64 + (15-8)*32 + 23    ; char pos [15,23] (2nd 1/3)
+    ld      a,(ix+NEXT_VERSION_NR_01)
+    rrca
+    rrca
+    rrca
+    rrca
+    and     $0F
+    ; move version output one char to right when major is less than 10
+    ld      de,0
+    cp      10
+    adc     hl,de
+    ld      (OutCurrentAdr),hl
+    call    OutDecimalValue
+    ld      a,'.'
+    call    OutChar
+    ; show minor version number (bottom 4 bits)
+    ld      a,(ix+NEXT_VERSION_NR_01)
+    and     $0F
+    call    OutDecimalValue
+    ld      a,'.'
+    call    OutChar
+    ; show sub-minor version number
+    ld      a,(ix+NEXT_VERSION_MINOR_NR_0E)
+    call    OutDecimalValue
+    jp      EndTest
+
 DrawLegend:
     ld      hl,LegendText
     ld      de,$4033
@@ -380,11 +423,19 @@ DrawLegend:
     ex      de,hl
     dec     c
     jr      nz,.LineLoop
+    ; draw the HW info labels (HL now points at LegendMachineId)
+    ld      b,2
+.MachineInfoLabelLoop:
+    ex      de,hl
+    call    AdvanceVramHlToNextLine
+    ex      de,hl
+    call    OutStringAtDe
+    djnz    .MachineInfoLabelLoop
     ; draw the general "ReadMe.txt" message at bottom (HL already points at it)
     ld      de,$50C0            ; and HL = ReadmeNoticeText
     call    OutStringAtDe
     ; color the label boxes
-    ld      hl,$5873
+    ld      hl,MEM_ZX_ATTRIB_5800+(3*32)+19     ; char pos [3,19]
     ld      de,LegendPapersData
     ld      b,LegendPapersDataSize
 .BoxColourLoop:

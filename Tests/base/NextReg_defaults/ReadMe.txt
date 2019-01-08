@@ -5,6 +5,11 @@ This test does very basic read+write to every Next-register known to it, testing
 in some cases for known default values (keeping it relaxed where the default value is
 unclear and may depend on user configuration, like 50/60Hz, etc.).
 
+The displayed values are all always hexadecimal, except the MachineID and core versions
+under the "legend" part, those are decimal, as having core "2.0.16" instead of "2.0.22"
+felt very confusing. But now it feels confusing to have hexadecimal everywhere else...
+Then again, it's just a small test targetted at emu-writers, so it's "good enough".
+
 The implemented set of Next registers is according to info about core 2.00.24. The current
 version of test works on real board - the photo shows results with core 2.00.23, where
 sprite index read fails, but that one works in 2.00.24 (as can be seen on older photo,
