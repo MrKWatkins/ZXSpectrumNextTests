@@ -15,6 +15,7 @@
 ; * OutChar                         - output char A at VRAM (OutCurrentAdr)++
 ; * OutHexaDigit                    - output value A[3:0] as hexa-digit at OutCurrentAdr
 ; * OutHexaValue                    - output value A as two hexa-digits at OutCurrentAdr
+; * OutDecimalValue                 - output value A as one-three decimal digits at OutC..
 ; * OutString                       - output zero-terminated string (HL) at OutCurrentAdr
 ; * OutStringAtDe                   - as OutString, but sets OutCurrentAdr to DE first
 ; * FillSomeUlaLines                - Fills C char-lines with pattern D (B columns only)
@@ -114,6 +115,37 @@ OutHexaValue:
     rrca
     call    OutHexaDigit
     ret
+
+; output value in A as one to three 0-9 characters at "OutCurrentAdr"
+; this is naive subtraction-loop implementation just to get the result, not fast/smart
+; modifies OutCurrentAdr and AF
+OutDecimalValue:
+    push    bc
+    ld      bc,$FF00 | 100          ; b = -1, c = 100
+    call    .FindDecimalDigit
+    call    .OutDecDigitIfNonZero
+    ld      a,c
+    ld      bc,$FF00 | 10           ; b = -1, c = 10
+    call    .FindDecimalDigit
+    call    .OutDecDigitIfNonZero
+    ; output final digit (even zero)
+    ld      a,c
+    pop     bc
+    jr      .OutDecDigit
+.FindDecimalDigit:
+    inc     b
+    sub     c       ; if A is less than current 10th power, CF will be set
+    jr      nc,.FindDecimalDigit
+    add     c       ; fix A back above zero (B is OK, as it started at -1)
+    ret
+.OutDecDigitIfNonZero:
+    ld      c,a
+    xor     a
+    or      b
+    ret     z
+.OutDecDigit:
+    add     a,'0'
+    jr      OutChar
 
 ; output zero terminated string from HL address into VRAM at DE (HL points after zero)
 OutStringAtDe:
