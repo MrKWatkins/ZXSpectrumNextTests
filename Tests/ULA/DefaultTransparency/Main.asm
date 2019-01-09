@@ -14,7 +14,7 @@ Start
 
 	call FillLayer2WithTestData
 
-	ld a, %01011000
+	ld a, P_MAGENTA|A_BRIGHT
 	call SetPaperWithA
 
 	call EndTest
