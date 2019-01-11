@@ -1,6 +1,19 @@
-StartTest
-	di		; Turn off interrupts in case they interfere.
-	ret
+StartTest:
+    di                      ; Turn off interrupts in case they interfere.
+    ; clear ULA screen to: BORDER 7 : PAPER 7 : INK 0 : CLS
+    ; - this removes any ULA artefacts left by SNA loaders and majority of tests expects
+    ;   this "BASIC" state of screen, so let's make sure it is like that.
+    ld      a,WHITE
+    out     (ULA_P_FE),a    ; BORDER 7
+    ld      hl,MEM_ZX_SCREEN_4000
+    ld      de,MEM_ZX_SCREEN_4000+1
+    ld      bc,32*24*8      ; 6144 bytes of pixel data, also C = 0 (!)
+    ld      (hl),c
+    ldir                    ; HL==MEM_ZX_ATTRIB_5800, DE==HL+1
+    ld      (hl),P_WHITE|BLACK
+    ld      bc,32*24-1      ; and overwrite remaining 767 bytes
+    ldir
+    ret
 
 EndTest
 	jr EndTest	; Loop forever so we can take a screengrab.
