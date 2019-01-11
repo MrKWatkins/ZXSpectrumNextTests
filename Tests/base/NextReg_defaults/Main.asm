@@ -139,14 +139,14 @@ ReadmeNoticeText:
     INCLUDE "..\..\OutputFunctions.asm"
 
 Start:
+    call StartTest
+
     call Draw16x16GridWithHexaLabels
 
     call DrawLegend
     ; Set output address for bad values logging (into last third of screen)
     ld      hl,$5020
     ld      (OutCurrentAdr),hl
-
-    call StartTest
 
     ld      b,$00                   ; B = NextReg-to-test
     ld      hl,MEM_ZX_ATTRIB_5800   ; HL = ULA attribute cell position in 16x16 grid
