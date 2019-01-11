@@ -17,20 +17,20 @@ Start
 	call ShowSprite
 
 	call CheckDefaultTransparencyIndex
-	NEXTREG_nn PALETTE_INDEX_NR_40, 1       ; Change palette[S][0][1] = A
+	NEXTREG_nn PALETTE_INDEX_NR_40, 1       ; Change palette[S][0][1] = A (green/yellow)
 	NEXTREG_A PALETTE_VALUE_NR_41
 
 	call SetIdx2ColourInSpritePaletteToTransparent
 
 	call EndTest
 
-CheckDefaultTransparencyIndex:              ; returns green (OK)/red (ERR) colour in A
+CheckDefaultTransparencyIndex:              ; returns green (OK)/yellow (ERR) colour in A
     ; test sprite transparency index
     NEXTREG2A SPRITE_TRANSPARENCY_I_NR_4B
     cp  $E3                                 ; A=E3 should be true after reset
-    ld  a,$0C                               ; return green colour when OK
+    ld  a,%00001100                         ; return green colour when OK
     ret z
-    ld  a,$E0                               ; return red when error
+    ld  a,%10010000                         ; return yellow when error
     ret
 
 SetIdx2ColourInSpritePaletteToTransparent:
