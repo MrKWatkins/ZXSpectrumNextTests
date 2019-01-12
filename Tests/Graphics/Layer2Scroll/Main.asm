@@ -5,20 +5,13 @@
     INCLUDE "..\..\Constants.asm"
     INCLUDE "..\..\Macros.asm"
     INCLUDE "..\..\TestFunctions.asm"
+    INCLUDE "..\..\TestData.asm"
     INCLUDE "..\..\OutputFunctions.asm"
 
     ; ULA white $B601 (%101 per channel)
 
-    MACRO FILL_AREA adr, size, value
-        ld      hl,adr
-        ld      de,adr+1
-        ld      bc,size-1
-        ld      (hl),value
-        ldir
-    ENDM
-
 XOFS        equ     196
-YOFS        equ     5+64+64     ; if writing emulator, try all: 5+0, 5+64, 5+64+64
+YOFS        equ     133             ; intentionally over 128 to finish in 3rd third
 
 Start:
     call    StartTest
@@ -48,10 +41,9 @@ Start:
     NEXTREG_nn GLOBAL_TRANSPARENCY_NR_14, $FC       ; global transparency colour
     ; setup Layer2 bank to 9 (like NextZXOS does)
     NEXTREG_nn LAYER2_RAM_PAGE_NR_12, 9
-    ; clear+draw ULA screen0
-    FILL_AREA   MEM_ZX_SCREEN_4000, 32*192, 0
-    FILL_AREA   MEM_ZX_ATTRIB_5800, 32*24, P_WHITE|BLUE
-    call    DrawUlaPart
+    ; draw ULA screen0
+    FILL_AREA   MEM_ZX_ATTRIB_5800, 32*24, P_WHITE|BLUE ; change attributes
+    call    DrawUlaPart             ; draw lines
     ; make Layer2 visible
     ld      bc, LAYER2_ACCESS_P_123B
     ld      a, LAYER2_ACCESS_L2_ENABLED
@@ -78,7 +70,7 @@ Start:
     ld      ix,0
     ld      iy,0
     ld      hl,XOFS*2       ; fixed point math 8.8 for 128 steps, i.e. the final coords.
-    ld      de,YOFS*2       ; will be [XOFS,YOFS] in top 8 bits in [ixh, iyh]
+    ld      de,YOFS*2       ; will be [XOFS,YOFS] in top 8 bits of [ix, iy]
     ld      b,128
 .ScrollLoop:
     ei
@@ -139,7 +131,7 @@ DrawLayer2Part:
     ld      c,3
     call    DoLinesLoop
     ; draw vertical dotted light blue lines just around the ULA lines
-    ld      hl,((40+YOFS) MOD 192)*256 + (40+XOFS-1)  ; 1 pixel left of ULA pixel
+    ld      hl,((40+YOFS) MOD 192)*256 + ($FF&(40+XOFS-1))  ; 1 pixel left of ULA pixel
     ld      bc,(20<<8) + 2  ; B = 20 pixels counter, C = ligh blue colour
     ld      de,$0200        ; +2 down, +0 sideways (between line pixels)
     ld      ix,$0008        ; +0 up, +8 right between whole lines
@@ -161,23 +153,23 @@ DrawLayer2Part:
     inc     l
     call    DoLinesLoop
     ; draw vertical almost-black part of lines (connecting to ULA lines)
-    ld      hl,((41+YOFS) MOD 192)*256 + (40+XOFS)  ; start 2px over ULA line (overdraw)
+    ld      hl,((41+YOFS) MOD 192)*256 + ($FF&(40+XOFS))  ; start 2px over ULA line (overdraw)
     ld      bc,(20<<8) + 3  ; B = 20 pixels counter, C = blue-ish black colour
     ld      de,$FF00        ; -1 up, +0 sideways
     ld      ix,$FF08        ; -1 up, +8 right between lines
     ld      a,5             ; 5 lines loop
     call    DoLinesLoop
     ld      d,$01           ; +1 down
-    ld      h,(78+YOFS)     ; start 2px over ULA line (overdraw)
+    ld      h,(78+YOFS) MOD 192 ; start 2px over ULA line (overdraw)
     ld      ix,$0108        ; +1 down, +8 right between lines
     call    DoLinesLoop
     ; draw horizontal almost-black part of lines (connecting to ULA lines)
-    ld      hl,((112+YOFS) MOD 192)*256 + (255&(177+XOFS))  ; start 2px over ULA line (overdraw)
+    ld      hl,((112+YOFS) MOD 192)*256 + ($FF&(177+XOFS))  ; start 2px over ULA line (overdraw)
     ld      de,$00FF        ; +0 up, -1 left
     ld      ix,$08FF        ; +8 down, -1 left between lines
     call    DoLinesLoop     ; use same BC and A as above
     ld      e,$01           ; +1 right
-    ld      l,0xFF&(38+176+XOFS)     ; start 2px over ULA line (overdraw)
+    ld      l,$FF&(38+176+XOFS)     ; start 2px over ULA line (overdraw)
     ld      ix,$0801        ; +8 down, +1 right between lines
     call    DoLinesLoop
     ret
