@@ -24,7 +24,8 @@ Start:
     NEXTREG_nn PALETTE_INDEX_NR_40, 128+7   ; Change border 7
     NEXTREG_nn PALETTE_VALUE_9BIT_NR_44, $10
     NEXTREG_nn PALETTE_VALUE_9BIT_NR_44, $00; Set to "green"
-    ; bright cyan as transparency fallback
+    ; bright cyan as transparency fallback, and set global transparency to "default" $E3
+    NEXTREG_nn GLOBAL_TRANSPARENCY_NR_14, $E3
     NEXTREG_nn TRANSPARENCY_FALLBACK_COL_NR_4A, $1F
 
 	call FillLayer2WithTestData
