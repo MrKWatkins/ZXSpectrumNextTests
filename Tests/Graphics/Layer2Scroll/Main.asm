@@ -66,12 +66,35 @@ Start:
     ; clear Layer2 with colour 1 (transparent)
     FILL_AREA   $0000, 256*192, $01
     call    DrawLayer2Part
-    ; and finally set the Layer2 scroll registers
-    NEXTREG_nn LAYER2_XOFFSET_NR_16, XOFS           ; X offset 201
-    NEXTREG_nn LAYER2_YOFFSET_NR_17, YOFS           ; Y offset 45
-    ; and finish test (blue border)
+    ; map ROM and low RAM back to make im1 work!
+    NEXTREG_nn MMU0_0000_NR_50, $FF
+    NEXTREG_nn MMU1_2000_NR_51, $FF
+    NEXTREG_nn MMU2_4000_NR_52, $0A
+    NEXTREG_nn MMU3_6000_NR_53, $0B
+    ; blue border to signal next phase of test
     ld      a,BLUE
     out     (ULA_P_FE),a
+    ; and finally set the Layer2 scroll registers ; do it in "animated" way
+    ld      ix,0
+    ld      iy,0
+    ld      hl,XOFS*2       ; fixed point math 8.8 for 128 steps, i.e. the final coords.
+    ld      de,YOFS*2       ; will be [XOFS,YOFS] in top 8 bits in [ixh, iyh]
+    ld      b,128
+.ScrollLoop:
+    ei
+    halt
+    ; advance the 8.8 coordinates in [ix,iy]
+    add     iy,de
+    ex      de,hl
+    add     ix,de
+    ex      de,hl
+    ; set the scroll registers
+    ld      a,ixh
+    NEXTREG_A LAYER2_XOFFSET_NR_16
+    ld      a,iyh
+    NEXTREG_A LAYER2_YOFFSET_NR_17
+    djnz    .ScrollLoop
+    ; and finish test
     call EndTest
 
 DrawUlaPart:
