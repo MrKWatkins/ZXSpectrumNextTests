@@ -17,8 +17,8 @@
         ldir
     ENDM
 
-XOFS        equ     201
-YOFS        equ     45
+XOFS        equ     196
+YOFS        equ     5+64+64     ; if writing emulator, try all: 5+0, 5+64, 5+64+64
 
 Start:
     call    StartTest
@@ -94,8 +94,29 @@ DrawUlaPart:
     ret
 
 DrawLayer2Part:
+    ; draw X/Y axis with [0,0] origin to make the scroll coordinates "visible"
+    ld      hl,1
+    ld      de,$0001
+    ld      ix,$2000
+    ld      bc,(1<<8) + 3
+    ld      a,6
+    call    DoLinesLoop
+    ld      ixh,$08
+    ld      a,24
+    dec     l
+    ld      c,2
+    call    DoLinesLoop
+    ld      de,$0100
+    ld      ix,$0008
+    ld      a,32
+    call    DoLinesLoop
+    ld      ixl,$20
+    ld      a,8
+    inc     h
+    ld      c,3
+    call    DoLinesLoop
     ; draw vertical dotted light blue lines just around the ULA lines
-    ld      hl,(40+YOFS)*256 + (40+XOFS-1)  ; 1 pixel left of ULA pixel
+    ld      hl,((40+YOFS) MOD 192)*256 + (40+XOFS-1)  ; 1 pixel left of ULA pixel
     ld      bc,(20<<8) + 2  ; B = 20 pixels counter, C = ligh blue colour
     ld      de,$0200        ; +2 down, +0 sideways (between line pixels)
     ld      ix,$0008        ; +0 up, +8 right between whole lines
@@ -107,7 +128,7 @@ DrawLayer2Part:
     inc     h
     call    DoLinesLoop
     ; draw horizontal dotted light blue lines around the horizontal ULA lines
-    ld      hl,(112+YOFS-1)*256 + (255&(176+XOFS))  ; 1 pixel up of ULA pixel
+    ld      hl,((112+YOFS-1) MOD 192)*256 + (255&(176+XOFS))    ; 1 pixel up of ULA pixel
     ld      de,$0002        ; +0 vertically, +2 right (between line pixels)
     ld      ix,$0800        ; +8 down, +0 right between whole lines
     call    DoLinesLoop     ; BC and A remain identical
@@ -117,7 +138,7 @@ DrawLayer2Part:
     inc     l
     call    DoLinesLoop
     ; draw vertical almost-black part of lines (connecting to ULA lines)
-    ld      hl,(41+YOFS)*256 + (40+XOFS)    ; start 2px over ULA line (overdraw)
+    ld      hl,((41+YOFS) MOD 192)*256 + (40+XOFS)  ; start 2px over ULA line (overdraw)
     ld      bc,(20<<8) + 3  ; B = 20 pixels counter, C = blue-ish black colour
     ld      de,$FF00        ; -1 up, +0 sideways
     ld      ix,$FF08        ; -1 up, +8 right between lines
@@ -128,12 +149,12 @@ DrawLayer2Part:
     ld      ix,$0108        ; +1 down, +8 right between lines
     call    DoLinesLoop
     ; draw horizontal almost-black part of lines (connecting to ULA lines)
-    ld      hl,(112+YOFS)*256 + (255&(177+XOFS))    ; start 2px over ULA line (overdraw)
+    ld      hl,((112+YOFS) MOD 192)*256 + (255&(177+XOFS))  ; start 2px over ULA line (overdraw)
     ld      de,$00FF        ; +0 up, -1 left
     ld      ix,$08FF        ; +8 down, -1 left between lines
     call    DoLinesLoop     ; use same BC and A as above
     ld      e,$01           ; +1 right
-    ld      l,255&(38+176+XOFS)     ; start 2px over ULA line (overdraw)
+    ld      l,0xFF&(38+176+XOFS)     ; start 2px over ULA line (overdraw)
     ld      ix,$0801        ; +8 down, +1 right between lines
     call    DoLinesLoop
     ret
