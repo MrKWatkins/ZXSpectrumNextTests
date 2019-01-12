@@ -14,20 +14,9 @@ Start
 
 	call FillLayer2WithTestData
 
-	ld a, P_MAGENTA|A_BRIGHT
-	call SetPaperWithA
+	; set paper to bright magenta
+	FILL_AREA MEM_ZX_ATTRIB_5800, 32*24, P_MAGENTA|A_BRIGHT
 
 	call EndTest
-
-SetPaperWithA
-	ld hl, MEM_ZX_ATTRIB_5800
-	ld (hl), a			; Write A to the start of the attribute area.
-
-	ld de, MEM_ZX_ATTRIB_5800+1
-	ld bc, 767
-	ldir				; For 767 bytes we fill DE with the value from HL, i.e. copy the previous byte to the next.
-	ret
-
-
 
 	savesna "DefTrans.sna", Start
