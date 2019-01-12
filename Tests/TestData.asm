@@ -20,3 +20,26 @@ FillLayer2WithTestData:     ; takes roughly about 16 frames at 3.5MHz (~0.3s)
         ld  a, LAYER2_ACCESS_L2_ENABLED
         out (c), a
         ret
+
+; Fills BC many bytes (min 2) at address HL by value A.
+; modifies: HL (HL = orig.HL + BC)
+FillArea:
+    push    de
+    push    bc
+    ld      d,h
+    ld      e,l
+    inc     de              ; DE = HL+1
+    dec     bc              ; adjust length by 1
+    ld      (hl),a
+    ldir
+    inc     hl              ; point just beyond filled area upon return
+    pop     bc
+    pop     de
+    ret
+
+    MACRO FILL_AREA adr, size, value
+        ld      a,value
+        ld      hl,adr
+        ld      bc,size
+        call    FillArea
+    ENDM
