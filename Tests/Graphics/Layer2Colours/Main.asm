@@ -20,6 +20,7 @@ C_B_CYAN    equ     %00011011       ; 7
 C_PINK      equ     $E3             ; 8
 C_PINK2     equ     $E3             ; 9
 C_TEXT      equ     %11110011       ; 10
+C_D_TEXT    equ     %01100101       ; 11
 
 CI_BLACK    equ     0
 CI_WHITE    equ     1
@@ -32,10 +33,11 @@ CI_B_CYAN   equ     7
 CI_PINK     equ     8
 CI_PINK2    equ     9   ; for Layer2 it will get "priority" bit set
 CI_TEXT     equ     10
+CI_D_TEXT   equ     11
 
 colourDef:
     db      C_BLACK, C_WHITE, C_B_WHITE, C_T_WHITE, C_B_YELLOW, C_B_GREEN
-    db      C_B_GREEN2, C_B_CYAN, C_PINK, C_PINK2, C_TEXT
+    db      C_B_GREEN2, C_B_CYAN, C_PINK, C_PINK2, C_TEXT, C_D_TEXT
 colourDefSz equ     $ - colourDef
 
 Start:
@@ -457,15 +459,18 @@ DrawCharLabels:
 ; A = ASCII char, DE = target VRAM address (modifies A, DE)
 OutL2WhiteOnBlackCharAndAdvanceDE:
     push    bc
+    ld      c,CI_D_TEXT
+    inc     e
+    call    OutL2Char
+    dec     e
+    inc     d
+    call    OutL2Char
     ld      c,CI_BLACK
     inc     e
     call    OutL2Char
-    inc     d
-    call    OutL2Char
-    dec     e
-    call    OutL2Char
     ld      c,CI_TEXT
     dec     d
+    dec     e
     call    OutL2Char
     ; increment char position by one to right
     ld      a,8
