@@ -57,7 +57,6 @@ LoadPattern
 
 	ld bc, SPRITE_PATTERN_P_5B  ; b=0 as counter
 	ld hl, Pattern
-@Loop
 	otir                        ; send 256 bytes to $xx5B port (uploads whole pattern)
 	ret
 
