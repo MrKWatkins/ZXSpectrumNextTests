@@ -43,8 +43,8 @@ colourDefSz equ     $ - colourDef
 Start:
     call    StartTest
 
-    ; Set layers to: SLU, enable sprites + over border, no LoRes
-    NEXTREG_nn SPRITE_CONTROL_NR_15, %00000011
+    ; Set layers to: SLU, enable sprites (no over border), no LoRes
+    NEXTREG_nn SPRITE_CONTROL_NR_15, %00000001
     ; Set first-ULA palette, enable ULANext, enable auto-inc
     NEXTREG_nn PALETTE_CONTROL_NR_43, %00000001
     NEXTREG_nn PALETTE_INDEX_NR_40, 0       ; index 0   (ink)
@@ -65,13 +65,13 @@ Start:
     NEXTREG_nn PALETTE_VALUE_9BIT_NR_44, C_B_GREEN2
     NEXTREG_nn PALETTE_VALUE_9BIT_NR_44, $80    ; set priority bit, Blue=0
     NEXTREG_nn PALETTE_INDEX_NR_40, CI_PINK2
-    NEXTREG_nn PALETTE_VALUE_9BIT_NR_44, C_PINK
+    NEXTREG_nn PALETTE_VALUE_9BIT_NR_44, C_PINK2
     NEXTREG_nn PALETTE_VALUE_9BIT_NR_44, $81    ; set priority bit, Blue=1
 
     ; setup transparency features - make pink transparent and visible as fallback
     NEXTREG_nn GLOBAL_TRANSPARENCY_NR_14, C_PINK
     NEXTREG_nn TRANSPARENCY_FALLBACK_COL_NR_4A, C_PINK
-    NEXTREG_nn SPRITE_TRANSPARENCY_I_NR_4B, CI_PINK
+    NEXTREG_nn SPRITE_TRANSPARENCY_I_NR_4B, CI_PINK     ; sprite transparency needs index
     ; show yellow border while drawing and preparing...
     ld      a,CI_B_YELLOW
     out     (ULA_P_FE),a
@@ -106,13 +106,19 @@ Start:
     FILL_AREA   $0000, 256*192, CI_PINK
     call    DrawLayer2Part
 
-    ; map top ROM back to make ROM characters graphics available
+    ; map full ROM back to make ROM characters graphics available
+    NEXTREG_nn MMU0_0000_NR_50, $FF
     NEXTREG_nn MMU1_2000_NR_51, $FF
+
+    ; use Layer2-over-ROM feature to write into Layer2 for 0000..3FFF region
+    ld      a,LAYER2_ACCESS_WRITE_OVER_ROM+LAYER2_ACCESS_L2_ENABLED+LAYER2_ACCESS_OVER_ROM_BANK_0
+                ; enable layer2, write-over-ROM, and select bank 0 for write
+    ld      bc,LAYER2_ACCESS_P_123B
+    out     (c),a   ; this effectively creates L2-full-RAM mode in 0000..BFFF for WRITE
 
     call    DrawCharLabels
 
-    ; map full ROM + low RAM back to make im1 work (updates counters in $5B00+ area)
-    NEXTREG_nn MMU0_0000_NR_50, $FF
+    ; map low RAM back to make im1 work (updates counters in $5B00+ area)
     NEXTREG_nn MMU2_4000_NR_52, $0A
     NEXTREG_nn MMU3_6000_NR_53, $0B
 
@@ -358,6 +364,13 @@ PrepareSpriteGraphics:
     call    .UploadOneAttribSet
     ld      d,$20 + 0*8
     call    .UploadOneAttribSet
+
+    ; make sure all other sprites are not visible
+    ld      h,0
+    ld      b,64-4
+.SetRemainingSpritesLoop:
+    call    .UploadOneAttribSet
+    djnz    .SetRemainingSpritesLoop
     ret
 
 ;E: byte1, D: byte2, L: byte3, H: byte4
@@ -422,12 +435,6 @@ DrawDitherGfxInside16x16Box:
     ret
 
 DrawCharLabels:
-    ; this will use Layer2-over-ROM feature to write into Layer2
-    ld      a,LAYER2_ACCESS_WRITE_OVER_ROM+LAYER2_ACCESS_L2_ENABLED+LAYER2_ACCESS_OVER_ROM_BANK_0
-                ; enable layer2, write-over-ROM, and select bank 0 for write
-    ld      bc,LAYER2_ACCESS_P_123B
-    out     (c),a   ; this effectively creates L2-full-RAM mode in 0000..BF00 for WRITE
-
     ; single-letter hints into the Separate-layer graphics
     ld      de,$0400 + 8*(5+0*7+1)+4
     ld      a,'S'
