@@ -77,7 +77,6 @@ Start:
     out     (ULA_P_FE),a
 
     ; draw ULA screen0
-    FILL_AREA   MEM_ZX_ATTRIB_5800, 32*24, CI_BLACK + (CI_WHITE<<4) ; black on white
     call    DrawUlaPart             ; draw the ULA part for pixel combining
 
     ; reset Layer2 scroll registers
@@ -128,6 +127,8 @@ Start:
 
     call    EndTest
 
+;;;;;;;;;;;;;;;;;;;;;;;; Set palette (currently selected one) ;;;;;;;;;;;;;;;;;;;
+
 SetTestPalette:
     ld      hl,colourDef
     ld      b,colourDefSz
@@ -138,7 +139,11 @@ SetTestPalette:
     djnz    .SetPaletteColours
     ret
 
+;;;;;;;;;;;;;;;;;;;;;;;; Draw ULA part ;;;;;;;;;;;;;;;;;;;
+
 DrawUlaPart:
+    ; set all attributes: black on white
+    FILL_AREA   MEM_ZX_ATTRIB_5800, 32*24, CI_BLACK + (CI_WHITE<<4)
     ; last 6 characters are the final 6x4 box showing combination
     ; make ULA transparent under other "legend" boxes
     ld      hl,MEM_ZX_ATTRIB_5800 + 5
@@ -178,6 +183,7 @@ DrawUlaPart:
     djnz    .DrawNxM_AttributeBox
     ret
 
+;;;;;;;;;;;;;;;;;;;;;;;; Draw Layer2 part ;;;;;;;;;;;;;;;;;;;
 
 DrawLayer2Part:
     ; draw "backgrounds" fill of "legend" boxes, draw expected result area and also
@@ -328,6 +334,8 @@ FillL2Box:
     pop     ix
     ret
 
+;;;;;;;;;;;;;;;;;;;;;;;; Setup Sprites part ;;;;;;;;;;;;;;;;;;;
+
 SPR_DITHER_BOX_GFX  equ     $0300 + CI_BLACK
 
 PrepareSpriteGraphics:
@@ -394,6 +402,8 @@ PrepareSpriteGraphics:
     cp      h
     jr      nz,.UploadOnePatternPixels
     ret
+
+;;;;;;;;;;;;;;;;;;;;;;;; Helper functions ;;;;;;;;;;;;;;;;;;;
 
 ; HL: coordinates, E:colour, D:ditherMask (pixels-1)
 DrawDitherGfxInside16x16Box:
@@ -464,7 +474,7 @@ DrawCharLabels:
     ret
 
 ; A = ASCII char, DE = target VRAM address (modifies A, DE)
-OutL2WhiteOnBlackCharAndAdvanceDE:
+OutL2WhiteOnBlackCharAndAdvanceDE:  ; whiteOnBlack has become "bright pink on black"
     push    bc
     ld      c,CI_D_TEXT
     inc     e
