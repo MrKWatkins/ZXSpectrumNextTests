@@ -40,11 +40,14 @@ colourDef:
     db      C_B_GREEN2, C_B_CYAN, C_PINK, C_PINK2, C_TEXT, C_D_TEXT
 colourDefSz equ     $ - colourDef
 
+    MACRO   IDLE_WAIT loop_count
+        ld      bc,loop_count
+        call    WaitSomeIdleTime
+    ENDM
+
 Start:
     call    StartTest
 
-    ; Set layers to: SLU, enable sprites (no over border), no LoRes
-    NEXTREG_nn SPRITE_CONTROL_NR_15, %00000001
     ; Set first-ULA palette, enable ULANext, enable auto-inc
     NEXTREG_nn PALETTE_CONTROL_NR_43, %00000001
     NEXTREG_nn PALETTE_INDEX_NR_40, 0       ; index 0   (ink)
@@ -120,12 +123,76 @@ Start:
     ; map low RAM back to make im1 work (updates counters in $5B00+ area)
     NEXTREG_nn MMU2_4000_NR_52, $0A
     NEXTREG_nn MMU3_6000_NR_53, $0B
+    ; all drawing is now finished, the test will enter loop just changing layer-modes
 
-    ; grey border to signal end of test
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ; loop infinitely and set correct layer ordering for various parts of screen
+
+    ; the TEST areas (except the first one) are at x:88 coordinate, giving probably
+    ; almost enough time to control register NR_15 to kick-in and modify output.
+
+    ; The scanline does change at pixel x:0, i.e. after that there are instructions:
+    ; IN 12T, JR cc 7T, RET 10T, NEXTREG_nn 20T
+    ; => roughly 49T until the layer order is modified (first pixels of TEST may be wrong)
+
+    ; (better solution would be to use COPPER for these, but when written like this,
+    ; the test does not depend on COPPER existance/emulation, so it's written like this)
+
+ScanlinesLoop:
+    ei
+    halt
+    ld      a,CI_WHITE
+    out     (ULA_P_FE),a
+    ;; SLU phase (first 32 scanlines)
+    ; Set layers to: SLU, enable sprites (no over border), no LoRes
+    NEXTREG_nn SPRITE_CONTROL_NR_15, %00000001
+    ; wait some fixed time after IM1 handler to get into scanlines 255+
+    IDLE_WAIT   $0002
+    ; wait until scanline MSB becomes 0 again (scanline 0)
+    ld      l,0
+    call    WaitForScanlineMSB
+    ; grey border for SLU area
     ld      a,CI_T_WHITE
     out     (ULA_P_FE),a
+    ; wait until scanline 32
+    ld      l,32
+    call    WaitForScanline
+    ;; LSU phase (scanlines 32..63) - white border
+    NEXTREG_nn SPRITE_CONTROL_NR_15, %00000101
+    ld      a,CI_WHITE
+    out     (ULA_P_FE),a
+    ld      l,64
+    call    WaitForScanline
+    ;; SUL phase (scanlines 64..95) - grey border
+    NEXTREG_nn SPRITE_CONTROL_NR_15, %00001001
+    ld      a,CI_T_WHITE
+    out     (ULA_P_FE),a
+    ld      l,96
+    call    WaitForScanline
+    ;; LUS phase (scanlines 96..127) - white border
+    NEXTREG_nn SPRITE_CONTROL_NR_15, %00001101
+    ld      a,CI_WHITE
+    out     (ULA_P_FE),a
+    ld      l,128
+    call    WaitForScanline
+    ;; USL phase (scanlines 128..159) - grey border
+    NEXTREG_nn SPRITE_CONTROL_NR_15, %00010001
+    ld      a,CI_T_WHITE
+    out     (ULA_P_FE),a
+    ld      l,160
+    call    WaitForScanline
+    ;; ULS phase (scanlines 160..191) - white border
+    NEXTREG_nn SPRITE_CONTROL_NR_15, %00010101
+    ld      a,CI_WHITE
+    out     (ULA_P_FE),a
+    ld      l,192
+    call    WaitForScanline
+    ; grey border at bottom
+    ld      a,CI_T_WHITE
+    out     (ULA_P_FE),a
+    jr      ScanlinesLoop
 
-    call    EndTest
+    ;call    EndTest
 
 ;;;;;;;;;;;;;;;;;;;;;;;; Set palette (currently selected one) ;;;;;;;;;;;;;;;;;;;
 
@@ -149,7 +216,6 @@ DrawUlaPart:
     ld      bc,MEM_ZX_SCREEN_4000 + 6*32 + 18   ; AT [6,18] core
     call    OutMachineIdAndCore_defLabels
 
-    ; last 6 characters are the final 6x4 box showing combination
     ; make ULA transparent under other "legend" boxes
     ld      hl,MEM_ZX_ATTRIB_5800 + 5
     call    .Draw4x6TransparentBoxes
@@ -159,10 +225,20 @@ DrawUlaPart:
     call    .Draw4x6TransparentBoxes
     ; make ULA transparent under legend-label area
     ld      hl,MEM_ZX_ATTRIB_5800 + 0
-    ld      bc,$0404
+    ld      bc,$1804
     call    .DrawNxMTransparentBoxes
-    ; set attributes of "result" 6x4 box
+    ; set attributes of "result" 6x4 boxes
     ld      hl,MEM_ZX_ATTRIB_5800 + 5 + 3*7
+    call    .Draw4x6TestData
+    ld      hl,MEM_ZX_ATTRIB_5800 + (4*32) + 4 + 1*7
+    ld      e,5
+.DrawTestDataForOtherModes:
+    call    .Draw4x6TestData
+    dec     e
+    jr      nz,.DrawTestDataForOtherModes
+    ret
+
+.Draw4x6TestData:
     call    .Draw2x6Boxes
 .Draw2x6Boxes:
     ld      a,CI_BLACK+CI_B_CYAN<<4
@@ -191,42 +267,70 @@ DrawUlaPart:
 ;;;;;;;;;;;;;;;;;;;;;;;; Draw Layer2 part ;;;;;;;;;;;;;;;;;;;
 
 DrawLayer2Part:
-    ; draw "backgrounds" fill of "legend" boxes, draw expected result area and also
-    ; the test-area itself (last 6 chars)
+    ; draw "legend" boxes, draw expected result areas and also the test-areas themselves
 
-    ; fill background under "label" area
+    ; fill background under "label/expected" areas (all 6 of them in one fill)
     ld      a,8
     ld      de,CI_WHITE*256 + CI_WHITE
-    ld      bc,$0404
+    ld      bc,$0418
     ld      hl,0*256 + 0
     call    FillL2Box
 
-    ; draw expected result area
-.LabelBoxOfsXY  equ     4 - 4*256
-    ld      a,2
-    ld      de,CI_B_GREEN*256 + CI_B_GREEN
-    ld      bc,$0604
-    ld      hl,2*8*256 + .LabelBoxOfsXY
-    call    FillL2Box
-    ld      de,CI_B_GREEN2*256 + CI_B_GREEN2
-    ld      hl,2*8*256 + 3*4 + .LabelBoxOfsXY
-    call    FillL2Box
-    ld      de,CI_B_CYAN*256 + CI_B_CYAN
-    ld      bc,$0C02
-    ld      hl,3*8*256 + .LabelBoxOfsXY
-    call    FillL2Box
-    ld      de,CI_B_WHITE*256 + CI_T_WHITE
-    ld      hl,(3*8+4)*256 + .LabelBoxOfsXY
-    call    FillL2Box
-    ld      de,CI_B_YELLOW*256 + CI_B_YELLOW
-    ld      bc,$0208
-    ld      hl,2*8*256 + 4 + .LabelBoxOfsXY
-    call    FillL2Box
-    ld      bc,$0204
-    ld      hl,3*8*256 + 3*4 + .LabelBoxOfsXY
-    call    FillL2Box
+    ; draw expected result area for orders: SLU, LSU, SUL, LUS, USL, ULS
+    ld      hl,12*256 + 4
+    ; SLU
+    call    .DrawExpectedResultTransparent
+    call    .DrawExpectedResultUla
+    call    .DrawExpectedResultLayer2
+    call    .DrawExpectedResultSprites
+    call    .DrawExpectedResultLayer2p
+    ld      a,4*8
+    add     a,h
+    ld      h,a
+    ; LSU
+    call    .DrawExpectedResultTransparent
+    call    .DrawExpectedResultUla
+    call    .DrawExpectedResultSprites
+    call    .DrawExpectedResultLayer2
+    call    .DrawExpectedResultLayer2p
+    ld      a,4*8
+    add     a,h
+    ld      h,a
+    ; SUL
+    call    .DrawExpectedResultTransparent
+    call    .DrawExpectedResultLayer2
+    call    .DrawExpectedResultUla
+    call    .DrawExpectedResultSprites
+    call    .DrawExpectedResultLayer2p
+    ld      a,4*8
+    add     a,h
+    ld      h,a
+    ; LUS
+    call    .DrawExpectedResultTransparent
+    call    .DrawExpectedResultSprites
+    call    .DrawExpectedResultUla
+    call    .DrawExpectedResultLayer2
+    call    .DrawExpectedResultLayer2p
+    ld      a,4*8
+    add     a,h
+    ld      h,a
+    ; USL
+    call    .DrawExpectedResultTransparent
+    call    .DrawExpectedResultLayer2
+    call    .DrawExpectedResultSprites
+    call    .DrawExpectedResultUla
+    call    .DrawExpectedResultLayer2p
+    ld      a,4*8
+    add     a,h
+    ld      h,a
+    ; ULS
+    call    .DrawExpectedResultTransparent
+    call    .DrawExpectedResultSprites
+    call    .DrawExpectedResultLayer2
+    call    .DrawExpectedResultUla
+    call    .DrawExpectedResultLayer2p
 
-    ; draw Sprite-legend - backgrounds
+    ; draw Sprite-legend
     ld      a,1
     ld      hl,0*256 + 8*(5+0)
     ld      de,CI_BLACK*256 + CI_WHITE
@@ -240,12 +344,11 @@ DrawLayer2Part:
     ld      hl,0*256 + 8*(5+3)
     call    FillL2Box
     ld      de,CI_B_WHITE*256 + CI_T_WHITE
-    ld      a,2
     ld      bc,$0410
     ld      hl,0*256 + 8*(5+2)
-    call    FillL2Box
+    call    FillL2BoxWithDither2x2
     ld      hl,0*256 + 8*(5+4)
-    call    FillL2Box
+    call    FillL2BoxWithDither2x2
     ; draw the dithered 16x16 boxes to reveal full sprite size
     ld      de,SPR_DITHER_BOX_GFX
     ld      hl,0*256 + 8*(5+1)
@@ -257,45 +360,116 @@ DrawLayer2Part:
     ld      hl,16*256 + 8*(5+3)
     call    DrawDitherGfxInside16x16Box
 
-    ; draw Layer2-legend - backgrounds
-    ld      a,2
+    ; draw Layer2-legend
     ld      bc,$0C08
     ld      de,CI_B_WHITE*256 + CI_T_WHITE
     ld      hl,2*8*256 + 8*(5+7+0)
-    call    FillL2Box
+    call    FillL2BoxWithDither2x2
     ld      de,CI_B_WHITE*256 + CI_WHITE
     ld      hl,2*8*256 + 8*(5+7+3)
-    call    FillL2Box
+    call    FillL2BoxWithDither2x2
     ld      de,CI_B_GREEN*256 + CI_B_GREEN
     ld      hl,0*8*256 + 8*(5+7+0)
-    call    FillL2Box
+    call    FillL2BoxWithDither2x2
     ld      de,CI_B_GREEN2*256 + CI_B_GREEN2
     ld      hl,0*8*256 + 8*(5+7+3)
-    call    FillL2Box
+    call    FillL2BoxWithDither2x2
 
     ; draw also Layer2 TEST pixels (final area in last 6 characters)
     ld      hl,0*8*256 + 8*(5+3*7+3)
-    call    FillL2Box
+    call    FillL2BoxWithDither2x2
     ld      de,CI_B_GREEN*256 + CI_B_GREEN
     ld      hl,0*8*256 + 8*(5+3*7+0)
-    call    FillL2Box
+    call    FillL2BoxWithDither2x2
     ld      de,CI_PINK2*256 + CI_PINK2  ; overwrite also transparent half with priority
     ld      hl,2*8*256 + 8*(5+3*7+3)
-    call    FillL2Box
+    call    FillL2BoxWithDither2x2
 
-    ; draw ULA-legend - backgrounds
+    ; draw Layer2 TEST pixels for other combining modes (TEST area under ~L2 legend)
+    ld      h,4*8
+    ld      ixl,5
+.OtherModesDrawLoop:
+    ld      l,8*(4+1*7+0)
+    ld      de,CI_B_GREEN*256 + CI_B_GREEN
+    call    FillL2BoxWithDither2x2
+    ld      l,8*(4+1*7+3)
+    ld      de,CI_B_GREEN2*256 + CI_B_GREEN2
+    call    FillL2BoxWithDither2x2
+    ld      a,16
+    add     a,h
+    ld      h,a
+    ld      de,CI_PINK2*256 + CI_PINK2
+    call    FillL2BoxWithDither2x2
+    ld      a,16
+    add     a,h
+    ld      h,a
+    dec     ixl
+    jr      nz,.OtherModesDrawLoop
+
+    ; draw ULA-legend
     ld      de,CI_B_WHITE*256 + CI_T_WHITE
-    ld      a,2
     ld      bc,$180C
     ld      hl,1*8*256 + 8*(5+2*7+0)
-    call    FillL2Box
+    call    FillL2BoxWithDither2x2
     ld      de,CI_B_CYAN*256 + CI_B_CYAN
     ld      bc,$1804
     ld      hl,0*8*256 + 8*(5+2*7+0)
-    call    FillL2Box
+    call    FillL2BoxWithDither2x2
     ld      hl,2*8*256 + 8*(5+2*7+0)
-    call    FillL2Box
+    call    FillL2BoxWithDither2x2
     ret
+
+.DrawExpectedResultTransparent:
+    ld      bc,$0C08
+    ld      de,CI_B_WHITE*256 + CI_T_WHITE
+    jr      FillL2BoxWithDither2x2
+
+.DrawExpectedResultUla:
+    push    hl
+    ld      de,CI_B_CYAN*256 + CI_B_CYAN
+    ld      bc,$0C02
+    ld      a,2*4
+    add     a,h
+    ld      h,a
+    call    FillL2BoxWithDither2x2
+    pop     hl
+    jr      FillL2BoxWithDither2x2
+
+.DrawExpectedResultSprites:
+    push    hl
+    ld      de,CI_B_YELLOW*256 + CI_B_YELLOW
+    ld      bc,$0208
+    ld      a,1*4
+    add     a,l
+    ld      l,a
+    call    FillL2BoxWithDither2x2
+    ld      a,2*4
+    add     a,l
+    ld      l,a
+    call    FillL2BoxWithDither2x2
+    pop     hl
+    ret
+
+.DrawExpectedResultLayer2:
+    ld      de,CI_B_GREEN*256 + CI_B_GREEN
+    ld      bc,$0604
+    jr      FillL2BoxWithDither2x2
+
+.DrawExpectedResultLayer2p:
+    ;; Layer2 priority part
+    push    hl
+    ld      de,CI_B_GREEN2*256 + CI_B_GREEN2
+    ld      bc,$0604
+    ld      a,3*4
+    add     a,l
+    ld      l,a
+    call    FillL2BoxWithDither2x2
+    pop     hl
+    ret
+
+FillL2BoxWithDither2x2:
+    ld      a,2
+    ; continue with FillL2Box code
 
 ; HL: coordinates, DE = colour pattern, B = width, C = height, A = size of dither
 ; width and height is in dither size
@@ -346,14 +520,14 @@ SPR_DITHER_BOX_GFX  equ     $0300 + CI_BLACK
 PrepareSpriteGraphics:
     ; draw transparent sprite colour (8x16px)
     ld      a,1
-    ld      bc,$0810
+    ld      bc,$0408
     ld      hl,$8008
     ld      de,CI_PINK*256 + CI_PINK
-    call    FillL2Box
+    call    FillL2BoxWithDither2x2
     ; draw the solid sprite colour (8x16px)
     ld      l,0
     ld      de,CI_B_YELLOW*256 + CI_B_YELLOW
-    call    FillL2Box
+    call    FillL2BoxWithDither2x2
     ; draw the dithered rectangle inside sprite
     ld      de,SPR_DITHER_BOX_GFX   ; HL = $8000 already
     call    DrawDitherGfxInside16x16Box
@@ -366,7 +540,7 @@ PrepareSpriteGraphics:
     call    .UploadOnePatternFromL2
 
     ; set up sprites to be drawn (4 byte attribute set is enough for this test)
-    ; set four sprites over test area (pattern 0)
+    ; set four sprites over test area (pattern 0) (SLU mode)
     ld      de,$2020 + 0*8*256 + 8*(5+3*7+1)    ; [x,y]
     ld      hl,$8000                ; H: visible, 4Bset, pattern 0, L:palOfs 0, ..., X9 0
     call    .UploadOneAttribSet
@@ -377,10 +551,32 @@ PrepareSpriteGraphics:
     call    .UploadOneAttribSet
     ld      d,$20 + 0*8
     call    .UploadOneAttribSet
+    ; set four sprites for other 5 modes (+20 sprites)
+    ld      b,5
+    ld      de,$2020 + 4*8*256 + 8*(4+1*7+1)    ; [x,y]
+    ld      hl,$8000                ; H: visible, 4Bset, pattern 0, L:palOfs 0, ..., X9 0
+.SetSpritesForOtherModes:
+    call    .UploadOneAttribSet
+    ld      a,16
+    add     a,e
+    ld      e,a
+    call    .UploadOneAttribSet
+    ld      a,16
+    add     a,d
+    ld      d,a
+    call    .UploadOneAttribSet
+    ld      a,-16
+    add     a,e
+    ld      e,a
+    call    .UploadOneAttribSet
+    ld      a,16
+    add     a,d
+    ld      d,a
+    djnz    .SetSpritesForOtherModes
 
     ; make sure all other sprites are not visible
     ld      h,0
-    ld      b,64-4
+    ld      b,64-6*4
 .SetRemainingSpritesLoop:
     call    .UploadOneAttribSet
     djnz    .SetRemainingSpritesLoop
@@ -406,6 +602,79 @@ PrepareSpriteGraphics:
     inc     h
     cp      h
     jr      nz,.UploadOnePatternPixels
+    ret
+
+;;;;;;;;;;;;;;;;; Draw letter-hints into Layer2 ;;;;;;;;;;;;;;;;;;;
+
+DrawCharLabels:
+    ; single-letter hints into the Separate-layer graphics
+    ld      de,$0400 + 8*(5+0*7+1)+4
+    ld      a,'S'
+    call    OutL2WhiteOnBlackCharAndAdvanceDE
+    ld      de,$0C00 + 8*(5+1*7+1)
+    ld      a,'L'
+    call    OutL2WhiteOnBlackCharAndAdvanceDE
+    ld      de,$0C00 + 8*(5+1*7+4)-4
+    ld      a,'L'
+    call    OutL2WhiteOnBlackCharAndAdvanceDE
+    ld      de,$0C00 + 8*(5+1*7+4)+4
+    ld      a,'p'
+    call    OutL2WhiteOnBlackCharAndAdvanceDE
+    ld      de,$0C00 + 8*(5+2*7+3)-4
+    ld      a,'U'
+    call    OutL2WhiteOnBlackCharAndAdvanceDE
+
+    ; Layers order scheme above expected results
+
+    ; SLU
+    ld      de,$0304    ; [4,3] pixel pos
+    ld      a,'S'
+    call    OutL2WhiteOnBlackCharAndAdvanceDE
+    ld      a,'L'
+    call    OutL2WhiteOnBlackCharAndAdvanceDE
+    ld      a,'U'
+    call    OutL2WhiteOnBlackCharAndAdvanceDE
+    ; LSU
+    ld      de,$2304
+    ld      a,'L'
+    call    OutL2WhiteOnBlackCharAndAdvanceDE
+    ld      a,'S'
+    call    OutL2WhiteOnBlackCharAndAdvanceDE
+    ld      a,'U'
+    call    OutL2WhiteOnBlackCharAndAdvanceDE
+    ; SUL
+    ld      de,$4304
+    ld      a,'S'
+    call    OutL2WhiteOnBlackCharAndAdvanceDE
+    ld      a,'U'
+    call    OutL2WhiteOnBlackCharAndAdvanceDE
+    ld      a,'L'
+    call    OutL2WhiteOnBlackCharAndAdvanceDE
+    ; LUS
+    ld      de,$6304
+    ld      a,'L'
+    call    OutL2WhiteOnBlackCharAndAdvanceDE
+    ld      a,'U'
+    call    OutL2WhiteOnBlackCharAndAdvanceDE
+    ld      a,'S'
+    call    OutL2WhiteOnBlackCharAndAdvanceDE
+    ; USL
+    ld      de,$8304
+    ld      a,'U'
+    call    OutL2WhiteOnBlackCharAndAdvanceDE
+    ld      a,'S'
+    call    OutL2WhiteOnBlackCharAndAdvanceDE
+    ld      a,'L'
+    call    OutL2WhiteOnBlackCharAndAdvanceDE
+    ; ULS
+    ld      de,$A304
+    ld      a,'U'
+    call    OutL2WhiteOnBlackCharAndAdvanceDE
+    ld      a,'L'
+    call    OutL2WhiteOnBlackCharAndAdvanceDE
+    ld      a,'S'
+    call    OutL2WhiteOnBlackCharAndAdvanceDE
+
     ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;; Helper functions ;;;;;;;;;;;;;;;;;;;
@@ -447,35 +716,6 @@ DrawDitherGfxInside16x16Box:
     pop     bc
     pop     hl
     pop     af
-    ret
-
-DrawCharLabels:
-    ; single-letter hints into the Separate-layer graphics
-    ld      de,$0400 + 8*(5+0*7+1)+4
-    ld      a,'S'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
-    ld      de,$0C00 + 8*(5+1*7+1)
-    ld      a,'L'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
-    ld      de,$0C00 + 8*(5+1*7+4)-4
-    ld      a,'L'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
-    ld      de,$0C00 + 8*(5+1*7+4)+4
-    ld      a,'p'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
-    ld      de,$0C00 + 8*(5+2*7+3)-4
-    ld      a,'U'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
-
-    ; Layers order scheme above expected result
-    ld      de,$0304    ; [4,3] pixel pos
-    ld      a,'S'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
-    ld      a,'L'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
-    ld      a,'U'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
-
     ret
 
 ; A = ASCII char, DE = target VRAM address (modifies A, DE)
@@ -535,6 +775,49 @@ OutL2Char:
     pop     de
     pop     hl
     pop     af
+    ret
+
+; this is not precisely robust routine, it waits while (scanline-low8-bits < L)
+; the code calling this should be partially aware where the scanline was prior
+; and call it only when it makes sense (i.e. high bit of scanline is known to it)
+WaitForScanline:    ; code is somewhat optimized to return ASAP when it happens
+    ld      bc, TBBLUE_REGISTER_SELECT_P_243B
+    ld      a, RASTER_LINE_LSB_NR_1F
+    out     (c),a
+    inc     b       ; bc = TBBLUE_REGISTER_ACCESS_P_253B
+.waitLoop:
+    in      a,(c)   ; read RASTER_LINE_LSB_NR_1F
+    cp      l
+    jr      c,.waitLoop
+    ret
+
+; this wait until MSB is equal to L (0/1)
+WaitForScanlineMSB: ; code is somewhat optimized to return ASAP when it happens
+    ld      bc, TBBLUE_REGISTER_SELECT_P_243B
+    ld      a, RASTER_LINE_MSB_NR_1E
+    out     (c),a
+    inc     b       ; bc = TBBLUE_REGISTER_ACCESS_P_253B
+    dec     l
+    ld      l,1
+    jr      z,.waitForMsbSet
+.waitForMsbReset:
+    in      a,(c)   ; read RASTER_LINE_MSB_NR_1E
+    and     l
+    jr      nz,.waitForMsbReset
+    ret
+.waitForMsbSet:
+    in      a,(c)   ; read RASTER_LINE_MSB_NR_1E
+    and     l
+    jr      z,.waitForMsbSet
+    ret
+
+; C = time to spend = (C-1)*(256x empty NOP loop), B = 1/256th of C extra wait
+WaitSomeIdleTime:
+.idleLoop:
+    nop
+    djnz    .idleLoop
+    dec     c
+    jr      nz,.idleLoop
     ret
 
     savesna "L2Colour.sna", Start
