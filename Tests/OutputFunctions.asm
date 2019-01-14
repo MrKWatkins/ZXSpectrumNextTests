@@ -18,6 +18,8 @@
 ; * OutDecimalValue                 - output value A as one-three decimal digits at OutC..
 ; * OutString                       - output zero-terminated string (HL) at OutCurrentAdr
 ; * OutStringAtDe                   - as OutString, but sets OutCurrentAdr to DE first
+; * OutMachineIdAndCore             - output MachineID and core version at DE into ULA
+; * OutMachineIdAndCore_defLabels   - as previous, but with default labels
 ; * FillSomeUlaLines                - Fills C char-lines with pattern D (B columns only)
 ; * Draw16x16GridWithHexaLabels     - draws huge 16x16 char-grid in top-left corner
 
@@ -161,6 +163,56 @@ OutString:
     ret     z
     call    OutChar
     jr      OutString
+
+; DE = VRAM address for machineID output (will take strlen(label) + two chars for "10")
+; BC = VRAM address for core output (strlen(core) + 6 + 0..3 characters)
+; does modify: HL, OutCurrentAdr, AF
+OutMachineIdAndCore_defLabels:
+    ld      hl,OutMachineIdAndCoreDefaultLabels
+    ; continue with OutMachineIdAndCore code
+
+; HL = two C-strings with labels for MachineID and Core (use "db 0, 0" for no labels)
+; DE = VRAM address for machineID output (will take strlen(label) + two chars for "10")
+; BC = VRAM address for core output (strlen(core) + 6 + 0..3 characters)
+; does modify: HL, OutCurrentAdr, AF
+OutMachineIdAndCore:
+    call    OutStringAtDe
+    NEXTREG2A MACHINE_ID_NR_00  ; NEXTREG2A is defined in TestFunctions.asm, which should
+                                ; be included by this point already (include Output after)
+    call    OutDecimalValue     ; output machineID (one to three chars, usually 10 or 8)
+    ld      d,b
+    ld      e,c
+    call    OutStringAtDe       ; HL points to "core" label now
+    ; output major core version number
+    NEXTREG2A NEXT_VERSION_NR_01
+    push    af
+    rrca
+    rrca
+    rrca
+    rrca
+    and     $0F
+    call    OutDecimalValue
+    ld      a,'.'
+    call    OutChar
+    ; output minor core version number
+    pop     af
+    and     $0F
+    cp      10
+    ; output values 0..9 as "HexaValue" so there will be leading zero
+    push    af
+    call    c,OutHexaValue
+    pop     af                  ; restore CF after OutHexaValue call (if it happened)
+    call    nc,OutDecimalValue  ; values over 10 print as decimal
+    ld      a,'.'
+    call    OutChar
+    ; output sub-minor core version number
+    NEXTREG2A NEXT_VERSION_MINOR_NR_0E
+    call    OutDecimalValue
+    ret
+
+OutMachineIdAndCoreDefaultLabels:
+    db      "machineID:",0
+    db      "core:",0
 
 ; Will fill C vram-char-lines (8px high), on each line B columns are set to D starting
 ; at HL address. The routine will advance also over thirds of VRAM. HL may start also

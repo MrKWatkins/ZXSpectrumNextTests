@@ -144,6 +144,11 @@ SetTestPalette:
 DrawUlaPart:
     ; set all attributes: black on white
     FILL_AREA   MEM_ZX_ATTRIB_5800, 32*24, CI_BLACK + (CI_WHITE<<4)
+    ; draw MachineID and core versions:
+    ld      de,MEM_ZX_SCREEN_4000 + 5*32 + 18   ; AT [5,18] machineID
+    ld      bc,MEM_ZX_SCREEN_4000 + 6*32 + 18   ; AT [6,18] core
+    call    OutMachineIdAndCore_defLabels
+
     ; last 6 characters are the final 6x4 box showing combination
     ; make ULA transparent under other "legend" boxes
     ld      hl,MEM_ZX_ATTRIB_5800 + 5
