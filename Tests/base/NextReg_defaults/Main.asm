@@ -489,4 +489,4 @@ OutErrValue:
     pop     hl
     jp      OutHexaValue
 
-    savesna "NRdefaul.sna", Start
+    savesna "!NextReg.sna", Start

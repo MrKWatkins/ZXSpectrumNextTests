@@ -15,6 +15,7 @@ The test will then, in many cases, work also as short example how to correctly a
 * code not directly related to focus of test should reuse library code as much as possible
 * keep code style clean and well commented, consider the source being also an example
 * test source should be accompanied by ReadMe.txt and produce single self-contained SNA file
+* do not edit/keep files directly in "release" folder
 
 ### Provide stable screen output suitable for photographing/screenshotting
 
@@ -66,4 +67,12 @@ The test code should rather focus on clear and straightforward way of doing the 
 
 Include all required binary data/etc into the SNA file.
 
-Also use only 8 characters for SNA file base name, and make sure the filename is unique, so all tests can be distributed also in single folder (in their binary form) on various limited file systems.
+Also use only 8 characters for SNA file base name, and make sure the filename is unique, so all tests can be distributed also in single "release" folder (in their binary form) on various limited file systems.
+
+The "base" tests should have name starting with exclamation mark (to be at the beginning of the file list when sorted by file name).
+
+### Do not edit/keep files directly in "release" folder
+
+All files required to build output and prepare "release" folder must exist outside of the "release" folder, the "release" folder content should be updated only by "dorelease.sh" script.
+
+Files in "release" folder are kept in git only for convenience of user who does want to run the tests, but is not developer to assemble the sources (but the whole "release" folder content should be reproducible from some "source" form stored elsewhere in the project.

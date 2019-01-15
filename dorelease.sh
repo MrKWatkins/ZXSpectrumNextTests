@@ -32,4 +32,5 @@ for f in Tests/**/*.sna; do
     updatedSomeFile=1
 done
 # refresh date when release folder was updated
-[[ $updatedSomeFile ]] && date -u +"%F %T %Z" > release/updated
+[[ $updatedSomeFile ]] && date -u +"%F %T %Z" > "release/!!built"
+[[ ! release-README.txt -ef "release/!!README.txt" ]] && cp release-README.txt "release/!!README.txt"
