@@ -8,7 +8,5 @@ At 228th column of screen, the Layer2 pattern contains $E3 colour pixel too, whi
 all pixels at that column transparent, and the transparency-fallback colour (cyan) should
 be visible there.
 
-The border takes colour from ULA palette[135] (same as "paper 7"), the $E3 pink.
-But at this moment it is not clear, if the border area should use transparency-fallback
-cyan, or the pink colour, waiting for ZXN core devs to confirm expected behaviour.
-(both CSpect and ZEsarUX show pink border, but IMO more consistent would be cyan)
+The border takes colour from ULA palette[135] (same as "paper 7"), the $E3 pink, which
+is then converted by transparency-fallback into the cyan too.

@@ -4,4 +4,4 @@ Top-Left (◰) and Bottom-Right (◲) squares should be transparent = WHITE
 (if RED, sprite transparency failed).
 
 Top-Right and Bottom-Left (▞) squares should be GREEN
-(if RED, the sprite transparency index after reset does not read default $E3 value)
+(if YELLOW, the sprite transparency index did not read as the default $E3 value)
