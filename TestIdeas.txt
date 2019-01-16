@@ -11,7 +11,6 @@ base:
  - exercise ink masks / borders
 
 * Layer2:
- - colour priority (and all kind of transparency configurations
  - new mixing modes (U+L) and (U+L-5)
  . RAM positioning quirks (and 128K shadow quirks) (quirk = switching off L2/wrong content)
 
