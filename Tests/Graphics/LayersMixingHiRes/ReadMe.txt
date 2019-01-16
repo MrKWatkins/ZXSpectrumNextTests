@@ -14,6 +14,10 @@ There's transparent-pink colour set on that item, making the both ULA paper and 
 to "pink" in this test any way, so pink turns to pink) (The palette item 5 is used
 for ink, which is set to bright cyan).
 
+EDIT: with core2.00.25 the border colour is either index [130] or [2], i.e. paper colour
+without bright bit... So this is still work-in-progress and to be confirmed by core
+devs later, what is the final "correct" behaviour.
+
 -------------------------------------------------------------------------------------
 
 Draws all three basic layers (Sprite, Layer2, ULA-HiRes) in all combinations affecting
