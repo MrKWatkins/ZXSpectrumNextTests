@@ -35,3 +35,5 @@ done
 [[ $updatedSomeFile ]] && date -u +"%F %T %Z" > "release/!!built"
 # copy the readme every time
 cp release-README.txt "release/!!README.txt"
+# check if some file got leftovers (there should be "3" files of same base name at most)
+for f in release/*;do fn=${f##*/}; echo ${fn%.*}; done | uniq -c | sort | tail -3

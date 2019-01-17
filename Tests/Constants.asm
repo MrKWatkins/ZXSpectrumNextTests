@@ -39,7 +39,7 @@ DIR_RIGHT_I		equ %01111111
 ;-----------------------------------------------------------------------------
 ;-- I/O ports - ZX Spectrum classic (48, 128, Timex, Pentagon, ...) ports
 
-ULA_P_FE                        equ $FE     ; BORDER + MIC + BEEP
+ULA_P_FE                        equ $FE     ; BORDER + MIC + BEEP + read Keyboard
 TIMEX_P_FF                      equ $FF     ; Timex video control port
 
 ZX128_MEMORY_P_7FFD             equ $7FFD   ; ZX Spectrum 128 ports
