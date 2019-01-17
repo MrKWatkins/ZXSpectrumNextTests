@@ -48,7 +48,7 @@ NextRegWriteInfo:       ; must follow NextRegDefaultRead in memory, at 256B boun
     db  $FF,$FF,$00,$FE,$FE,$80,$02,$01,$74,$08,$FF,$FF,$FF,$FF,$FF,$FF ; $00..0F
     db  $FE,$FE,$09,$0A,$25,$02,$55,$56,$FC,$FC,$FC,$FF,$07,$FF,$FF,$FF ; $10..1F
     db  $FF,$FF,$01,$02,$FF,$FF,$FF,$FF,$FE,$FE,$FE,$FE,$FF,$00,$FF,$FF ; $20..2F
-    db  $FF,$FF,$66,$67,$3B,$00,$00,$0F,$3F,$0A,$FF,$FF,$FF,$FF,$FF,$FF ; $30..3F
+    db  $FF,$FF,$02,$01,$3B,$00,$00,$0F,$3F,$0A,$FF,$FF,$FF,$FF,$FF,$FF ; $30..3F
     db  $70,$1F,$07,$68,$FC,$FF,$FF,$FF,$FF,$FF,$1F,$1F,$FF,$FF,$FF,$FF ; $40..4F
     db  $80,$80,$0A,$0B,$04,$05,$00,$01,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $50..5F
     db  $00,$33,$01,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $60..6F
@@ -69,7 +69,7 @@ NextRegWriteInfo:       ; must follow NextRegDefaultRead in memory, at 256B boun
     db  $FF,$FF,$FF,$FF,$FF,$FE,$02,$01,$74,$08,$FF,$FF,$FF,$FF,$FF,$FF ; $00..0F
     db  $FF,$FF,$09,$0A,$25,$02,$55,$56,$FF,$FF,$FF,$FF,$00,$FF,$FF,$FF ; $10..1F
     db  $FF,$FF,$01,$02,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $20..2F
-    db  $FF,$FF,$66,$67,$3B,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $30..3F
+    db  $FF,$FF,$02,$01,$3B,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $30..3F
     db  $70,$02,$07,$68,$FF,$FF,$FF,$FF,$FF,$FF,$1F,$1F,$FF,$FF,$FF,$FF ; $40..4F
     db  $FE,$FE,$0A,$0B,$04,$05,$00,$01,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $50..5F
     db  $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $60..6F
@@ -372,6 +372,13 @@ CustomWriteTest:
     ret
 
 DrawMachineInfoAndFinish:
+    ; reset LoRes scroll registers (does affect ULA screen since core 2.00.25+)
+    ld      a,0
+    ld      b,LORES_XOFFSET_NR_32
+    call    WriteNextRegByIo
+    ld      a,0
+    ld      b,LORES_YOFFSET_NR_33
+    call    WriteNextRegByIo
     ; fix MMU1 mapping to make my life easier when testing with CSpect emulator
     ld      a,$FF
     ld      b,MMU1_2000_NR_51

@@ -96,6 +96,9 @@ Start:
 
     ; draw the ULA Timex hi-colour part for pixel combining
     call    DrawUlaHiColPart
+    ; reset LoRes scroll registers (does affect ULA screen since core 2.00.25+)
+    NEXTREG_nn LORES_XOFFSET_NR_32, 0   ; not sure if it affects hi-res, but to be sure
+    NEXTREG_nn LORES_YOFFSET_NR_33, 0
 
     ; reset Layer2 scroll registers
     NEXTREG_nn LAYER2_XOFFSET_NR_16, 0

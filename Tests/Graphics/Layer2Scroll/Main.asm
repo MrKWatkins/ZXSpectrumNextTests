@@ -18,6 +18,9 @@ Start:
     ; show red border while drawing and preparing...
     ld      a,RED
     out     (ULA_P_FE),a
+    ; reset LoRes scroll registers (does affect ULA screen since core 2.00.25+)
+    NEXTREG_nn LORES_XOFFSET_NR_32, 0
+    NEXTREG_nn LORES_YOFFSET_NR_33, 0
     ; reset Layer2 scroll registers
     NEXTREG_nn LAYER2_XOFFSET_NR_16, 0
     NEXTREG_nn LAYER2_YOFFSET_NR_17, 0
