@@ -174,12 +174,44 @@ OutMachineIdAndCore_defLabels:
 ; HL = two C-strings with labels for MachineID and Core (use "db 0, 0" for no labels)
 ; DE = VRAM address for machineID output (will take strlen(label) + two chars for "10")
 ; BC = VRAM address for core output (strlen(core) + 6 + 0..3 characters)
+; if (IX == $ED01), then extended info is outputted after MachineID
 ; does modify: HL, OutCurrentAdr, AF
 OutMachineIdAndCore:
     call    OutStringAtDe
     NEXTREG2A MACHINE_ID_NR_00  ; NEXTREG2A is defined in TestFunctions.asm, which should
                                 ; be included by this point already (include Output after)
     call    OutDecimalValue     ; output machineID (one to three chars, usually 10 or 8)
+
+    ; check if extended info is requested
+    push    ix
+    pop     de
+    ld      a,d
+    cp      $ED
+    jr      nz,.NoExtendedMachineInfo
+    dec     e                   ; only "1" extra info currently recognized
+    jr      nz,.NoExtendedMachineInfo
+    ld      a,' '
+    call    OutChar
+    ld      a,'['
+    call    OutChar
+    NEXTREG2A MACHINE_TYPE_NR_03
+    call    OutHexaValue
+    ld      a,':'
+    call    OutChar
+    NEXTREG2A PERIPHERAL_1_NR_05
+    call    OutHexaValue
+    ld      a,':'
+    call    OutChar
+    NEXTREG2A PERIPHERAL_2_NR_06
+    call    OutHexaValue
+    ld      a,':'
+    call    OutChar
+    NEXTREG2A PERIPHERAL_3_NR_08
+    call    OutHexaValue
+    ld      a,']'
+    call    OutChar
+
+.NoExtendedMachineInfo:
     ld      d,b
     ld      e,c
     call    OutStringAtDe       ; HL points to "core" label now

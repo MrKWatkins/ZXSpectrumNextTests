@@ -155,7 +155,8 @@ $22, $23: line interrupt is set to $102, but not enabled (original ULA interrupt
 $2D: SoundDrive port mirror: simply zero is written there, I didn't bother to check if
  it is good idea, let me know if some value is less disruptive.
 
-$32, $33: LoRes scroll [x,y] set to [$66, $67].
+$32, $33: LoRes scroll [x,y] set to [$02, $01] (after test is finished, this gets reset
+back to [0,0]).
 
 $34: Sprite attribute-index is set to $3B, in unlinked fashion
 $35, $36, $37, $38, $39: some sprite attributes for sprite $3B: {$00,$00,$0F,$3F,$0A}
