@@ -296,9 +296,16 @@ Changelog:
                  String="(\.|!|@|!@|)[A-Za-z_][A-Za-z0-9_.$]*:?"/>
         <RegExpr attribute="Label" context="#stay" String="^[0-9]+(\s+|$)"/>
       </context>
+      <context name="Error" attribute="Error" lineEndContext="#pop">
+        <DetectChar attribute="Comment" context="Comment" char=";"/>
+        <Detect2Chars attribute="Comment" context="Comment" char="/" char1="/"/>
+      </context>
       <context name="Hexastring" attribute="Normal Text" lineEndContext="#pop"
-               fallthrough="true" fallthroughContext="#pop">
-        <RegExpr attribute="BaseN" context="#pop" String="([0-9A-Fa-f]{2})+"/>
+               fallthrough="true" fallthroughContext="Error">
+        <DetectSpaces attribute="Normal Text" context="#stay"/>
+        <RegExpr attribute="BaseN" context="#stay" String="([0-9A-Fa-f]{2})+"/>
+        <DetectChar attribute="Comment" context="Comment" char=";"/>
+        <Detect2Chars attribute="Comment" context="Comment" char="/" char1="/"/>
       </context>
       <context name="Arguments" attribute="Normal Text" lineEndContext="#pop">
         <DetectChar attribute="Comment" context="Comment" char=";"/>
@@ -331,6 +338,7 @@ Changelog:
 
     <itemDatas>
       <itemData name="Normal Text" defStyleNum="dsNormal"/>
+      <itemData name="Error" defStyleNum="dsError"/>
       <itemData name="Registers" defStyleNum="dsVariable"/>
       <itemData name="Instructions" defStyleNum="dsKeyword"/>
       <itemData name="Z80N Instructions" defStyleNum="dsKeyword"/>

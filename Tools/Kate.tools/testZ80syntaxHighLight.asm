@@ -33,8 +33,7 @@ ENDM
     leMacron                ; but so do also correctly used macros
 
 .localLabel
-    hex     F32712bcd3561   ; unpaired digit is not hexa-colour
-    hex     50d             ; but "d" is then highlighted as "register" in this case
+    hex     F32712bcd3561   ; unpaired digit or non-digit is highlighted as "error"
 !alsoThis   jp  @andThat
 
     include "../zx/Constants.asm"   ; includes are NOT parsed = weak auto-completition :/
