@@ -8,8 +8,8 @@ With relaxed syntax of Z80 assemblers, "label" is pretty much "default" result
 
     ld      hl, %1001110000111111   ; binary, also: 0011b
     ld      de, ?7777       ; octal, also: 77o 77q
-
     ld      bc, %1111_0000  ; wishful thinking for num-group separator (C++ now has it)
+    db      'apostrophe "text"', "quotes 'text'", 0
     ldirx
     bsra    de,b            ; NEXT opcodes of course added (can have different colour)
     cp      a,'a'           ;"TODO" in comments exists (also FIXME and FIX ME).

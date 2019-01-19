@@ -303,7 +303,8 @@ Changelog:
       <context name="Arguments" attribute="Normal Text" lineEndContext="#pop">
         <DetectChar attribute="Comment" context="Comment" char=";"/>
         <Detect2Chars attribute="Comment" context="Comment" char="/" char1="/"/>
-        <AnyChar attribute="String" context="String" String="&quot;'"/>
+        <DetectChar attribute="String" context="StringApostrophe" char="'"/>
+        <DetectChar attribute="String" context="String" char="&quot;"/>
         <keyword attribute="Registers" context="#stay" String="registers"/>
         <RegExpr attribute="Label" context="#stay" String="(\.|@|)[A-Za-z_][A-Za-z0-9_.$]*"/>
         <!-- hexadecimal numbers -->
@@ -321,7 +322,10 @@ Changelog:
           <RegExpr attribute="Alert" context="#stay" String="\b(TODO|FIX\s?ME)\b"/>
       </context>
       <context name="String" attribute="String" lineEndContext="#pop">
-        <AnyChar attribute="String" context="#pop" String="&quot;'"/>
+        <DetectChar attribute="String" context="#pop" char="&quot;"/>
+      </context>
+      <context name="StringApostrophe" attribute="String" lineEndContext="#pop">
+        <DetectChar attribute="String" context="#pop" char="'"/>
       </context>
     </contexts>
 
