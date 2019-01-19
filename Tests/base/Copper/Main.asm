@@ -198,6 +198,7 @@ UploadFlag:
     inc     e       ; next line coordinate adjusted
     ; write L-1 many COPPER_NOOP instructions (to wait for correct pixel)
     push    hl      ; preserve HL (L will be used as counter for all inner loops)
+    xor     a       ; 0 for NOOP programming
 .InjectNoopsLoop:
     dec     l
     call    nz,.InjectNoop          ; will skip NOOP write for L=1
@@ -216,9 +217,10 @@ UploadFlag:
     pop     hl      ; restore L "NOOP counter"
     jr      .LineLoop
 
+; A: 0, BC: TBBLUE_REGISTER_ACCESS_P_253B, IY: Copper instructions counter
 .InjectNoop:        ; must preserve CPU FLAGS (ZF)!
-    out     (c),0
-    out     (c),0
+    out     (c),a
+    out     (c),a
     inc     iy      ; count total instructions
     ret
 
