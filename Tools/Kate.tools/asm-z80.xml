@@ -278,6 +278,8 @@ Changelog:
       <context name="Normal" attribute="Normal Text" lineEndContext="#stay"
                lineEmptyContext="#stay" fallthrough="true" fallthroughContext="Arguments">
         <DetectSpaces attribute="Normal Text" context="#stay"/>
+        <RegExpr attribute="Z80N Flow ins." context="Error" insensitive="true"
+                 String="jp\s+\(c\)\s*"/>
         <RegExpr attribute="Data" context="Hexastring" insensitive="true" String="hex\s+"/>
         <RegExpr attribute="Control Flow ins." context="Arguments" insensitive="true"
                  String="(call|jp)\s+(nz|z|nc|c|po|pe|p|m|ns|s)\s*,"/>
@@ -342,6 +344,7 @@ Changelog:
       <itemData name="Registers" defStyleNum="dsVariable"/>
       <itemData name="Instructions" defStyleNum="dsKeyword"/>
       <itemData name="Z80N Instructions" defStyleNum="dsKeyword"/>
+      <itemData name="Z80N Flow ins." defStyleNum="dsControlFlow"/>
       <itemData name="Control Flow ins." defStyleNum="dsControlFlow"/>
       <itemData name="Directives" defStyleNum="dsPreprocessor"/>
       <itemData name="Comment" defStyleNum="dsComment"/>
