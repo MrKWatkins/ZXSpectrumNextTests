@@ -129,6 +129,11 @@ Changelog:
       <item>xor</item>
       <!-- Unofficial instructions -->
       <item>sl1</item>
+      <!-- some alias version of instructions (sl1, sla) -->
+      <item>sli</item>
+      <item>sll</item>
+    </list>
+    <list name="instructions-z80n">
       <!-- ZX Spectrum Next (Z80N) extra instructions -->
       <item>brlc</item>
       <item>bsla</item>
@@ -150,11 +155,9 @@ Changelog:
       <item>setae</item>
       <item>swapnib</item>
       <item>test</item>
-      <!-- some alias version of instructions (swapnib, mul, sl1, sla, test) -->
+      <!-- some alias version of instructions (swapnib, mul, test) -->
       <item>swap</item>
       <item>mlt</item>
-      <item>sli</item>
-      <item>sll</item>
       <item>tst</item>
     </list>
     <list name="data">
@@ -283,6 +286,7 @@ Changelog:
         <RegExpr attribute="Control Flow ins." context="Arguments" insensitive="true"
                  String="ret\s+(nz|z|nc|c|po|pe|p|m|ns|s)(\s+|$)"/>
         <keyword attribute="Control Flow ins." context="Arguments" String="flow-instructions"/>
+        <keyword attribute="Z80N Instructions" context="Arguments" String="instructions-z80n"/>
         <keyword attribute="Instructions" context="Arguments" String="instructions"/>
         <keyword attribute="Data" context="Arguments" String="data"/>
         <keyword attribute="Directives" context="Arguments" String="directives"/>
@@ -325,6 +329,7 @@ Changelog:
       <itemData name="Normal Text" defStyleNum="dsNormal"/>
       <itemData name="Registers" defStyleNum="dsVariable"/>
       <itemData name="Instructions" defStyleNum="dsKeyword"/>
+      <itemData name="Z80N Instructions" defStyleNum="dsKeyword"/>
       <itemData name="Control Flow ins." defStyleNum="dsControlFlow"/>
       <itemData name="Directives" defStyleNum="dsPreprocessor"/>
       <itemData name="Comment" defStyleNum="dsComment"/>

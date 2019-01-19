@@ -11,7 +11,7 @@ With relaxed syntax of Z80 assemblers, "label" is pretty much "default" result
 
     ld      bc, %1111_0000  ; wishful thinking for num-group separator (C++ now has it)
     ldirx
-    bsra    de,b            ; NEXT opcodes of course added
+    bsra    de,b            ; NEXT opcodes of course added (can have different colour)
     cp      a,'a'           ;"TODO" in comments exists (also FIXME and FIX ME).
 s:  ; some label
 // also C line comments supported
