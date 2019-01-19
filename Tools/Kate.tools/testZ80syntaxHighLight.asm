@@ -18,20 +18,21 @@ s:  ; some label
     call    s, s            ; conditional call/jp/jr/ret highlights also condition
         ; "s" is actually unofficial alias for "m" supported by some assembler ("ns"=p)
     ret     nz              ; control-flow instructions are extra colour
+    rlc     (ix-128),e      ; unofficial Z80 instructions are highlighted extra
+    res     5,(ix+6),a      ; ruining the argument highlighting in this version (FIXME?)
+    res     5,(ix+30)       ; compared to official instruction
 
     and     a, 7+(3<<1)
     and     lo(.localLabel) ; FIXME: operators are mostly defined, but rules are missing
 
 MACRO leMacron
-    defb    $DD
-    db      1
+    defb    $DD, 1
     nextreg $15, $0
 ENDM
 
     ; in case you accidentally write non-instruction, it will highlight as label! :D
     jnz     s               ; still makes it lot more easier to catch
     leMacron                ; but so do also correctly used macros
-
 .localLabel
     hex     F32712bcd3561   ; unpaired digit or non-digit is highlighted as "error"
 !alsoThis   jp  @andThat

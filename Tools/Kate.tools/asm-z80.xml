@@ -4,11 +4,33 @@
   Z80 assembly syntax (trying to cover several assemblers: pasmo, sjasm, z80, snasm, ...)
 
   Created: Peter Helcmanovsky <ped@7gods.org>
-  Version: 0.2 06/01/2019
+  Version: 0.5 19/01/2019
 
 Changelog:
   // dd/mm/yyyy: version x.y (keep changelog in descending order)
   //   what was modified
+
+  19/01/2019: version 0.5
+    + "error" context added to report unexpected arguments on remaining line (only *FEW*
+        cases are detected at the moment, it's nowhere near checking syntax properly)
+    + Unofficial Z80 instructions highlighted as different category (dsExtension)
+    + extra category for Z80N instructions (and Z80N control-flow instruction)
+        (highlights as ordinary instructions by default, user can manually adjust colors)
+    + string highlight separated for apostrophe and quotes (other will be part of string)
+    + "hex" directive - improved check marking extra digit/non-digit as error
+    + couple of instructions detection improved (adding "error" context for arguments,etc)
+
+    This is probably one of last versions trying to stay "universal", as it works
+    considerably well for me (after about one month of using it actively), future
+    revisions will probably focus to narrow down syntax into more strict mode,
+    preferring my desired code style, and particular assembler ("pasmoNext" probably).
+
+    Missing bits:
+    - argument highlighting (symbols, operators, ...) and validation of expected number
+        of arguments, etc... = of little importance to me personally, probably never
+    - macro/equ/label symbols differentiation = I would *love* these, but they are not
+        possible with current Kate highlighting, as it would require extra input injected
+        by editor through some new API, to provide list of various (type) symbols.
 
   06/01/2019: version 0.2
     + instructions split into general group and control-flow group
@@ -17,7 +39,7 @@ Changelog:
   30/12/2018: version 0.1
     Initial version, released as part of ZXNextTests project (as "work in progress")
 -->
-<language name="Z80 (pasmo, sjasm, ...)" section="Assembler" version="2" kateversion="5.0" extensions="*.asm" mimetype="" author="Peter Helcmanovsky (ped@7gods.org)" license="MIT">
+<language name="Z80 (pasmo, sjasm, ...)" section="Assembler" version="3" kateversion="5.0" extensions="*.asm" mimetype="" author="Peter Helcmanovsky (ped@7gods.org)" license="MIT">
   <!-- TODO
     pasmo: PC, $, local labels, "??" operator (banknum) ... all operators having extra style?
     sjasm: many IFcc, ELSEIFcc variants
@@ -127,6 +149,8 @@ Changelog:
       <item>srl</item>
       <item>sub</item>
       <item>xor</item>
+    </list>
+    <list name="instructions-unofficial">
       <!-- Unofficial instructions -->
       <item>sl1</item>
       <!-- some alias version of instructions (sl1, sla) -->
@@ -285,9 +309,24 @@ Changelog:
                  String="(call|jp)\s+(nz|z|nc|c|po|pe|p|m|ns|s)\s*,"/>
         <RegExpr attribute="Control Flow ins." context="Arguments" insensitive="true"
                  String="jr\s+(nz|z|nc|c)\s*,"/>
-        <RegExpr attribute="Control Flow ins." context="Arguments" insensitive="true"
-                 String="ret\s+(nz|z|nc|c|po|pe|p|m|ns|s)(\s+|$)"/>
+        <RegExpr attribute="Control Flow ins." context="Error" insensitive="true"
+                 String="ret\s+(nz|z|nc|c|po|pe|p|m|ns|s)\b\s*"/>
+        <RegExpr attribute="Unofficial ins." context="Error" insensitive="true"
+                 String="(in\s+(f,\s*|)\(c\)|out\s+\(c\),0\b)\s*"/>
+        <RegExpr attribute="Unofficial ins." context="Error" insensitive="true"
+                 String="(rlc|rrc|rl|rr|sla|sll|sra|sli|sl1|srl)\s+\(\s*(ix|iy)\s*(\+|\-)[^;]*\),\s*[a-ehl]\b\s*"/>
+        <RegExpr attribute="Unofficial ins." context="Error" insensitive="true"
+                 String="(res|set)\s+[0-7],\s*\(\s*(ix|iy)\s*(\+|\-)[^;]*\),\s*[a-ehl]\b\s*"/>
+        <RegExpr attribute="Unofficial ins." context="Error" insensitive="true"
+                 String="(inc|dec|sub|and|or|xor|cp)\s+i[xy][lh]\b\s*"/>
+        <RegExpr attribute="Unofficial ins." context="Error" insensitive="true"
+                 String="(add|adc|sub|and|or|xor|cp)\s+a,\s*i[xy][lh]\b\s*"/>
+        <RegExpr attribute="Unofficial ins." context="Arguments" insensitive="true"
+                 String="ld\s+i[xy][lh],\s*"/>
+        <RegExpr attribute="Unofficial ins." context="Error" insensitive="true"
+                 String="ld\s+[a-e],\s*i[xy][lh]\b\s*"/>
         <keyword attribute="Control Flow ins." context="Arguments" String="flow-instructions"/>
+        <keyword attribute="Unofficial ins." context="Arguments" String="instructions-unofficial"/>
         <keyword attribute="Z80N Instructions" context="Arguments" String="instructions-z80n"/>
         <keyword attribute="Instructions" context="Arguments" String="instructions"/>
         <keyword attribute="Data" context="Arguments" String="data"/>
@@ -343,6 +382,7 @@ Changelog:
       <itemData name="Error" defStyleNum="dsError"/>
       <itemData name="Registers" defStyleNum="dsVariable"/>
       <itemData name="Instructions" defStyleNum="dsKeyword"/>
+      <itemData name="Unofficial ins." defStyleNum="dsExtension"/>
       <itemData name="Z80N Instructions" defStyleNum="dsKeyword"/>
       <itemData name="Z80N Flow ins." defStyleNum="dsControlFlow"/>
       <itemData name="Control Flow ins." defStyleNum="dsControlFlow"/>
