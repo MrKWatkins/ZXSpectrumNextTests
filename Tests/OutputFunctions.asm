@@ -253,16 +253,16 @@ OutMachineIdAndCoreDefaultLabels:
 ; D = byte to fill with (pixel pattern), B = columns per line, C = lines, HL = VRAM adr
 ; modifies: A, C, HL
 FillSomeUlaLines:
+    push    hl
     push    bc
 .FillPartOfOneLine:         ; fill B chars on current line
     ld      (hl),d
     inc     l
     djnz    .FillPartOfOneLine
     pop     bc
+    pop     hl
     ; next line address
-    ld      a,32
-    sub     b
-    call    AdvanceVramHlByAChars
+    call    AdvanceVramHlToNextLine
     ; repeat until all lines are filled
     dec     c
     jr      nz,FillSomeUlaLines
