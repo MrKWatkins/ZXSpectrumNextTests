@@ -15,8 +15,7 @@ TEST_OPT_BIT_TURBO  equ     0
 TEST_OPT_BIT_FULL   equ     1
 
 TestOptions:
-;    db      (1<<TEST_OPT_BIT_FULL)
-    db      (1<<TEST_OPT_BIT_FULL)|(1<<TEST_OPT_BIT_TURBO)
+    db      0       ; (1<<TEST_OPT_BIT_FULL)|(1<<TEST_OPT_BIT_TURBO)
 
 InstructionsData_FullTests:
     dw      0, TestFull_AddBcA
@@ -29,6 +28,7 @@ InstructionsData_FullTests:
     dw      TestFull_Outinb, TestFull_Pixelad, TestFull_Pixeldn
     dw      0, TestFull_Setae, TestFull_Swapnib, TestFull_TestNn
 
+    INCLUDE "controls.i.asm"
     INCLUDE "UI.i.asm"
 
 ;;;;;;;;;;;;;;;;;; switch 14MHz turbo mode ON or OFF ;;;;;;;;;;
@@ -102,37 +102,110 @@ TestHlDeBcAfterFullBlockValues:
     dec     c
     jr      TestHlDeBcForBlockValues
 
+;;;;;;;;;;;;;;;; test runner helper functions ;;;;;;;;;;;;;;;;;;;;;;;;
+
+; A: 0..22 index of line with instruction to test
+RunZ80nTest:
+    add     a,a     ; *2
+    ld      e,a     ; DE = test index * 2
+    ; fetch address of test
+    ld      hl,InstructionsData_FullTests
+    add     hl,de
+    ld      a,(hl)
+    inc     hl
+    ld      h,(hl)
+    ld      l,a     ; call the selected test (DE = test index * 2)
+    ; continue with TestCallWrapper code
+; HL = address of test to run (or null), DE = index of test * 2
 TestCallWrapper:
     ; verify HL is not null
     ld      a,h
     or      l
     ret     z
+    ; check current status (only NONE should run test)
+    ld      ix,InstructionsData_Details
+    add     ix,de
+    add     ix,de
+    ld      a,RESULT_NONE
+    cp      (ix+1)
+    ret     nz      ;;FIXME - show log in case it's error
+    ; highlight the picked instruction
+    push    de
+    push    hl
+    ex      de,hl
+    add     hl,hl   ; index*4
+    add     hl,hl   ; index*8
+    add     hl,hl   ; index*16
+    add     hl,hl   ; index*32
+    ld      de,MEM_ZX_ATTRIB_5800+32    ; instructions start from second line
+    add     hl,de
+    ld      (.AdjustInstructionNameAttributes+1),hl
+    call    .AdjustInstructionNameAttributes
+    pop     hl
+    pop     de
+    ; call the test itself
+    push    de
+    push    ix      ; preserve Details data pointer
     call    .WrappedTest
+    pop     ix
+    ; store result (or more like set to "OK", if it was not already set by test)
+    ld      a,RESULT_NONE
+    cp      (ix+1)
+    jr      nz,.ResultAlreadySetByTest
+    ld      (ix+1),RESULT_OK    ; full OK otherwise
+.ResultAlreadySetByTest:
+    ; restore main screen (hide heartbeat)
     call    DeinitHeartbeat
-    ;; FIXME store results
-    ret
+    ; de-highlight the picked instruction
+    call    .AdjustInstructionNameAttributes
+    ; refresh the test result status on screen
+    pop     de      ; restore index*2
+    ld      b,e
+    rrc     b       ; b = index, now do lazy-coder VRAM line calculation
+    inc     b
+    ld      hl,MEM_ZX_SCREEN_4000+CHARPOS_STATUS
+.FindCorrectVramLine:
+    call    AdvanceVramHlToNextLine
+    djnz    .FindCorrectVramLine
+    jp      PrintTestStatus     ; now just call UI function and return
+
 .WrappedTest:
+    ; call the test (HL: test address, DE = index*2, IX = test details data)
     jp      hl
+
+.AdjustInstructionNameAttributes:
+    ld      hl,0
+    ld      b,CHARPOS_INS_END+1
+.InstructionNameLoop:
+    ld      a,A_BRIGHT
+    xor     (hl)
+    ld      (hl),a
+    inc     hl
+    djnz    .InstructionNameLoop
+    ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;; MAIN ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 Start:
     call    StartTest
+    call    SetupKeyControl
     call    RedrawMainScreen
     call    SetTurboModeByOption
 
     ;;FIXME all - do keyboard controls and run tests
 
-    ; - read whole keyboard into some big array
     ; - check main keys, adjust options, etc
     ; - check test keys and run particular test (or display LOG!)
-    ; - global debounce! ?! !
-    ; - redrawn main screen to display test result
     ; - create "report result/errors" API and adjust tests to use it
 
     ; TestFull_TestNn, TestFull_Ldws, TestFull_AddHlA, TestFull_Ldpirx
-    ld      hl,TestFull_Ldpirx
-    call    TestCallWrapper
+    ;ld      hl,TestFull_Ldpirx
+    ;call    TestCallWrapper
+
+.MainLoopPrototype:
+    call    RefreshKeyboardState
+
+    jr      .MainLoopPrototype
 
     call    EndTest
 

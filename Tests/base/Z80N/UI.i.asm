@@ -30,6 +30,7 @@ KEY_ATTR_OFS_RUN    equ     15
 KEY_ATTR_OFS_CORE   equ     22
 KEY_ATTR_OFS_INSTR  equ     27
 
+CHARPOS_INS_END     equ     13
 CHARPOS_ENCODING    equ     15
 CHARPOS_INS_KEY     equ     KEY_ATTR_OFS_INSTR
 CHARPOS_STATUS      equ     29
@@ -63,33 +64,31 @@ InstructionMnemonics:
     db      'SWAPNIB',0
     db      'TEST    *',0
 
-KEY_W       equ 2   ;;FIXME
-
 ; Two bytes per instruction: Char to display, location in key-array to test
 InstructionsData_KeyLegends:
-    db        0, 0          ; ADD BC,$nnnn
+    db        0, KEY_NONE   ; ADD BC,$nnnn
     db      'W', KEY_W      ; ADD BC,A
-    db        0, 0          ; ADD DE,$nnnn
-    db      'R', 0          ; ADD DE,A
-    db        0, 0          ; ADD HL,$nnnn
-    db      'Y', 0          ; ADD HL,A
-    db        0, 0          ; LDDRX
-    db      'I', 0          ; LDDX
-    db        0, 0          ; LDIRX
-    db      'P', 0          ; LDIX
-    db      'A', 0          ; LDPIRX
-    db      'S', 0          ; LDWS
-    db      'D', 0          ; MIRROR
-    db      'F', 0          ; MUL D,E
-    db        0, 0          ; NEXTREG $rr,$n
-    db        0, 0          ; NEXTREG $rr,A
-    db      'J', 0          ; OUTINB
-    db      'K', 0          ; PIXELAD
-    db      'L', 0          ; PIXELDN
-    db        0, 0          ; PUSH $nnnn
-    db      'X', 0          ; SETAE
-    db      'C', 0          ; SWAPNIB
-    db      'V', 0          ; TEST $nn
+    db        0, KEY_NONE   ; ADD DE,$nnnn
+    db      'R', KEY_R      ; ADD DE,A
+    db        0, KEY_NONE   ; ADD HL,$nnnn
+    db      'Y', KEY_Y      ; ADD HL,A
+    db        0, KEY_NONE   ; LDDRX
+    db      'I', KEY_I      ; LDDX
+    db        0, KEY_NONE   ; LDIRX
+    db      'P', KEY_P      ; LDIX
+    db      'A', KEY_A      ; LDPIRX
+    db      'S', KEY_S      ; LDWS
+    db      'D', KEY_D      ; MIRROR
+    db      'F', KEY_F      ; MUL D,E
+    db        0, KEY_NONE   ; NEXTREG $rr,$n
+    db        0, KEY_NONE   ; NEXTREG $rr,A
+    db      'J', KEY_J      ; OUTINB
+    db      'K', KEY_K      ; PIXELAD
+    db      'L', KEY_L      ; PIXELDN
+    db        0, KEY_NONE   ; PUSH $nnnn
+    db      'X', KEY_X      ; SETAE
+    db      'C', KEY_C      ; SWAPNIB
+    db      'V', KEY_V      ; TEST $nn
 
 ; four bytes per instruction, either real opcode byte, or special opcode equ
 InstructionsData_Encoding:
@@ -251,29 +250,25 @@ RedrawMainScreen:
     ldir
     ; make top line green
     FILL_AREA   MEM_ZX_ATTRIB_5800, 32, P_GREEN|BLACK ; cyan at second line
-    ; create vertical lines (but they hit also first line, because I'm super lazy)
-    ld      hl,MEM_ZX_SCREEN_4000+$0E
+    ;; this main screen drawing expect first line of screen to be clear(!)
+    ; create vertical lines (over full screen, because I'm super lazy)
     ld      a,$08
-    ld      b,192
-.VertLineLoop:
-    ld      (hl),a
-    ld      de,3
-    add     hl,de
-    ld      (hl),a
-    add     hl,de
-    ld      (hl),a
-    add     hl,de
-    ld      (hl),a
-    add     hl,de
-    ld      (hl),a
-    inc     l
-    inc     l
-    ld      (hl),a
-    ld      e,4+$0E
-    add     hl,de
-    djnz    .VertLineLoop
+    ld      hl,MEM_ZX_SCREEN_4000
+    push    hl
+    push    hl
+    pop     ix
+    ld      (ix+CHARPOS_ENCODING-1),a
+    ld      (ix+CHARPOS_ENCODING+2),a
+    ld      (ix+CHARPOS_ENCODING+5),a
+    ld      (ix+CHARPOS_ENCODING+8),a
+    ld      (ix+CHARPOS_INS_KEY-1),a
+    ld      (ix+CHARPOS_STATUS-1),a
+    ; now copy first line over full screen, so it will also clear it
+    ld      de,MEM_ZX_SCREEN_4000+32
+    ld      bc,32*191
+    ldir
     ; erase first line pixels
-    ld      hl, MEM_ZX_SCREEN_4000
+    pop     hl
     ld      bc, 32
 .ClearLine0Loop:
     xor     a
@@ -290,20 +285,7 @@ RedrawMainScreen:
     set     6,(ix+KEY_ATTR_OFS_FULL)
     set     6,(ix+KEY_ATTR_OFS_RUN)
     ; update options status
-    ld      a,P_BLACK|GREEN
-    ld      hl,TestOptions
-    bit     TEST_OPT_BIT_TURBO,(hl)
-    jr      z,.TurboIsOff
-    ld      (ix+KEY_ATTR_OFS_TURBO+1),a
-    ld      (ix+KEY_ATTR_OFS_TURBO+2),a
-    ld      (ix+KEY_ATTR_OFS_TURBO+3),a
-.TurboIsOff:
-    bit     TEST_OPT_BIT_FULL,(hl)
-    jr      z,.FullIsOff
-    ld      (ix+KEY_ATTR_OFS_FULL+1),a
-    ld      (ix+KEY_ATTR_OFS_FULL+2),a
-    ld      (ix+KEY_ATTR_OFS_FULL+3),a
-.FullIsOff:
+    call    UpdateToplineOptionsStatus
     ld      de,32
     ld      b,23
     ld      hl,InstructionsData_KeyLegends
@@ -348,17 +330,10 @@ RedrawMainScreen:
     ld      hl,MEM_ZX_SCREEN_4000+32+CHARPOS_STATUS
 .PrintInstructionDetails:
     push    hl
-    ld      (OutCurrentAdr),hl  ; set up VRAM output position
-    ; display status
     ld      ix,InstructionsData_Details
     add     ix,de
-    push    hl
-    ld      a,(ix+1)        ; fetch status
-    add     a,ResultStringBase&$FF
-    ld      l,a
-    ld      h,ResultStringBase>>8
-    call    OutString
-    pop     hl
+    ; display status
+    call    PrintTestStatus
     ; display key
     ld      a,l
     sub     CHARPOS_STATUS-CHARPOS_INS_KEY
@@ -413,3 +388,103 @@ RedrawMainScreen:
     cp      23*4
     jr      nz,.PrintInstructionDetails
     ret
+
+UpdateToplineOptionsStatus:
+    ; update "turbo" attributes
+    ld      hl,MEM_ZX_ATTRIB_5800+KEY_ATTR_OFS_TURBO+1
+    ld      a,(TestOptions)
+    and     1<<TEST_OPT_BIT_TURBO
+    ld      a,P_BLACK|GREEN
+    jr      nz,.TurboIsOn
+    ld      a,P_GREEN|BLACK
+.TurboIsOn:
+    ld      (hl),a
+    inc     l
+    ld      (hl),a
+    inc     l
+    ld      (hl),a
+    ; update "full" attributes
+    ld      l,KEY_ATTR_OFS_FULL+1
+    ld      a,(TestOptions)
+    and     1<<TEST_OPT_BIT_FULL
+    ld      a,P_BLACK|GREEN
+    jr      nz,.FullIsOn
+    ld      a,P_GREEN|BLACK
+.FullIsOn:
+    ld      (hl),a
+    inc     l
+    ld      (hl),a
+    inc     l
+    ld      (hl),a
+    ret
+
+;IX: instruction details data, HL: VRAM address for output
+PrintTestStatus:
+    ld      (OutCurrentAdr),hl  ; set up VRAM output position
+    push    hl
+    ; display status
+    ld      a,(ix+1)    ; fetch status
+    add     a,ResultStringBase&$FF
+    ld      l,a
+    ld      h,ResultStringBase>>8
+    call    OutString
+    pop     hl
+    ret
+
+;;;;;;;;;;;;;;;; key controls routines (setup + handlers) ;;;;;;;;;;;;
+
+SetupKeyControl:
+    ld      a,KEY_2
+    ld      de,TurboKeyHandler
+    call    RegisterKeyhandler
+    ld      a,KEY_3
+    ld      de,FullKeyHandler
+    call    RegisterKeyhandler
+    ;;FIXME register also KEY_1 (help) and KEY_5 (go)
+    ; register all single-test keys
+    ld      hl,InstructionsData_KeyLegends
+    ld      de,SingleTestKeyHandler
+    ld      b,23
+.RegisterSingleTestHandlersLoop:
+    inc     hl
+    ld      a,(hl)
+    inc     hl
+    call    RegisterKeyhandler      ; KEY_NONE will be rejected by Register function
+    djnz    .RegisterSingleTestHandlersLoop
+    ret
+
+TurboKeyHandler:
+    ; flip turbo ON/OFF option
+    ld      a,(TestOptions)
+    xor     1<<TEST_OPT_BIT_TURBO
+    ld      (TestOptions),a
+    ; refresh main screen top line status
+    call    UpdateToplineOptionsStatus
+    ; switch the turbo ON/OFF actually
+    jp      SetTurboModeByOption    ; + ret
+
+FullKeyHandler:     ; "Full" is selecting faster/slower test variants
+    ; flip full ON/OFF option
+    ld      a,(TestOptions)
+    xor     1<<TEST_OPT_BIT_FULL
+    ld      (TestOptions),a
+    ; refresh main screen top line status
+    jp      UpdateToplineOptionsStatus  ; + ret
+
+SingleTestKeyHandler:               ; DE = keycode
+    ; find which test line was picked
+    ld      hl,InstructionsData_KeyLegends
+    ld      b,23
+.findTestLoop:
+    inc     hl
+    ld      a,(hl)
+    inc     hl
+    cp      e
+    jr      z,.testFound
+    djnz    .findTestLoop
+    ; test not found?! how??
+    ret
+.testFound:
+    ld      a,23
+    sub     b       ; A = 0..22 number of test
+    jp      RunZ80nTest
