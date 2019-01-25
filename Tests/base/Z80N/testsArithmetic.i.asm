@@ -19,21 +19,26 @@ TestFull_TestNn:
     push    af          ; put result on stack
     pop     hl          ; put expected result into HL
 .Z80NInstTest:
-    db      $ED, $27, $00   ; TEST $00  (CF=0 expected)
+    db      $ED, $27, $00   ; TEST $00
     push    af
     pop     de
+    or      a           ; enforce CF=0
     sbc     hl,de
     jr      nz,.errorFound
     djnz    .FullTestLoop
     call    TestHeartbeat
     inc     c
     jp      nz,.FullTestLoopNextNn
-    call    TestHeartbeat
     ret
 .errorFound:
-    ld      a,RED
+    add     hl,de       ; reconstruct expected AF
+    ex      de,hl       ; put expected/received AF into correct registers for Logging
+    ld      b,c         ; B = $nn
+    call    LogAdd1B2W  ; B:$nn DE:expected AF HL:received AF
+    ld      (ix+1),RESULT_ERR   ; set result to ERR
+    ld      a,RED       ; red border
     out     (ULA_P_FE),a
-    jr      $           ; BC = values tested, HL = (expected result-obtained result-CF)
+    ret                 ; terminate test
 
 ;;;;;;;;;;;;;;;;;;;;;;;; Test MIRROR (instant) ;;;;;;;;;;;;;;;;;;
 TestFull_Mirror:
@@ -65,10 +70,12 @@ TestFull_Mirror:
     djnz    .FullTestLoop
     ret
 .errorFound:
-    ld      c,a         ; B is expected value, C is fail-check value
-    ld      a,RED
+    ld      c,a     ; B is expected value, C is fail-check value
+    call    LogAdd2B
+    ld      (ix+1),RESULT_ERR   ; set result to ERR
+    ld      a,RED   ; red border
     out     (ULA_P_FE),a
-    jr      $
+    ret             ; terminate test
 
 ;;;;;;;;;;;;;;;;;;;;;;;; Test SWAPNIB (instant) ;;;;;;;;;;;;;;;;;;
 TestFull_Swapnib:
@@ -89,9 +96,11 @@ TestFull_Swapnib:
     ret
 .errorFound:
     ld      c,a         ; B is expected value, C is calculated
-    ld      a,RED
+    call    LogAdd2B
+    ld      (ix+1),RESULT_ERR   ; set result to ERR
+    ld      a,RED       ; red border
     out     (ULA_P_FE),a
-    jr      $
+    ret                 ; terminate test
 
 ;;;;;;;;;;;;;;;;;;;;;;;; Test MUL D,E (1s) ;;;;;;;;;;;;;;;;;;
 TestFull_MulDE:

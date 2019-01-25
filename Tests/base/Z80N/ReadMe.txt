@@ -35,22 +35,22 @@ Details of possible errors (explaining the error log) per instruction:
   - no test yet
 
  ADD BC,A       ED  33              BC += uint16_t(A), no flags change
-  - displays A (8b), BC (16b) and result (16b)
-  - if the instruction does set CF=1 (error), the "result" will be -1 to the true result
+  - displays A (8b), BC (16b) and result (16b), if the instruction does set CF=1 (error),
+  the "result" will be -1 to the true result
 
  ADD DE,$nnnn   ED  35  low  high   DE += n, flags undefined at this moment
   - no test yet
 
  ADD DE,A       ED  32              DE += uint16_t(A), no flags
-  - displays A (8b), DE (16b) and result (16b)
-  - if the instruction does set CF=1 (error), the "result" will be -1 to the true result
+  - displays A (8b), DE (16b) and result (16b), if the instruction does set CF=1 (error),
+  the "result" will be -1 to the true result
 
  ADD HL,$nnnn   ED  34  low  high   HL += n, flags undefined at this moment
   - no test yet
 
  ADD HL,A       ED  31              HL += uint16_t(A), no flags
-  - displays A (8b), DE (16b) and result (16b)
-  - if the instruction does set CF=1 (error), the "result" will be -1 to the true result
+  - displays A (8b), HL (16b) and result (16b), if the instruction does set CF=1 (error),
+  the "result" will be -1 to the true result
 
  LDDRX          ED  BC              do LDDX until BC=0, no flags
   - no test yet
@@ -81,6 +81,7 @@ Details of possible errors (explaining the error log) per instruction:
  LDWS           ED  A5              *DE = *HL L++ D++, flags as "INC D"
   - if the adjustments of HL/DE are wrong, messages are displayed with expected (16b) vs
   obtained value (16b) (there is separate message for HL and DE).
+  - message if BC was modified by instruction for some reason
   - if unexpected value, two values are displayed: expected (8b) vs value in memory (8b).
   - if unexpected flags, message + two values displayed: expected F (8b) vs real F (8b).
 
@@ -118,4 +119,5 @@ Details of possible errors (explaining the error log) per instruction:
   - two values: expected (8b) vs received (8b)
 
  TEST $nn       ED  27  value       flags as if "AND $nn", but A is preserved
-  - two values: expected (16b) vs received (16b) - values are "AF", A is upper 8 bits.
+  - three values: $nn (8b) expected (16b) vs received (16b) - 16b values are "AF", A is
+  upper 8 bits.

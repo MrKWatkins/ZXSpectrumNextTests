@@ -8,6 +8,8 @@
     INCLUDE "..\..\OutputFunctions.asm"
     INCLUDE "..\..\Macros.asm"      ;; FIXME remove in final
 
+MEM_LOG_DATA        equ     $7000   ; 4k buffer (but index into log is 8b => 2k max)
+
 MEM_SCRAP_BUFFER    equ     $A000   ; area to be freely modified by tests
 MEM_SCRAP_BUFFER2   equ     MEM_SCRAP_BUFFER+1024   ; if using multiple buffers, then 1k
 
@@ -30,6 +32,7 @@ InstructionsData_FullTests:
 
     INCLUDE "controls.i.asm"
     INCLUDE "UI.i.asm"
+    INCLUDE "errorLog.i.asm"
 
 ;;;;;;;;;;;;;;;;;; switch 14MHz turbo mode ON or OFF ;;;;;;;;;;
 SetTurboModeByOption:
@@ -143,6 +146,9 @@ TestCallWrapper:
     call    .AdjustInstructionNameAttributes
     pop     hl
     pop     de
+    ; preserve current Error log index (to check, if test did log anything)
+    ld      a,(LogLastIndex)
+    ld      (.LogLastIndexBeforeTest+1),a   ; preserve it directly in `ld a,*`
     ; call the test itself
     push    de
     push    ix      ; preserve Details data pointer
@@ -154,6 +160,18 @@ TestCallWrapper:
     jr      nz,.ResultAlreadySetByTest
     ld      (ix+1),RESULT_OK    ; full OK otherwise
 .ResultAlreadySetByTest:
+    ; check if there are some new log items (produced by the test)
+    ld      hl,(LogLastIndex)   ; L = (LogLastIndex) (ignore H)
+.LogLastIndexBeforeTest:
+    ld      a,0
+    cp      l
+    jr      z,.NoNewLogItems
+    ; store the index of first new log into test details data
+    inc     a       ; (old index didn't belong to new items, adjust it)
+    ld      (ix+2),a            ; store it into test details data
+    ; seal the log-chain by setting "last" on last item
+    call    LogSealPreviousChainOfItems
+.NoNewLogItems:
     ; restore main screen (hide heartbeat)
     call    DeinitHeartbeat
     ; de-highlight the picked instruction
@@ -187,6 +205,7 @@ TestCallWrapper:
 ;;;;;;;;;;;;;;;;;;;;;;;;; MAIN ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 Start:
+    call    LogInit
     call    StartTest
     call    SetupKeyControl
     call    RedrawMainScreen
@@ -195,12 +214,9 @@ Start:
     ;;FIXME all - do keyboard controls and run tests
 
     ; - check main keys, adjust options, etc
-    ; - check test keys and run particular test (or display LOG!)
-    ; - create "report result/errors" API and adjust tests to use it
-
-    ; TestFull_TestNn, TestFull_Ldws, TestFull_AddHlA, TestFull_Ldpirx
-    ;ld      hl,TestFull_Ldpirx
-    ;call    TestCallWrapper
+    ; - check test keys and display log (and handle OK1/OK2/ERR statuses fully)
+    ; - adjust all tests to report errors through log API
+    ; - needs display UI of logged messages
 
 .MainLoopPrototype:
     call    RefreshKeyboardState
@@ -298,11 +314,11 @@ TestFull_Pixeldn:
 .WithinCharLines:
     ; now try to use Z80N pixeldn (updates HL itself)
     db      $ED, $93    ; PIXELDN ; advances HL "one VRAM line down"
+    ex      de,hl
     or      a           ; CF=0
-    ex      de,hl
     sbc     hl,de
-    ex      de,hl
     jr      nz,.errorFound
+    ex      de,hl
     djnz    .FullTestLoopOneCharPos
     dec     c
     jp      nz,.FullTestLoopOneCharPos
@@ -322,9 +338,15 @@ TestFull_Pixeldn:
 
     ret
 .errorFound:
-    ld      a,RED
+    add     hl,de       ; HL:expected "hl", DE:calculated "hl"
+    ex      de,hl       ; log(de:expected, hl:calculated)
+    call    LogAdd2W
+    ld      (ix+1),RESULT_ERR   ; set result to ERR
+    ld      a,RED       ; red border
     out     (ULA_P_FE),a
-    jr      $
+    pop     bc          ; terminate test (+release stack)
+    pop     hl
+    ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;; Test PIXELAD (1s) ;;;;;;;;;;;;;;;;;;
 TestFull_Pixelad:
@@ -371,9 +393,17 @@ TestFull_Pixelad:
     ld      b,a
     ret
 .errorFound:
-    ld      a,RED
+    add     hl,bc       ; BC:expected "hl", HL:calculated "hl", DE:coordinates
+    push    bc          ; ex bc,hl
+    push    hl
+    pop     bc
+    pop     hl
+    call    LogAdd3W    ; log(de:coordinates, hl:expected, bc:calculated)
+    ld      (ix+1),RESULT_ERR   ; set result to ERR
+    ld      a,RED       ; red border
     out     (ULA_P_FE),a
-    jr      $
+    pop     bc          ; terminate test (+release stack)
+    ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;; Test SETAE (instant) ;;;;;;;;;;;;;;;;;;
 TestFull_Setae:
@@ -390,9 +420,12 @@ TestFull_Setae:
     jp      nz,.FullTestLoop
     ret
 .errorFound:
-    ld      c,a
-    ld      a,RED
+    ld      b,e
+    ld      c,a         ; B is X-coordinate, C is calculated bitmask
+    call    LogAdd2B
+    ld      (ix+1),RESULT_ERR   ; set result to ERR
+    ld      a,RED       ; red border
     out     (ULA_P_FE),a
-    jr      $           ; E: X-coord, B: expected mask, C: obtained mask
+    ret                 ; terminate test
 
     savesna "!Z80N.sna", Start

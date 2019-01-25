@@ -51,9 +51,15 @@ TestFull_Ldws:
     call    .DoOneLdws
 .DoOneLdws:
     call    TestHeartbeatFour
+    ld      bc,$01FF
     db      $ED, $A5    ; LDWS
+    push    af          ; preserve flags
+    ; check if BC didn't move
+    dec     b
+    call    nz,.errorFound_AdvanceRegs
+    inc     c
+    call    nz,.errorFound_AdvanceRegs
     ; compare resulting flags with flags from "INC D"
-    push    af
     pop     bc
     dec     d
     inc     d

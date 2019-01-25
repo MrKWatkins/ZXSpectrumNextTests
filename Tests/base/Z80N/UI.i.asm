@@ -118,32 +118,32 @@ InstructionsData_Encoding:
 
 ; byte 0 = encoding bytes [2:0], special mask [7:3] (from top to bottom)
 ; byte 1 = result
-; byte 2 = logIndex?    (first log index)
+; byte 2 = logIndex (first log index, 0 == no log)
 ; byte 3 = ??
 InstructionsData_Details:
-    db      $34, RESULT_NONE, -1, -1                            ; ADD BC,$nnnn
-    db      $02, RESULT_NONE, -1, -1                            ; ADD BC,A
-    db      $34, RESULT_NONE, -1, -1                            ; ADD DE,$nnnn
-    db      $02, RESULT_NONE, -1, -1                            ; ADD DE,A
-    db      $34, RESULT_NONE, -1, -1                            ; ADD HL,$nnnn
-    db      $02, RESULT_NONE, -1, -1                            ; ADD HL,A
-    db      $02, RESULT_NONE, -1, -1                            ; LDDRX
-    db      $02, RESULT_NONE, -1, -1                            ; LDDX
-    db      $02, RESULT_NONE, -1, -1                            ; LDIRX
-    db      $02, RESULT_NONE, -1, -1                            ; LDIX
-    db      $02, RESULT_NONE, -1, -1                            ; LDPIRX
-    db      $02, RESULT_NONE, -1, -1                            ; LDWS
-    db      $02, RESULT_NONE, -1, -1                            ; MIRROR
-    db      $02, RESULT_NONE, -1, -1                            ; MUL D,E
-    db      $34, RESULT_NONE, -1, -1                            ; NEXTREG $rr,$n
-    db      $23, RESULT_NONE, -1, -1                            ; NEXTREG $rr,A
-    db      $02, RESULT_NONE, -1, -1                            ; OUTINB
-    db      $02, RESULT_NONE, -1, -1                            ; PIXELAD
-    db      $02, RESULT_NONE, -1, -1                            ; PIXELDN
-    db      $34, RESULT_NONE, -1, -1                            ; PUSH $nnnn
-    db      $02, RESULT_NONE, -1, -1                            ; SETAE
-    db      $02, RESULT_NONE, -1, -1                            ; SWAPNIB
-    db      $23, RESULT_NONE, -1, -1                            ; TEST $nn
+    db      $34, RESULT_NONE, 0, -1                            ; ADD BC,$nnnn
+    db      $02, RESULT_NONE, 0, -1                            ; ADD BC,A
+    db      $34, RESULT_NONE, 0, -1                            ; ADD DE,$nnnn
+    db      $02, RESULT_NONE, 0, -1                            ; ADD DE,A
+    db      $34, RESULT_NONE, 0, -1                            ; ADD HL,$nnnn
+    db      $02, RESULT_NONE, 0, -1                            ; ADD HL,A
+    db      $02, RESULT_NONE, 0, -1                            ; LDDRX
+    db      $02, RESULT_NONE, 0, -1                            ; LDDX
+    db      $02, RESULT_NONE, 0, -1                            ; LDIRX
+    db      $02, RESULT_NONE, 0, -1                            ; LDIX
+    db      $02, RESULT_NONE, 0, -1                            ; LDPIRX
+    db      $02, RESULT_NONE, 0, -1                            ; LDWS
+    db      $02, RESULT_NONE, 0, -1                            ; MIRROR
+    db      $02, RESULT_NONE, 0, -1                            ; MUL D,E
+    db      $34, RESULT_NONE, 0, -1                            ; NEXTREG $rr,$n
+    db      $23, RESULT_NONE, 0, -1                            ; NEXTREG $rr,A
+    db      $02, RESULT_NONE, 0, -1                            ; OUTINB
+    db      $02, RESULT_NONE, 0, -1                            ; PIXELAD
+    db      $02, RESULT_NONE, 0, -1                            ; PIXELDN
+    db      $34, RESULT_NONE, 0, -1                            ; PUSH $nnnn
+    db      $02, RESULT_NONE, 0, -1                            ; SETAE
+    db      $02, RESULT_NONE, 0, -1                            ; SWAPNIB
+    db      $23, RESULT_NONE, 0, -1                            ; TEST $nn
 
 ;;;;;;;;;;;;;; test heartbeat progress bar routines ;;;;;;;;;;;;;
 
