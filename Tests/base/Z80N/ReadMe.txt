@@ -89,7 +89,7 @@ Details of possible errors (explaining the error log) per instruction:
   - two values: expected (8b), received (8b)
 
  MUL D,E        ED  30              DE = D * E, no flags
-  - two values: initial DE (16b), result (16b). The displayed result may be less by one
+  - three values: D (8b), E (8b) and result (16b). The displayed result may be less by one
   (than real result) when instruction did also set carry flag (the error is the flag then).
 
  NEXTREG $rr,$n ED  91  register  value     Writes N to Next register R (directly, no I/O), no flags

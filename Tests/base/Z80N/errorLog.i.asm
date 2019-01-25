@@ -114,6 +114,19 @@ LogAdd2B:
     ld      (iy+LOG_ITEM_W0),c
     ret
 
+; adds new log item with two 8b values, first in B, second in C and one 16b in DE
+; ZF=1: returns in A the index of new log item (and IY = address of item)
+; ZF=0 => log is full (no item added)
+LogAdd2B1W:
+    call    LogAllocateNewItem      ; IY = new log item address, A = log index
+    ret     nz      ; log is full
+    ld      (iy+LOG_ITEM_TYPE),(1<<LOG_TYPE_W_SHIFT)+2  ; byte count = 2, word count = 1
+    ld      (iy+LOG_ITEM_B0),b
+    ld      (iy+LOG_ITEM_W0),c
+    ld      (iy+LOG_ITEM_W1+1),d
+    ld      (iy+LOG_ITEM_W1),e
+    ret
+
 ; adds new log item with one 16b value in DE
 ; ZF=1: returns in A the index of new log item (and IY = address of item)
 ; ZF=0 => log is full (no item added)

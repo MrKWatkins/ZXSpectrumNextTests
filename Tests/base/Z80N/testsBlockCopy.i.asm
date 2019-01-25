@@ -22,11 +22,11 @@ TestFull_Ldws:
     ld      bc,MEM_SCRAP_BUFFER+$03
     or      a
     sbc     hl,bc
-    call    nz,.errorFound_AdvanceRegs  ; ending HL mismatch
+    call    nz,.errorFound_AdvanceRegsHl    ; ending HL mismatch
     ld      hl,MEM_SCRAP_BUFFER+$01+$500
     or      a
     sbc     hl,de
-    call    nz,.errorFound_AdvanceRegs  ; ending HL mismatch
+    call    nz,.errorFound_AdvanceRegsDe    ; ending DE mismatch
     ;; check values written in memory
     ; convert expected $FE at $A301 into $01 (to form sequence FE..02 as group)
     ld      hl,MEM_SCRAP_BUFFER+$01+$300
@@ -38,7 +38,7 @@ TestFull_Ldws:
     ld      a,$FE
 .VerifyLoop:
     cp      (hl)
-    call    nz,.errorFound
+    jr      nz,.errorFound
     inc     h
     inc     a
     call    TestHeartbeatFour
@@ -56,9 +56,9 @@ TestFull_Ldws:
     push    af          ; preserve flags
     ; check if BC didn't move
     dec     b
-    call    nz,.errorFound_AdvanceRegs
+    call    nz,.errorFound_AdvanceRegsBc
     inc     c
-    call    nz,.errorFound_AdvanceRegs
+    call    nz,.errorFound_AdvanceRegsBc
     ; compare resulting flags with flags from "INC D"
     pop     bc
     dec     d
@@ -68,18 +68,78 @@ TestFull_Ldws:
     pop     bc          ; F from emulating INC D
     cp      c
     ret     z           ; OK if flags are identical
-    ; error in flags detected, change border
-    ld      a,BLUE
+    ; error in flags detected
+.errorFound_Flags:
+    push    hl
+    push    de
+    push    ix
+    ld      b,c         ; expected F (from INC)
+    ld      c,a         ; real F from LDWS
+    ld      ix,.errorFlagsMsg
+    call    LogAddMsg2B ; log(B:expected flags, C:real flags, IX:msg)
+    pop     ix
+    ld      (ix+1),RESULT_ERR   ; set result to ERR
+    ld      a,RED       ; red border
     out     (ULA_P_FE),a
-    ret
-.errorFound_AdvanceRegs:
-    ld      a,BLACK
+    ; add this one to log only once, remove the code by putting RET at beginning
+    ld      a,201
+    ld      (.errorFound_Flags),a
+    pop     de
+    pop     hl
+    ret                 ; continue test (DE+HL preserved)
+.errorFound_AdvanceRegsHl:
+    push    de
+    push    ix
+    ld      ix,.errorAdvanceRegsHlMsg
+    add     hl,bc
+    ld      d,b         ; DE=expected "hl", HL=real "hl"
+    ld      e,c
+    call    LogAddMsg2W ; log(DE: expected hl, HL: real hl, IX:msg)
+    pop     ix
+    ld      (ix+1),RESULT_ERR   ; set result to ERR
+    ld      a,RED       ; red border
     out     (ULA_P_FE),a
-    ret
+    pop     de
+    ret                 ; continue test (DE preserved)
+.errorFound_AdvanceRegsDe:
+    push    ix
+    ld      ix,.errorAdvanceRegsDeMsg
+    add     hl,de
+    ex      de,hl       ; DE=expected "de", HL=real "de"
+    call    LogAddMsg2W ; log(DE: expected de, HL: real de, IX:msg)
+    pop     ix
+    ld      (ix+1),RESULT_ERR   ; set result to ERR
+    ld      a,RED       ; red border
+    out     (ULA_P_FE),a
+    ret                 ; continue test (no need to preserve anything)
 .errorFound:
-    ld      a,RED
+    ld      b,a
+    ld      c,(hl)
+    call    LogAdd2B    ; log(B:expected, C:value in memory)
+    ld      (ix+1),RESULT_ERR   ; set result to ERR
+    ld      a,RED       ; red border
     out     (ULA_P_FE),a
-    jr      $
+    ret                 ; terminate test
+.errorFound_AdvanceRegsBc:
+    push    ix
+    ld      ix,.errorAdvanceRegsBcMsg
+    call    LogAddMsg   ; log(IX:msg)
+    pop     ix
+    ld      (ix+1),RESULT_ERR   ; set result to ERR
+    ld      a,RED       ; red border
+    out     (ULA_P_FE),a
+    ; add this one to log only once, remove the code by putting RET at beginning
+    ld      a,201
+    ld      (.errorFound_AdvanceRegsBc),a
+    ret                 ; continue with test (HL+DE preserved)
+.errorFlagsMsg:
+    db      'Unexpected flags.',0
+.errorAdvanceRegsHlMsg:
+    db      'Unexpected HL.',0
+.errorAdvanceRegsDeMsg:
+    db      'Unexpected DE.',0
+.errorAdvanceRegsBcMsg:
+    db      'BC unexpectedly modified.',0
 
 ;;;;;;;;;;;;;;;;;;;;;;;; Test LDPIRX (2s) ;;;;;;;;;;;;;;;;;;
 Ldpirx_Test_Pattern_src:

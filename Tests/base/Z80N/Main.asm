@@ -265,17 +265,35 @@ OUTINB_TEST_PORT    equ     TBBLUE_REGISTER_SELECT_P_243B
     jp      nz,.FullTestLoop
     ret
 .PortNumDamaged:
-    ld      a,RED
+    ; message with damaged port value (16b)
+    push    ix
+    ld      ix,.PortNumDamagedMsg
+    ld      d,b
+    ld      e,c
+    call    LogAddMsg1W ; log(IX: msg, DE: damaged port)
+    pop     ix
+    ld      (ix+1),RESULT_ERR   ; set result to ERR
+    ld      a,RED       ; red border
     out     (ULA_P_FE),a
-    jr      $
+    ret                 ; terminate test
 .PortReadsBackOtherValue:
-    ld      a,BLACK
+    ; expected (8b) vs received (8b) value, if value reads different than expected
+    ld      b,e
+    ld      c,a         ; B is expected value, C received from port
+    call    LogAdd2B
+    ld      (ix+1),RESULT_ERR   ; set result to ERR
+    ld      a,RED       ; red border
     out     (ULA_P_FE),a
-    jr      $
+    ret                 ; terminate test
 .HlDidNotAdvance:
-    ld      a,BLUE
+    ; expected HL (16b) vs received HL (16b)
+    call    LogAdd2W    ; log(DE: expected HL, HL: received HL)
+    ld      (ix+1),RESULT_ERR   ; set result to ERR
+    ld      a,RED       ; red border
     out     (ULA_P_FE),a
-    jr      $
+    ret                 ; terminate test
+.PortNumDamagedMsg:
+    db      'Port is not $243B any more.',0
 
 ;;;;;;;;;;;;;;;;;;;;;;;; Test PIXELDN (1s) ;;;;;;;;;;;;;;;;;;
 TestFull_Pixeldn:

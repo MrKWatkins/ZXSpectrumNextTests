@@ -115,8 +115,8 @@ TestFull_MulDE:
     db      $ED, $30    ; MUL D,E   ; DE = D*E
     ex      de,hl       ; 4T
     sbc     hl,de       ; 15T  ZF=1, CF=0 if OK
-    ex      de,hl       ; 4T
-    jr      nz,.errorFound  ; 12/7T = 30T test when OK
+    jr      nz,.errorFound  ; 12/7T
+    ex      de,hl       ; 4T = 30T test when OK
     add     hl,bc       ; update expected result in HL (CF=0)
     inc     a
     jp      nz,.FullTestLoop
@@ -125,11 +125,15 @@ TestFull_MulDE:
     jp      nz,.FullTestLoopSetHl_A
     ret
 .errorFound:
-    ld      d,c
-    ld      e,a
-    ld      a,RED
+    ld      b,c
+    ld      c,a
+    add     hl,de       ; restore result back
+    ex      de,hl       ; put it into DE
+    call    LogAdd2B1W  ; log(B: "D", C: "E", DE: "D*E")
+    ld      (ix+1),RESULT_ERR   ; set result to ERR
+    ld      a,RED       ; red border
     out     (ULA_P_FE),a
-    jr      $
+    ret                 ; terminate test
 
 ;;;;;;;;;;;;;;;;;;;;;;;; Test ADD BC,A (1:20) ;;;;;;;;;;;;;;;;;;
 TestFull_AddBcA:
