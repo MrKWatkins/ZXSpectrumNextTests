@@ -36,8 +36,6 @@ TestFull_TestNn:
     ld      b,c         ; B = $nn
     call    LogAdd1B2W  ; B:$nn DE:expected AF HL:received AF
     ld      (ix+1),RESULT_ERR   ; set result to ERR
-    ld      a,RED       ; red border
-    out     (ULA_P_FE),a
     ret                 ; terminate test
 
 ;;;;;;;;;;;;;;;;;;;;;;;; Test MIRROR (instant) ;;;;;;;;;;;;;;;;;;
@@ -73,8 +71,6 @@ TestFull_Mirror:
     ld      c,a     ; B is expected value, C is fail-check value
     call    LogAdd2B
     ld      (ix+1),RESULT_ERR   ; set result to ERR
-    ld      a,RED   ; red border
-    out     (ULA_P_FE),a
     ret             ; terminate test
 
 ;;;;;;;;;;;;;;;;;;;;;;;; Test SWAPNIB (instant) ;;;;;;;;;;;;;;;;;;
@@ -98,8 +94,6 @@ TestFull_Swapnib:
     ld      c,a         ; B is expected value, C is calculated
     call    LogAdd2B
     ld      (ix+1),RESULT_ERR   ; set result to ERR
-    ld      a,RED       ; red border
-    out     (ULA_P_FE),a
     ret                 ; terminate test
 
 ;;;;;;;;;;;;;;;;;;;;;;;; Test MUL D,E (1s) ;;;;;;;;;;;;;;;;;;
@@ -131,8 +125,6 @@ TestFull_MulDE:
     ex      de,hl       ; put it into DE
     call    LogAdd2B1W  ; log(B: "D", C: "E", DE: "D*E")
     ld      (ix+1),RESULT_ERR   ; set result to ERR
-    ld      a,RED       ; red border
-    out     (ULA_P_FE),a
     ret                 ; terminate test
 
 ;;;;;;;;;;;;;;;;;;;;;;;; Test ADD BC,A (1:20) ;;;;;;;;;;;;;;;;;;
@@ -160,10 +152,6 @@ TestFull_AddBcA:
     ret
 .errorFound:
     ld      bc,(.FullTestLoop+1)
-    push    af
-    ld      a,RED
-    out     (ULA_P_FE),a
-    pop     af
     jr      $
 
 ;;;;;;;;;;;;;;;;;;;;;;;; Test ADD DE,A (1:15) ;;;;;;;;;;;;;;;;;;
@@ -192,10 +180,6 @@ TestFull_AddDeA:
     ret
 .errorFound:
     ld      de,(.FullTestLoop+1)
-    push    af
-    ld      a,RED
-    out     (ULA_P_FE),a
-    pop     af
     jr      $
 
 ;;;;;;;;;;;;;;;;;;;;;;;; Test ADD HL,A (1:12) ;;;;;;;;;;;;;;;;;;
@@ -227,10 +211,6 @@ TestFull_AddHlA:
     ret
 .errorFound:
     ld      hl,(.FullTestLoop+1)
-    push    af
-    ld      a,RED
-    out     (ULA_P_FE),a
-    pop     af
     jr      $
 
     savesna "!Z80N.sna", Start

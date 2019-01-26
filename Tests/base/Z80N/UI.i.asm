@@ -426,6 +426,14 @@ PrintTestStatus:
     push    hl
     ; display status
     ld      a,(ix+1)    ; fetch status
+    cp      RESULT_ERR
+    jr      nz,.KeepBorderAsIs
+    ; set red border in case any "ERR" status is displayed
+    ld      a,RED
+    out     (ULA_P_FE),a
+    ld      a,RESULT_ERR    ; restore value
+.KeepBorderAsIs:
+    ; print status string
     add     a,ResultStringBase&$FF
     ld      l,a
     ld      h,ResultStringBase>>8

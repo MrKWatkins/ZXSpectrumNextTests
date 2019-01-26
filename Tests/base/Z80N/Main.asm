@@ -288,8 +288,6 @@ OUTINB_TEST_PORT    equ     TBBLUE_REGISTER_SELECT_P_243B
     call    LogAddMsg1W ; log(IX: msg, DE: damaged port)
     pop     ix
     ld      (ix+1),RESULT_ERR   ; set result to ERR
-    ld      a,RED       ; red border
-    out     (ULA_P_FE),a
     ret                 ; terminate test
 .PortReadsBackOtherValue:
     ; expected (8b) vs received (8b) value, if value reads different than expected
@@ -297,15 +295,11 @@ OUTINB_TEST_PORT    equ     TBBLUE_REGISTER_SELECT_P_243B
     ld      c,a         ; B is expected value, C received from port
     call    LogAdd2B
     ld      (ix+1),RESULT_ERR   ; set result to ERR
-    ld      a,RED       ; red border
-    out     (ULA_P_FE),a
     ret                 ; terminate test
 .HlDidNotAdvance:
     ; expected HL (16b) vs received HL (16b)
     call    LogAdd2W    ; log(DE: expected HL, HL: received HL)
     ld      (ix+1),RESULT_ERR   ; set result to ERR
-    ld      a,RED       ; red border
-    out     (ULA_P_FE),a
     ret                 ; terminate test
 .PortNumDamagedMsg:
     db      'Port is not $243B any more',0
@@ -375,8 +369,6 @@ TestFull_Pixeldn:
     ex      de,hl       ; log(de:expected, hl:calculated)
     call    LogAdd2W
     ld      (ix+1),RESULT_ERR   ; set result to ERR
-    ld      a,RED       ; red border
-    out     (ULA_P_FE),a
     pop     bc          ; terminate test (+release stack)
     pop     hl
     ret
@@ -433,8 +425,6 @@ TestFull_Pixelad:
     pop     hl
     call    LogAdd3W    ; log(de:coordinates, hl:expected, bc:calculated)
     ld      (ix+1),RESULT_ERR   ; set result to ERR
-    ld      a,RED       ; red border
-    out     (ULA_P_FE),a
     pop     bc          ; terminate test (+release stack)
     ret
 
@@ -453,12 +443,9 @@ TestFull_Setae:
     jp      nz,.FullTestLoop
     ret
 .errorFound:
-    ld      b,e
-    ld      c,a         ; B is X-coordinate, C is calculated bitmask
-    call    LogAdd2B
+    ld      c,a
+    call    LogAdd3B    ; log(B: expected, C: calculated, E:X-coordinate)
     ld      (ix+1),RESULT_ERR   ; set result to ERR
-    ld      a,RED       ; red border
-    out     (ULA_P_FE),a
     ret                 ; terminate test
 
     savesna "!Z80N.sna", Start

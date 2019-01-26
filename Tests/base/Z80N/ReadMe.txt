@@ -113,7 +113,7 @@ Details of possible errors (explaining the error log) per instruction:
   - no test yet
 
  SETAE          ED  95              A = uint8_t(0x80)>>(E&7), no flags (E as x-coordinate to bitmask in A) 
-  - two values: pixel x-coordinate (8b), calculated bitmask (8b)
+  - three values: expected bitmask (8b), calculated bitmask (8b), pixel x-coordinate (8b)
 
  SWAPNIB        ED  23              A = (A<<4) | ((A>>4)&0xF), no flags (swap nibbles)
   - two values: expected (8b) vs received (8b)

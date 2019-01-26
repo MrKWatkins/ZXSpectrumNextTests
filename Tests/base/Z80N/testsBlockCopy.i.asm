@@ -79,8 +79,6 @@ TestFull_Ldws:
     call    LogAddMsg2B ; log(B:expected flags, C:real flags, IX:msg)
     pop     ix
     ld      (ix+1),RESULT_ERR   ; set result to ERR
-    ld      a,RED       ; red border
-    out     (ULA_P_FE),a
     ; add this one to log only once, remove the code by putting RET at beginning
     ld      a,201
     ld      (.errorFound_Flags),a
@@ -97,8 +95,6 @@ TestFull_Ldws:
     call    LogAddMsg2W ; log(DE: expected hl, HL: real hl, IX:msg)
     pop     ix
     ld      (ix+1),RESULT_ERR   ; set result to ERR
-    ld      a,RED       ; red border
-    out     (ULA_P_FE),a
     pop     de
     ret                 ; continue test (DE preserved)
 .errorFound_AdvanceRegsDe:
@@ -109,16 +105,12 @@ TestFull_Ldws:
     call    LogAddMsg2W ; log(DE: expected de, HL: real de, IX:msg)
     pop     ix
     ld      (ix+1),RESULT_ERR   ; set result to ERR
-    ld      a,RED       ; red border
-    out     (ULA_P_FE),a
     ret                 ; continue test (no need to preserve anything)
 .errorFound:
     ld      b,a
     ld      c,(hl)
     call    LogAdd2B    ; log(B:expected, C:value in memory)
     ld      (ix+1),RESULT_ERR   ; set result to ERR
-    ld      a,RED       ; red border
-    out     (ULA_P_FE),a
     ret                 ; terminate test
 .errorFound_AdvanceRegsBc:
     push    ix
@@ -126,8 +118,6 @@ TestFull_Ldws:
     call    LogAddMsg   ; log(IX:msg)
     pop     ix
     ld      (ix+1),RESULT_ERR   ; set result to ERR
-    ld      a,RED       ; red border
-    out     (ULA_P_FE),a
     ; add this one to log only once, remove the code by putting RET at beginning
     ld      a,201
     ld      (.errorFound_AdvanceRegsBc),a
@@ -219,12 +209,8 @@ TestFull_Ldpirx:
     jr      nz,.TestALoop
     ret
 .errorFound:
-    ld      a,RED
-    out     (ULA_P_FE),a
     jr      $
 .errorFound_AdvanceRegs:
-    ld      a,BLUE
-    out     (ULA_P_FE),a
     ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;; Test LDDX (2s) ;;;;;;;;;;;;;;;;;;
@@ -290,12 +276,8 @@ TestFull_Lddx:
     jr      nz,.TestALoop
     ret
 .errorFound:
-    ld      a,RED
-    out     (ULA_P_FE),a
     jr      $
 .errorFound_AdvanceRegs:
-    ld      a,BLUE
-    out     (ULA_P_FE),a
     jr      $
 
 ;;;;;;;;;;;;;;;;;;;;;;;; Test LDIX (2s) ;;;;;;;;;;;;;;;;;;
@@ -358,10 +340,6 @@ TestFull_Ldix:
     jr      nz,.TestALoop
     ret
 .errorFound:
-    ld      a,RED
-    out     (ULA_P_FE),a
     jr      $
 .errorFound_AdvanceRegs:
-    ld      a,BLUE
-    out     (ULA_P_FE),a
     jr      $
