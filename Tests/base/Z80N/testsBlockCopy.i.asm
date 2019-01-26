@@ -4,6 +4,9 @@
 
 ; This file has tests for: LDWS | LDPIRX | LDDX | LDIX
 
+ErrorAdvanceRegsMsg:
+    db      "HL, DE or BC didn't advance as expected",0
+
 ;;;;;;;;;;;;;;;;;;;;;;;; Test LDWS (instant) ;;;;;;;;;;;;;;;;;;
 TestFull_Ldws:
     INIT_HEARTBEAT_32
@@ -138,11 +141,10 @@ Ldpirx_Test_Pattern_src:
 TestFull_Ldpirx:
     INIT_HEARTBEAT_256
     ; verify first that LDPIRX does modify HL/DE/BC (ignore data transfers)
-    ld      ix,MEM_SCRAP_BUFFER+128
     ld      hl,MEM_SCRAP_BUFFER+128
     ld      de,MEM_SCRAP_BUFFER2+127
     ld      bc,1
-    ld      a,(ix+7)    ; should skip write (A == (HL&$FFF8+E&7))
+    ld      a,(MEM_SCRAP_BUFFER+128+7)  ; should skip write (A == (HL&$FFF8+E&7))
     db      $ED, $B7    ; LDPIRX
     call    TestHlDeBcAfterFullBlockValues
     call    nz,.errorFound_AdvanceRegs
@@ -150,7 +152,7 @@ TestFull_Ldpirx:
     ld      hl,MEM_SCRAP_BUFFER+128
     ld      de,MEM_SCRAP_BUFFER2+127
     ld      bc,1
-    ld      a,(ix+7)    ; A = (HL&$FFF8+E&7)
+    ld      a,(MEM_SCRAP_BUFFER+128+7)  ; A = (HL&$FFF8+E&7)
     cpl                 ; should write (A == ~(pattern value))
     db      $ED, $B7    ; LDPIRX
     call    TestHlDeBcAfterFullBlockValues
@@ -208,10 +210,22 @@ TestFull_Ldpirx:
     inc     a
     jr      nz,.TestALoop
     ret
-.errorFound:
-    jr      $
+.errorFound:    ; A = expected value, (HL) value in memory
+    ld      b,a
+    ld      c,(hl)
+    call    LogAdd2B    ; log(b: expected, c: value in memory)
+    ld      (ix+1),RESULT_ERR   ; set result to ERR
+    ret                 ; terminate test
 .errorFound_AdvanceRegs:
-    ret
+    push    ix
+    ld      ix,ErrorAdvanceRegsMsg
+    call    LogAddMsg   ; log(IX:msg)
+    pop     ix
+    ld      (ix+1),RESULT_ERR   ; set result to ERR
+    ; add this one to log only once, remove the code by putting RET at beginning
+    ld      a,201
+    ld      (.errorFound_AdvanceRegs),a
+    ret                 ; continue with test
 
 ;;;;;;;;;;;;;;;;;;;;;;;; Test LDDX (2s) ;;;;;;;;;;;;;;;;;;
 TestFull_Lddx:
@@ -223,7 +237,7 @@ TestFull_Lddx:
     ld      a,(hl)      ; should skip write (A == (HL))
     db      $ED, $AC    ; LDDX
     call    TestHlDeBcForBlockValues
-    jr      nz,.errorFound_AdvanceRegs
+    call    nz,.errorFound_AdvanceRegs
     ; do one more, this time writing byte (but again just to verify HL/DE/BC advance)
     ld      hl,MEM_SCRAP_BUFFER+129
     ld      de,MEM_SCRAP_BUFFER2+127
@@ -232,7 +246,7 @@ TestFull_Lddx:
     cpl                 ; should write (A == ~(HL))
     db      $ED, $AC    ; LDDX
     call    TestHlDeBcForBlockValues
-    jr      nz,.errorFound_AdvanceRegs
+    call    nz,.errorFound_AdvanceRegs
     ;;; verify now actual data transfers
     ; create source data which will be used to initialize target buffer
     call    Set0to255TwiceScrapData
@@ -257,7 +271,7 @@ TestFull_Lddx:
     ld      l,a         ; offset MEM_SCRAP_BUFFER2+(~A) of skipped value
     xor     $80         ; "old" value should be like this
     cp      (hl)
-    jr      nz,.errorFound
+    jr      nz,.errorFound_IgnoredA
     xor     $7F         ; turn it into "new" value (removes also CPL)
     ld      (hl),a      ; to make full 255..0 block verification simple
     ; now check whole block if it contains 255..0 values
@@ -275,10 +289,37 @@ TestFull_Lddx:
     inc     a
     jr      nz,.TestALoop
     ret
-.errorFound:
-    jr      $
 .errorFound_AdvanceRegs:
-    jr      $
+    push    ix
+    ld      ix,ErrorAdvanceRegsMsg
+    call    LogAddMsg   ; log(IX:msg)
+    pop     ix
+    ld      (ix+1),RESULT_ERR   ; set result to ERR
+    ; add this one to log only once, remove the code by putting RET at beginning
+    ld      a,201
+    ld      (.errorFound_AdvanceRegs),a
+    ret                 ; continue with test
+.errorFound_IgnoredA:
+    ld      b,a
+    push    ix
+    ld      ix,.errorWrongWriteMsg
+    call    LogAddMsg1B ; log(IX:msg, B:"A" value)
+    pop     ix
+    ld      (ix+1),RESULT_ERR   ; set result to ERR
+    ret                 ; terminate test
+.errorFound:
+    ld      b,a
+    ld      c,(hl)
+    push    ix
+    ld      ix,.errorSkippedWriteMsg
+    call    LogAddMsg2B ; log(IX:msg, B:expected value, C:value in memory)
+    pop     ix
+    ld      (ix+1),RESULT_ERR   ; set result to ERR
+    ret                 ; terminate test
+.errorWrongWriteMsg:
+    db      'Value "A" was written into memory',0
+.errorSkippedWriteMsg:
+    db      'Value was not written into memory',0
 
 ;;;;;;;;;;;;;;;;;;;;;;;; Test LDIX (2s) ;;;;;;;;;;;;;;;;;;
 TestFull_Ldix:
@@ -290,7 +331,7 @@ TestFull_Ldix:
     ld      a,(hl)      ; should skip write (A == (HL))
     db      $ED, $A4    ; LDIX
     call    TestHlDeBcForBlockValues
-    jr      nz,.errorFound_AdvanceRegs
+    call    nz,.errorFound_AdvanceRegs
     ; do one more, this time writing byte (but again just to verify HL/DE/BC advance)
     ld      hl,MEM_SCRAP_BUFFER+127
     ld      de,MEM_SCRAP_BUFFER2+127
@@ -299,7 +340,7 @@ TestFull_Ldix:
     cpl                 ; should write (A == ~(HL))
     db      $ED, $A4    ; LDIX
     call    TestHlDeBcForBlockValues
-    jr      nz,.errorFound_AdvanceRegs
+    call    nz,.errorFound_AdvanceRegs
     ;;; verify now actual data transfers
     ; create source data which will be used to initialize target buffer
     call    Set0to255TwiceScrapData
@@ -322,7 +363,7 @@ TestFull_Ldix:
     ld      l,a         ; A = skipped value (at offset MEM_SCRAP_BUFFER2+A)
     xor     $80         ; "old" value should be like this
     cp      (hl)
-    jr      nz,.errorFound
+    jp      nz,TestFull_Lddx.errorFound_IgnoredA
     xor     $80         ; turn it into "new" value
     ld      (hl),a      ; to make full 0..255 block verification simple
     ; now check whole block if it contains 0..255 values
@@ -331,7 +372,7 @@ TestFull_Ldix:
 .VerifyBlock:
     ld      a,l
     cp      (hl)
-    jr      nz,.errorFound
+    jp      nz,TestFull_Lddx.errorFound
     inc     l
     jr      nz,.VerifyBlock
     call    TestHeartbeat
@@ -339,7 +380,13 @@ TestFull_Ldix:
     inc     a
     jr      nz,.TestALoop
     ret
-.errorFound:
-    jr      $
 .errorFound_AdvanceRegs:
-    jr      $
+    push    ix
+    ld      ix,ErrorAdvanceRegsMsg
+    call    LogAddMsg   ; log(IX:msg)
+    pop     ix
+    ld      (ix+1),RESULT_ERR   ; set result to ERR
+    ; add this one to log only once, remove the code by putting RET at beginning
+    ld      a,201
+    ld      (.errorFound_AdvanceRegs),a
+    ret                 ; continue with test
