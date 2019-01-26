@@ -444,13 +444,16 @@ PrintTestStatus:
 ;;;;;;;;;;;;;;;; key controls routines (setup + handlers) ;;;;;;;;;;;;
 
 SetupKeyControl:
+    ;;FIXME register also KEY_1 (help)
     ld      a,KEY_2
     ld      de,TurboKeyHandler
     call    RegisterKeyhandler
     ld      a,KEY_3
     ld      de,FullKeyHandler
     call    RegisterKeyhandler
-    ;;FIXME register also KEY_1 (help) and KEY_5 (go)
+    ld      a,KEY_5
+    ld      de,GoKeyHandler
+    call    RegisterKeyhandler
     ; register all single-test keys
     ld      hl,InstructionsData_KeyLegends
     ld      de,SingleTestKeyHandler
@@ -480,6 +483,17 @@ FullKeyHandler:     ; "Full" is selecting faster/slower test variants
     ld      (TestOptions),a
     ; refresh main screen top line status
     jp      UpdateToplineOptionsStatus  ; + ret
+
+GoKeyHandler:       ; run all tests sequentially with current settings
+    xor     a
+.runTestLoop:       ; runn all tests 0..22 (nullptr tests will be skipped safely)
+    push    af
+    call    RunZ80nTest
+    pop     af
+    inc     a
+    cp      23
+    jr      nz,.runTestLoop
+    ret
 
 SingleTestKeyHandler:               ; DE = keycode
     ; find which test line was picked
