@@ -151,6 +151,7 @@ TestCallWrapper:
     ld      de,MEM_ZX_ATTRIB_5800+32    ; instructions start from second line
     add     hl,de
     ld      (.AdjustInstructionNameAttributes+1),hl
+    ld      a,P_BLACK|YELLOW
     call    .AdjustInstructionNameAttributes
     pop     hl
     pop     de
@@ -185,10 +186,16 @@ TestCallWrapper:
 .NoNewLogItems:
     ; restore main screen (hide heartbeat)
     call    DeinitHeartbeat
+    pop     de      ; restore index*2
     ; de-highlight the picked instruction
+    ld      a,e
+    rlca
+    rlca
+    rlca    ; index*16 in total
+    and     P_RED   ; the only bit I'm interested (to produce CYAN for odd lines)
+    xor     P_WHITE|BLACK
     call    .AdjustInstructionNameAttributes
     ; refresh the test result status on screen
-    pop     de      ; restore index*2
     ld      b,e
     rrc     b       ; b = index, now do lazy-coder VRAM line calculation
     inc     b
@@ -212,10 +219,8 @@ TestCallWrapper:
     ld      hl,0
     ld      b,CHARPOS_INS_END+1
 .InstructionNameLoop:
-    ld      a,A_BRIGHT
-    xor     (hl)
     ld      (hl),a
-    inc     hl
+    inc     l
     djnz    .InstructionNameLoop
     ret
 
