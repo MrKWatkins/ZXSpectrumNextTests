@@ -310,6 +310,10 @@ DisplayLogForOneTest:
     jr      nc,.DoWrapHere
     cp      '0'
     jr      nc,.DoNotWrapHere
+    cp      ')'
+    jr      nc,.DoWrapHere
+    cp      '"'
+    jr      nc,.DoNotWrapHere
 .DoWrapHere:
     ld      c,0                 ; this is good spot to wrap, remember it
 .DoNotWrapHere:
