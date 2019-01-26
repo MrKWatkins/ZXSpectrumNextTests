@@ -35,8 +35,7 @@ Details of possible errors (explaining the error log) per instruction:
   - no test yet
 
  ADD BC,A       ED  33              BC += uint16_t(A), no flags change
-  - displays A (8b), BC (16b) and result (16b), if the instruction does set CF=1 (error),
-  the "result" will be -1 to the true result
+  - displays A (8b), BC (16b) and result (16b), if result seems correct, the CF=1 was set
 
  ADD DE,$nnnn   ED  35  low  high   DE += n, flags undefined at this moment
   - no test yet

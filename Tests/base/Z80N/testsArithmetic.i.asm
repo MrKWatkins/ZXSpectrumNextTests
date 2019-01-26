@@ -130,6 +130,7 @@ TestFull_MulDE:
 ;;;;;;;;;;;;;;;;;;;;;;;; Test ADD BC,A (1:20) ;;;;;;;;;;;;;;;;;;
 TestFull_AddBcA:
     INIT_HEARTBEAT_256
+    push    ix
     ld      ix,.FullTestLoop
 .FullTestLoopSetA:
     xor     a           ; A=0, CF=0 will hold for the whole test, if everything is OK!
@@ -149,14 +150,22 @@ TestFull_AddBcA:
     call    TestHeartbeat   ; preserves CF=0
     inc     (ix+2)
     jp      nz,.FullTestLoopSetA
+    pop     ix
     ret
 .errorFound:
-    ld      bc,(.FullTestLoop+1)
-    jr      $
+    push    bc
+    pop     hl          ; HL = result
+    ld      b,a
+    ld      de,(.FullTestLoop+1)
+    call    LogAdd1B2W  ; log(B:"A", DE:original BC, HL: BC+A result)
+    pop     ix
+    ld      (ix+1),RESULT_ERR   ; set result to ERR
+    ret                 ; terminate test
 
 ;;;;;;;;;;;;;;;;;;;;;;;; Test ADD DE,A (1:15) ;;;;;;;;;;;;;;;;;;
 TestFull_AddDeA:
     INIT_HEARTBEAT_256
+    push    ix
     ld      ix,.FullTestLoop
 .FullTestLoopSetA:
     xor     a           ; A=0, CF=0 will hold for the whole test, if everything is OK!
@@ -177,10 +186,18 @@ TestFull_AddDeA:
     call    TestHeartbeat   ; preserves CF=0
     inc     (ix+2)
     jp      nz,.FullTestLoopSetA
+    pop     ix
     ret
 .errorFound:
+    ld      b,a
+    ; restore result of addition (may be -1 due to CF=1)
+    ex      de,hl
+    add     hl,de
     ld      de,(.FullTestLoop+1)
-    jr      $
+    call    LogAdd1B2W  ; log(B:"A", DE:original DE, HL: DE+A result)
+    pop     ix
+    ld      (ix+1),RESULT_ERR   ; set result to ERR
+    ret                 ; terminate test
 
 ;;;;;;;;;;;;;;;;;;;;;;;; Test ADD HL,A (1:12) ;;;;;;;;;;;;;;;;;;
 TestFull_AddHlA:
@@ -190,6 +207,7 @@ TestFull_AddHlA:
     ; instead this optimized one evolved (this test will catch CF=1 by ADD HL,A).
     ; Will take something under 5min (about 1:12 in 14MHz mode)
     INIT_HEARTBEAT_256
+    push    ix
     ld      ix,.FullTestLoop
 .FullTestLoopSetA:
     xor     a           ; A=0, CF=0 will hold for the whole test, if everything is OK!
@@ -208,9 +226,16 @@ TestFull_AddHlA:
     call    TestHeartbeat   ; preserves CF=0
     inc     (ix+2)
     jp      nz,.FullTestLoopSetA
+    pop     ix
     ret
 .errorFound:
-    ld      hl,(.FullTestLoop+1)
-    jr      $
+    ld      b,a
+    ; restore result of addition (may be -1 due to CF=1)
+    add     hl,de
+    ld      de,(.FullTestLoop+1)
+    call    LogAdd1B2W  ; log(B:"A", DE:original HL, HL: HL+A result)
+    pop     ix
+    ld      (ix+1),RESULT_ERR   ; set result to ERR
+    ret                 ; terminate test
 
     savesna "!Z80N.sna", Start
