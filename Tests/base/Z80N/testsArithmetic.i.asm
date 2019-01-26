@@ -2,6 +2,8 @@
 ; may be somewhat difficult to read than would it be designed with some kind of API
 ; ... deal with it, it's just about 1+k LoC ... :P :D
 
+; ";;DEBUG" mark instructions can be used to intentionally trigger error (test testing)
+
 ; This file has tests for: TEST | MIRROR | SWAPNIB | MUL D,E | ADD rr,A
 
 ;;;;;;;;;;;;;;;;;;;;;;;; Test TEST * (2s) ;;;;;;;;;;;;;;;;;;
@@ -20,6 +22,7 @@ TestFull_TestNn:
     pop     hl          ; put expected result into HL
 .Z80NInstTest:
     db      $ED, $27, $00   ; TEST $00
+    ;res     6,a ;;DEBUG
     push    af
     pop     de
     or      a           ; enforce CF=0
@@ -60,6 +63,7 @@ TestFull_Mirror:
     rla
     rrc     b
     rla
+    ;rrca ;;DEBUG
     db      $ED, $24    ; MIRROR A
     ; now A should be back; equal to B value
     cp      b
@@ -83,6 +87,7 @@ TestFull_Swapnib:
     rrca
     rrca
     rrca
+    ;rlca ;;DEBUG
     db      $ED, $23    ; SWAPNIB  ; swap(a[3:0], a[7:4])
     ; now A should be back to original value
     cp      b
@@ -107,6 +112,7 @@ TestFull_MulDE:
     ld      d,c
     ld      e,a
     db      $ED, $30    ; MUL D,E   ; DE = D*E
+    ;res     5,d ;;DEBUG
     ex      de,hl       ; 4T
     sbc     hl,de       ; 15T  ZF=1, CF=0 if OK
     jr      nz,.errorFound  ; 12/7T
@@ -139,6 +145,7 @@ TestFull_AddBcA:
 .FullTestLoop:
     ld      bc,$0000
     db      $ED, $33    ; ADD BC,A  ; if CF is modified, the test will fail!
+    ;inc     bc ;;DEBUG
     sbc     hl,bc       ; 15T  ZF=1, CF=0 if OK
     add     hl,bc       ; 11T restore HL (if OK), ZF is preserved from SBC
     jr      nz,.errorFound  ; 12/7T = 33T test when OK
@@ -174,6 +181,7 @@ TestFull_AddDeA:
 .FullTestLoop:
     ld      de,$0000
     db      $ED, $32    ; ADD DE,A  ; if CF is modified, the test will fail!
+    ;inc     de ;;DEBUG
     ex      de,hl       ; 4T
     sbc     hl,de       ; 15T  ZF=1, CF=0 if OK
     ex      de,hl       ; 4T
@@ -216,6 +224,7 @@ TestFull_AddHlA:
 .FullTestLoop:
     ld      hl,$0000
     db      $ED, $31    ; ADD HL,A  ; if CF is modified, the test will fail!
+    ;inc     hl ;;DEBUG
     sbc     hl,de       ; 15T  ZF=1, CF=0 if OK
     jr      nz,.errorFound  ; 12/7T = 22T test when OK
     inc     de          ; update expected result in DE

@@ -2,6 +2,8 @@
 ; may be somewhat difficult to read than would it be designed with some kind of API
 ; ... deal with it, it's just about 1+k LoC ... :P :D
 
+; ";;DEBUG" mark instructions can be used to intentionally trigger error (test testing)
+
 ; This file has tests for: LDWS | LDPIRX | LDDX | LDIX
 
 ErrorAdvanceRegsMsg:
@@ -19,6 +21,8 @@ TestFull_Ldws:
     ld      de,MEM_SCRAP_BUFFER+$01     ; cross even source data
     call    .DoFourLdws
     call    .DoOneLdws
+    ;inc     hl ;;DEBUG
+    ;inc     de ;;DEBUG
     ; (A0FE->A001) FE, (A0FF->A101) FF, (A000->A201) 00
     ; (A001->A301) (original value is from A0FE!) FE, (A002->A401) 02
     ;; check ending values of HL and DE (flags already checked)
@@ -39,6 +43,7 @@ TestFull_Ldws:
     ; now check the whole sequence, should be: FE, FF, 00, 01, 02
     ld      hl,MEM_SCRAP_BUFFER+$01
     ld      a,$FE
+    ;inc     a ;;DEBUG
 .VerifyLoop:
     cp      (hl)
     jr      nz,.errorFound
@@ -56,6 +61,7 @@ TestFull_Ldws:
     call    TestHeartbeatFour
     ld      bc,$01FF
     db      $ED, $A5    ; LDWS
+    ;inc     bc ;;DEBUG
     push    af          ; preserve flags
     ; check if BC didn't move
     dec     b
@@ -67,6 +73,7 @@ TestFull_Ldws:
     dec     d
     inc     d
     push    af
+    ;inc     c ;;DEBUG
     ld      a,c         ; F from LDWS
     pop     bc          ; F from emulating INC D
     cp      c
@@ -146,6 +153,9 @@ TestFull_Ldpirx:
     ld      bc,1
     ld      a,(MEM_SCRAP_BUFFER+128+7)  ; should skip write (A == (HL&$FFF8+E&7))
     db      $ED, $B7    ; LDPIRX
+    ;inc     hl ;;DEBUG
+    ;inc     de ;;DEBUG
+    ;inc     bc ;;DEBUG
     call    TestHlDeBcAfterFullBlockValues
     call    nz,.errorFound_AdvanceRegs
     ; do one more, this time writing byte (but again just to verify HL/DE/BC advance)
@@ -155,6 +165,9 @@ TestFull_Ldpirx:
     ld      a,(MEM_SCRAP_BUFFER+128+7)  ; A = (HL&$FFF8+E&7)
     cpl                 ; should write (A == ~(pattern value))
     db      $ED, $B7    ; LDPIRX
+    ;inc     hl ;;DEBUG
+    ;inc     de ;;DEBUG
+    ;inc     bc ;;DEBUG
     call    TestHlDeBcAfterFullBlockValues
     call    nz,.errorFound_AdvanceRegs
     ;;; verify now actual data transfers
@@ -198,6 +211,7 @@ TestFull_Ldpirx:
     cpl
 .NotTestAValueExpected:
     ; compare with the memory content (verification itself)
+    ;inc     a ;;DEBUG
     cp      (hl)
     jr      nz,.errorFound
     ; next byte of pattern (code-defined, not reading patter from source data!)
@@ -236,6 +250,9 @@ TestFull_Lddx:
     ld      bc,$0200
     ld      a,(hl)      ; should skip write (A == (HL))
     db      $ED, $AC    ; LDDX
+    ;inc     hl ;;DEBUG
+    ;inc     de ;;DEBUG
+    ;inc     bc ;;DEBUG
     call    TestHlDeBcForBlockValues
     call    nz,.errorFound_AdvanceRegs
     ; do one more, this time writing byte (but again just to verify HL/DE/BC advance)
@@ -245,6 +262,9 @@ TestFull_Lddx:
     ld      a,(hl)
     cpl                 ; should write (A == ~(HL))
     db      $ED, $AC    ; LDDX
+    ;inc     hl ;;DEBUG
+    ;inc     de ;;DEBUG
+    ;inc     bc ;;DEBUG
     call    TestHlDeBcForBlockValues
     call    nz,.errorFound_AdvanceRegs
     ;;; verify now actual data transfers
@@ -270,6 +290,7 @@ TestFull_Lddx:
     cpl
     ld      l,a         ; offset MEM_SCRAP_BUFFER2+(~A) of skipped value
     xor     $80         ; "old" value should be like this
+    ;inc     a ;;DEBUG
     cp      (hl)
     jr      nz,.errorFound_IgnoredA
     xor     $7F         ; turn it into "new" value (removes also CPL)
@@ -278,6 +299,7 @@ TestFull_Lddx:
     ex      af,af       ; preserve current A test value
     ld      l,0
     ld      a,255
+    ;inc     a ;;DEBUG
 .VerifyBlock:
     cp      (hl)
     jr      nz,.errorFound
@@ -330,6 +352,9 @@ TestFull_Ldix:
     ld      bc,$0200
     ld      a,(hl)      ; should skip write (A == (HL))
     db      $ED, $A4    ; LDIX
+    ;inc     hl ;;DEBUG
+    ;inc     de ;;DEBUG
+    ;inc     bc ;;DEBUG
     call    TestHlDeBcForBlockValues
     call    nz,.errorFound_AdvanceRegs
     ; do one more, this time writing byte (but again just to verify HL/DE/BC advance)
@@ -339,6 +364,9 @@ TestFull_Ldix:
     ld      a,(hl)
     cpl                 ; should write (A == ~(HL))
     db      $ED, $A4    ; LDIX
+    ;inc     hl ;;DEBUG
+    ;inc     de ;;DEBUG
+    ;inc     bc ;;DEBUG
     call    TestHlDeBcForBlockValues
     call    nz,.errorFound_AdvanceRegs
     ;;; verify now actual data transfers
@@ -362,6 +390,7 @@ TestFull_Ldix:
     ld      h,MEM_SCRAP_BUFFER2>>8
     ld      l,a         ; A = skipped value (at offset MEM_SCRAP_BUFFER2+A)
     xor     $80         ; "old" value should be like this
+    ;inc     a ;;DEBUG
     cp      (hl)
     jp      nz,TestFull_Lddx.errorFound_IgnoredA
     xor     $80         ; turn it into "new" value
@@ -371,6 +400,7 @@ TestFull_Ldix:
     ld      l,0
 .VerifyBlock:
     ld      a,l
+    ;inc     a ;;DEBUG
     cp      (hl)
     jp      nz,TestFull_Lddx.errorFound
     inc     l

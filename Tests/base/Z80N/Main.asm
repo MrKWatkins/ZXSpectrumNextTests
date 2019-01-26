@@ -236,7 +236,6 @@ Start:
     ;;FIXME:
     ; - check main keys, adjust options, etc
     ; - handle OK1/OK2 statuses (i.e. the "full" option)
-    ; - adjust all tests to report errors through log API
 
 .MainLoopPrototype:
     call    RefreshKeyboardState
@@ -248,6 +247,8 @@ Start:
 ;;;;;;;;;;;;;;;;;;;;;;;; Tests themselves ;;;;;;;;;;;;;;;;;;;;;
 ;;FIXME add missing tests: ADD rr,**, LD*RX, NEXTREG_any, PUSH **
 ;    CSPECT_BRK     ;;FIXME
+
+; ";;DEBUG" mark instructions can be used to intentionally trigger error (test testing)
 
     INCLUDE "testsBlockCopy.i.asm"  ; LDWS | LDPIRX | LDDX | LDIX
     INCLUDE "testsArithmetic.i.asm" ; TEST | MIRROR | SWAPNIB | MUL D,E | ADD rr,A
@@ -263,6 +264,7 @@ OUTINB_TEST_PORT    equ     TBBLUE_REGISTER_SELECT_P_243B
     ld      e,l
     db      $ED, $90    ; OUTINB ; out (bc),(hl++)
     ; compare BC if it holds
+    ;inc     bc ;;DEBUG
     ld      a,OUTINB_TEST_PORT>>8
     cp      b
     jr      nz,.PortNumDamaged
@@ -271,9 +273,11 @@ OUTINB_TEST_PORT    equ     TBBLUE_REGISTER_SELECT_P_243B
     jr      nz,.PortNumDamaged
     ; read value back from port to verify
     in      a,(c)
+    ;inc     a ;;DEBUG
     cp      e           ; should be equal to old L (CF=0 if OK)
     jr      nz,.PortReadsBackOtherValue
     ; check if HL was advanced
+    ;dec     hl ;;DEBUG
     inc     de          ; expected HL
     sbc     hl,de       ; will set ZF=1 if HL==DE
     add     hl,de       ; restore HL (preserves ZF)
@@ -346,6 +350,7 @@ TestFull_Pixeldn:
 .WithinCharLines:
     ; now try to use Z80N pixeldn (updates HL itself)
     db      $ED, $93    ; PIXELDN ; advances HL "one VRAM line down"
+    ;inc     hl ;;DEBUG
     ex      de,hl
     or      a           ; CF=0
     sbc     hl,de
@@ -388,6 +393,7 @@ TestFull_Pixelad:
     push    bc
 .FullTestLoopChar:
     db      $ED, $94    ; PIXELAD ; HL = VRAM address of pixel [E,D]
+    ;inc     hl ;;DEBUG
     or      a           ; CF=0 -> sub hl,bc
     sbc     hl,bc
     jr      nz,.errorFound
@@ -440,6 +446,7 @@ TestFull_Setae:
     ld      b,$80       ; expected value
 .FullTestLoop:
     db      $ED, $95    ; SETAE
+    ;rrca ;;DEBUG
     cp      b
     jr      nz,.errorFound
     rrc     b
