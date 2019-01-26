@@ -104,7 +104,7 @@ Details of possible errors (explaining the error log) per instruction:
   - expected HL (16b) vs received HL (16b)
 
  PIXELAD        ED  94              HL = 0x4000 VRAM address from pixel coordinates x=E, y=D, no flags
-  - DE coordinates (16b), expected HL (16b) vs received HL (16b)
+  - expected HL (16b) vs received HL (16b), DE coordinates (16b)
 
  PIXELDN        ED  93              HL advanced to "next line" in classic ZX VRAM, no flags
   - expected HL (16b) vs received HL (16b) (this test is not sensitive to carry changes)

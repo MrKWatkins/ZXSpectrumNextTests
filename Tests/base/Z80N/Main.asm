@@ -419,11 +419,11 @@ TestFull_Pixelad:
     ret
 .errorFound:
     add     hl,bc       ; BC:expected "hl", HL:calculated "hl", DE:coordinates
-    push    bc          ; ex bc,hl
-    push    hl
+    push    de          ; move coordinates into BC
+    push    bc          ; move expected "hl" into DE
+    pop     de          ; i.e. ex bc,de
     pop     bc
-    pop     hl
-    call    LogAdd3W    ; log(de:coordinates, hl:expected, bc:calculated)
+    call    LogAdd3W    ; log(de:expected, hl:calculated, bc:coordinates)
     ld      (ix+1),RESULT_ERR   ; set result to ERR
     pop     bc          ; terminate test (+release stack)
     ret
