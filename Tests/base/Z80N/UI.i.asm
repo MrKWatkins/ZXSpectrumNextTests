@@ -334,11 +334,12 @@ RedrawMainScreen:
     ld      ix,InstructionsData_Details
     add     ix,de
     ; display status
-    call    PrintTestStatus
+    call    PrintTestStatus ; 3-letter statuses may advance OutCurrentAdr to next third!
     ; display key
     ld      a,l
     sub     CHARPOS_STATUS-CHARPOS_INS_KEY
-    ld      (OutCurrentAdr),a   ; set up VRAM output position
+    ld      l,a
+    ld      (OutCurrentAdr),hl  ; set up VRAM position (whole HL to reset VRAM third!)
     push    hl
     ld      hl,InstructionsData_KeyLegends
     rrc     e
@@ -350,7 +351,7 @@ RedrawMainScreen:
     pop     hl
     ; display instruction encoding
     ld      a,l
-    sub     CHARPOS_STATUS-CHARPOS_ENCODING
+    sub     CHARPOS_INS_KEY-CHARPOS_ENCODING
     ld      (OutCurrentAdr),a   ; set up VRAM output position
     ld      a,(ix)  ; encoding bytes [2:0], special mask [7:3] (from top to bottom)
     ld      c,a     ; special mask into C
