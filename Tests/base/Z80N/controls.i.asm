@@ -122,3 +122,24 @@ RefreshKeyboardState:   ; modifies everything
     ret     nz
     ld      h,l         ; remember the pressed key
     ret
+
+; waits for any key
+WaitForAnyKey:
+    call    .readAllKeys
+    jr      nz,WaitForAnyKey
+.WaitForSomeKeyPress:
+    call    .readAllKeys
+    jr      z,.WaitForSomeKeyPress
+.WaitForAllReleased:
+    call    .readAllKeys
+    jr      nz,.WaitForAllReleased
+    ; set some debounce
+    ld      a,20
+    ld      (debounceState),a
+    ret
+.readAllKeys:
+    xor     a           ; read all rows in single IN
+    in      a,(ULA_P_FE)
+    and     $1F
+    xor     $1F         ; flip the bits: 0 = no press, 1 = key pressed (and sets ZF)
+    ret

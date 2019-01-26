@@ -242,7 +242,8 @@ RedrawMainScreen:
     ld      a,GREEN
     out     (ULA_P_FE),a
     ; create attribute stripes to make lines easier to read
-    FILL_AREA   MEM_ZX_ATTRIB_5800+64, 32, P_CYAN|BLACK ; cyan at third line
+    FILL_AREA   MEM_ZX_ATTRIB_5800+1*32, 3*32, P_WHITE|BLACK    ; restore "white" on 2nd+4th
+    FILL_AREA   MEM_ZX_ATTRIB_5800+2*32, 32, P_CYAN|BLACK       ; cyan at third line
     ; copy this white/cyan paper over full screen
     ld      hl,MEM_ZX_ATTRIB_5800+2*32
     ld      de,MEM_ZX_ATTRIB_5800+4*32

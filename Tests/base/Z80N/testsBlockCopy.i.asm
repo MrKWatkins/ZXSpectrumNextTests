@@ -133,13 +133,13 @@ TestFull_Ldws:
     ld      (.errorFound_AdvanceRegsBc),a
     ret                 ; continue with test (HL+DE preserved)
 .errorFlagsMsg:
-    db      'Unexpected flags.',0
+    db      'Unexpected flags',0
 .errorAdvanceRegsHlMsg:
-    db      'Unexpected HL.',0
+    db      'Unexpected HL',0
 .errorAdvanceRegsDeMsg:
-    db      'Unexpected DE.',0
+    db      'Unexpected DE',0
 .errorAdvanceRegsBcMsg:
-    db      'BC unexpectedly modified.',0
+    db      'BC unexpectedly modified',0
 
 ;;;;;;;;;;;;;;;;;;;;;;;; Test LDPIRX (2s) ;;;;;;;;;;;;;;;;;;
 Ldpirx_Test_Pattern_src:

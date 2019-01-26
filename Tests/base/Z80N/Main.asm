@@ -8,7 +8,8 @@
     INCLUDE "..\..\OutputFunctions.asm"
     INCLUDE "..\..\Macros.asm"      ;; FIXME remove in final
 
-MEM_LOG_DATA        equ     $7000   ; 4k buffer (but index into log is 8b => 2k max)
+MEM_LOG_DATA        equ     $7000   ; 4k buffer (index into log is 8b => 2k max)
+MEM_LOG_TXT_BUFFER  equ     $7A00   ; some sub-buffer for texts wrapping
 
 MEM_SCRAP_BUFFER    equ     $A000   ; area to be freely modified by tests
 MEM_SCRAP_BUFFER2   equ     MEM_SCRAP_BUFFER+1024   ; if using multiple buffers, then 1k
@@ -129,9 +130,16 @@ TestCallWrapper:
     ld      ix,InstructionsData_Details
     add     ix,de
     add     ix,de
-    ld      a,RESULT_NONE
+    ld      a,RESULT_OK
     cp      (ix+1)
-    ret     nz      ;;FIXME - show log in case it's error
+    ret     z       ; test was run on all possible levels and there's nothing to show
+    ld      a,RESULT_OK1
+    cp      (ix+1)
+    ret     z       ;;FIXME test if "fuller" level of test is to be called -> let it call (reset result?)
+    ld      a,RESULT_OK2
+    cp      (ix+1)
+    ret     z       ;;FIXME test if "fuller" level of test is to be called -> let it call (reset result?)
+    ; result here is either RESULT_NONE or RESULT_ERR
     ; highlight the picked instruction
     push    de
     push    hl
@@ -146,6 +154,9 @@ TestCallWrapper:
     call    .AdjustInstructionNameAttributes
     pop     hl
     pop     de
+    ld      a,RESULT_ERR
+    cp      (ix+1)
+    jr      z,.ShowErrorLog     ; continue with display log if RESULT_ERR
     ; preserve current Error log index (to check, if test did log anything)
     ld      a,(LogLastIndex)
     ld      (.LogLastIndexBeforeTest+1),a   ; preserve it directly in `ld a,*`
@@ -191,6 +202,12 @@ TestCallWrapper:
     ; call the test (HL: test address, DE = index*2, IX = test details data)
     jp      hl
 
+.ShowErrorLog:
+    ; display log (HL: test address, DE = index*2, IX = test details data)
+    call    DisplayLogForOneTest
+    call    WaitForAnyKey
+    jp      RedrawMainScreen    ; restore main screen + return
+
 .AdjustInstructionNameAttributes:
     ld      hl,0
     ld      b,CHARPOS_INS_END+1
@@ -211,12 +228,10 @@ Start:
     call    RedrawMainScreen
     call    SetTurboModeByOption
 
-    ;;FIXME all - do keyboard controls and run tests
-
+    ;;FIXME:
     ; - check main keys, adjust options, etc
-    ; - check test keys and display log (and handle OK1/OK2/ERR statuses fully)
+    ; - handle OK1/OK2 statuses (i.e. the "full" option)
     ; - adjust all tests to report errors through log API
-    ; - needs display UI of logged messages
 
 .MainLoopPrototype:
     call    RefreshKeyboardState
@@ -293,7 +308,7 @@ OUTINB_TEST_PORT    equ     TBBLUE_REGISTER_SELECT_P_243B
     out     (ULA_P_FE),a
     ret                 ; terminate test
 .PortNumDamagedMsg:
-    db      'Port is not $243B any more.',0
+    db      'Port is not $243B any more',0
 
 ;;;;;;;;;;;;;;;;;;;;;;;; Test PIXELDN (1s) ;;;;;;;;;;;;;;;;;;
 TestFull_Pixeldn:

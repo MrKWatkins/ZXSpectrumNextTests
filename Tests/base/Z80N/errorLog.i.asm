@@ -27,8 +27,11 @@ LOG_ITEM_W2         equ     6       ; 2B / if not nullptr and beyond wordCount =
 LOG_ITEM_SIZE       equ     8       ; total size
 
 LOG_TYPE_EMPTY      equ     $3F     ; special type constant
-LOG_TYPE_LAST       equ     $20     ; item is last in the chain for one test
+LOG_TYPE_B_CNT_MASK equ     $07
 LOG_TYPE_W_SHIFT    equ     3       ; how many bits to shift for word-count
+LOG_TYPE_W_CNT_MASK equ     $03<<LOG_TYPE_W_SHIFT
+LOG_TYPE_LAST       equ     $20     ; item is last in the chain for one test
+LOG_TYPE_LAST_BIT   equ     5
 
 LogLastIndex:
     db      0
@@ -227,3 +230,196 @@ LogAddMsg2W:
     call    LogAdd2W    ; IY = new log item address, A = log index
     ret     nz          ; log is full
     jr      LogAddMsg.onlySetMsg
+
+; display log (HL: test address, DE = index*2, IX = test details data)
+DisplayLogForOneTest:
+    ; clear the log area
+    ld      bc,$17 + ((31-CHARPOS_ENCODING)<<8)
+    ld      d,0
+    ld      hl,MEM_ZX_SCREEN_4000+1*32+CHARPOS_ENCODING
+    call    .DoAllEightPixelLinesUlaFill
+    ld      bc,$0117
+    ld      d,$80
+    ld      hl,MEM_ZX_SCREEN_4000+1*32+CHARPOS_ENCODING-1
+    call    .DoAllEightPixelLinesUlaFill
+    ld      bc,$0117
+    ld      d,$01
+    ld      hl,MEM_ZX_SCREEN_4000+1*32+31
+    call    .DoAllEightPixelLinesUlaFill
+    ld      bc,$7 + ((33-CHARPOS_ENCODING)<<8)
+    ld      d,A_BRIGHT|P_YELLOW|BLACK
+    ld      hl,MEM_ZX_ATTRIB_5800+1*32+CHARPOS_ENCODING-1
+    call    FillSomeUlaLines
+    ld      c,8
+    ld      hl,MEM_ZX_ATTRIB_5800+8*32+CHARPOS_ENCODING-1
+    call    FillSomeUlaLines
+    ld      c,8
+    ld      hl,MEM_ZX_ATTRIB_5800+16*32+CHARPOS_ENCODING-1
+    call    FillSomeUlaLines
+    ld      d,$FF
+    ld      c,1
+    ld      hl,MEM_ZX_SCREEN_4000+1*32+CHARPOS_ENCODING-1
+    call    FillSomeUlaLines
+    ld      c,1
+    ld      hl,MEM_ZX_SCREEN_4000+192*32-1*32+CHARPOS_ENCODING-1
+    call    FillSomeUlaLines
+    ; show log item content, DE = VRAM position of new line
+    ld      de,MEM_ZX_SCREEN_4000+2*32+CHARPOS_ENCODING
+    ld      a,(ix+2)
+.ShowAllLogItems:
+    push    af
+    call    LogGetItemAddress   ; IY = first log item
+    ; get amount of bytes and word and see if message was added to the item
+    ld      a,(iy+LOG_ITEM_TYPE)
+    cp      LOG_TYPE_EMPTY      ; verify it is not the special "empty" type
+    jp      z,.SkipItem
+    and     (LOG_TYPE_B_CNT_MASK|LOG_TYPE_W_CNT_MASK)
+    ld      c,a
+    .(LOG_TYPE_W_SHIFT) srl c   ; c = words count (3x srl)
+    and     LOG_TYPE_B_CNT_MASK
+    ld      b,a                 ; b = bytes count
+    ; check if the item contains also text message
+    rra     ; CF was 0 from AND
+    add     a,c                 ; amount of total words occupied
+    cp      3
+    jr      nc,.NoMessage       ; 3+ words occupied makes message impossible
+    ld      l,(iy+LOG_ITEM_W2)  ; hl = w2
+    ld      h,(iy+LOG_ITEM_W2+1)
+    ld      a,l
+    or      h
+    jr      z,.NoMessage        ; w2 != nullptr if message is added
+    ; display message - wrap it first
+    push    ix
+    push    de
+    push    bc
+    ld      de,MEM_LOG_TXT_BUFFER
+    jr      .WrapNewLineContinue
+.WrapNewLine:   ; insert end of substring
+    xor     a
+    ld      (de),a
+    inc     de
+.WrapNewLineContinue:
+    ; skip spaces starting new line
+    dec     hl
+    ld      a,' '
+.SkipStartingSpace:
+    inc     hl
+    cp      (hl)
+    jr      z,.SkipStartingSpace
+    ; copy N character into new substring
+    ld      bc,(31-CHARPOS_ENCODING)<<8 ; C = 0 (chars since last good spot to wrap)
+.BuildSubstringLoop:
+    ld      a,(hl)
+    ld      (de),a
+    or      a                   ; check for end of the string
+    jr      z,.WholeStringWrapped
+    ; see if there's good spot to wrap at this char
+    inc     c                   ; update wrap counter (chars added to substring)
+    cp      '@'
+    jr      nc,.DoNotWrapHere
+    cp      ':'
+    jr      nc,.DoWrapHere
+    cp      '0'
+    jr      nc,.DoNotWrapHere
+.DoWrapHere:
+    ld      c,0                 ; this is good spot to wrap, remember it
+.DoNotWrapHere:
+    inc     hl
+    inc     de
+    djnz    .BuildSubstringLoop
+    ; run out of space on current line, see if also end of string was reached
+    xor     a
+    cp      (hl)
+    jr      z,.WholeStringWrapped
+    ; check if the old line did end well wrapped
+    cp      c
+    jr      z,.WrapNewLine
+    ; there's more of the string to print, wrap it reasonably
+    ld      a,31-CHARPOS_ENCODING
+    cp      c                   ; CF=0
+    jr      z,.WrapNewLine      ; there was no good spot to wrap, just keep it as is
+    ; return C chars back and start again on new line
+    ex      de,hl
+    sbc     hl,bc               ; revert DE (CF=0 from `cp c`), B=0 from DJNZ, CF=0 again
+    ex      de,hl
+    sbc     hl,bc               ; revert HL
+    jr      .WrapNewLine
+.WholeStringWrapped:
+    inc     de
+    ld      (de),a              ; add empty string at the very end
+    pop     bc
+    pop     de
+    pop     ix
+    ; display all sub-messages produced by wrapping
+    ld      hl,MEM_LOG_TXT_BUFFER
+.PrintAllSubstrings:
+    call    OutStringAtDe
+    ex      de,hl
+    call    AdvanceVramHlToNextLine
+    ex      de,hl
+    ld      a,(hl)
+    or      a
+    jr      nz,.PrintAllSubstrings
+.NoMessage:
+    ; display bytes
+    ld      (OutCurrentAdr),de  ; set VRAM position for Out...
+    push    iy
+    pop     hl
+    inc     hl                  ; HL=iy+LOG_ITEM_B0
+    xor     a
+    cp      b
+    jr      z,.NoBytesToDisplay
+.DisplayBytes:
+    ld      a,(hl)
+    inc     hl
+    call    OutHexaValue
+    ld      a,' '
+    call    OutChar
+    djnz    .DisplayBytes
+    ex      de,hl
+    call    AdvanceVramHlToNextLine
+    ex      de,hl
+.NoBytesToDisplay:
+    ; display words on new line
+    ld      b,c
+    ld      (OutCurrentAdr),de  ; set VRAM position for Out...
+    xor     a
+    cp      b
+    jr      z,.SkipItem         ; no words to display
+    ; align HL so it points to the next word element
+    bit     0,l
+    jr      z,.DisplayWords     ; HL is already aligned
+    inc     hl
+.DisplayWords:
+    ld      c,(hl)
+    inc     hl
+    ld      a,(hl)
+    inc     hl
+    call    OutHexaValue
+    ld      a,c
+    call    OutHexaValue
+    ld      a,' '
+    call    OutChar
+    djnz    .DisplayWords
+    ex      de,hl
+    call    AdvanceVramHlToNextLine
+    ex      de,hl
+    ; next log item
+.SkipItem:
+    pop     af
+    inc     a                   ; index of next log item
+    ; check if the shown item was last in chain, and loop if not
+    bit     LOG_TYPE_LAST_BIT,(iy+LOG_ITEM_TYPE)
+    jp      z,.ShowAllLogItems
+    ret
+.DoAllEightPixelLinesUlaFill:
+    push    hl
+    push    bc
+    call    FillSomeUlaLines
+    pop     bc
+    pop     hl
+    inc     h
+    ld      a,h
+    and     7
+    jr      nz,.DoAllEightPixelLinesUlaFill
+    ret
