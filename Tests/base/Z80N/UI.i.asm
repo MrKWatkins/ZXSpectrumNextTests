@@ -441,10 +441,56 @@ PrintTestStatus:
     pop     hl
     ret
 
+;;;;;;;;;;;;;; help screen full-redraw routine ;;;;;;;;;;;;;;;;;;
+
+HelpKeyHandler:
+    ; draw help screen
+    FILL_AREA MEM_ZX_SCREEN_4000, 192*32, 0
+    FILL_AREA MEM_ZX_ATTRIB_5800, 24*32, P_WHITE|BLACK
+    ld      de, MEM_ZX_SCREEN_4000
+    ld      hl, .HelpTxt
+.DisplayAllHelpStrings:
+    call    OutStringAtDe
+    ex      de,hl
+    call    AdvanceVramHlToNextLine
+    ex      de,hl
+    ld      a,(hl)
+    or      a
+    jr      nz,.DisplayAllHelpStrings
+    ; wait for any key, and then redraw main screen
+    call    WaitForAnyKey
+    jp      RedrawMainScreen    ; restore main screen + return
+.HelpTxt:
+    ;        0123456789A123456789A123456789A1
+    db      ' ',0
+    db      'Read the "!Z80N.txt" for details',0
+    db      ' ',0
+    db      'Press 2 to switch 14Mhz turbo.',0
+    db      'Press 5 to run all tests (~5min)',0
+    db      'Option 3 is not implemented yet.',0
+    db      ' ',0
+    db      'To run particular test or check',0
+    db      'error log in case of "ERR" state',0
+    db      'press the highlighted letter.',0
+    db      ' ',0
+    db      'Values in log are hexadecimal.',0
+    db      ' ',0
+    db      'For instruction details you can',0
+    db      'check:',0
+    db      'http://devnext.referata.com/wiki',0
+    db      '/Extended_Z80_instruction_set',0
+    db      ' ',0
+    db      'Tests can be run only once.',0
+    db      ' ',0
+    db      '        Press any key',0
+    db      0
+
 ;;;;;;;;;;;;;;;; key controls routines (setup + handlers) ;;;;;;;;;;;;
 
 SetupKeyControl:
-    ;;FIXME register also KEY_1 (help)
+    ld      a,KEY_1
+    ld      de,HelpKeyHandler
+    call    RegisterKeyhandler
     ld      a,KEY_2
     ld      de,TurboKeyHandler
     call    RegisterKeyhandler

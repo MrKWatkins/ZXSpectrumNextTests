@@ -404,6 +404,10 @@ DisplayLogForOneTest:
     ; check if the shown item was last in chain, and loop if not
     bit     LOG_TYPE_LAST_BIT,(iy+LOG_ITEM_TYPE)
     jp      z,.ShowAllLogItems
+    ; display "press any key" at bottom of log window
+    ld      de,MEM_ZX_SCREEN_4000+(128+6)*32+CHARPOS_ENCODING+1
+    ld      hl,.PressAnyKeyTxt
+    call    OutStringAtDe
     ret
 .DoAllEightPixelLinesUlaFill:
     push    hl
@@ -416,3 +420,5 @@ DisplayLogForOneTest:
     and     7
     jr      nz,.DoAllEightPixelLinesUlaFill
     ret
+.PressAnyKeyTxt:
+    db      'Press any key.',0

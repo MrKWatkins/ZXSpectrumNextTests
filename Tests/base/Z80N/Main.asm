@@ -227,15 +227,15 @@ TestCallWrapper:
 ;;;;;;;;;;;;;;;;;;;;;;;;; MAIN ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 Start:
-    call    LogInit
     call    StartTest
+    call    LogInit
     call    SetupKeyControl
     call    RedrawMainScreen
     call    SetTurboModeByOption
 
     ;;FIXME:
-    ; - check main keys, adjust options, etc
-    ; - handle OK1/OK2 statuses (i.e. the "full" option)
+    ; - implement "full" option and OK1/OK2 statuses (everything about it)
+    ; - add missing tests: ADD rr,**, LD*RX, NEXTREG_any, PUSH **
 
 .MainLoopPrototype:
     call    RefreshKeyboardState
@@ -245,9 +245,6 @@ Start:
     call    EndTest
 
 ;;;;;;;;;;;;;;;;;;;;;;;; Tests themselves ;;;;;;;;;;;;;;;;;;;;;
-;;FIXME add missing tests: ADD rr,**, LD*RX, NEXTREG_any, PUSH **
-;    CSPECT_BRK     ;;FIXME
-
 ; ";;DEBUG" mark instructions can be used to intentionally trigger error (test testing)
 
     INCLUDE "testsBlockCopy.i.asm"  ; LDWS | LDPIRX | LDDX | LDIX
