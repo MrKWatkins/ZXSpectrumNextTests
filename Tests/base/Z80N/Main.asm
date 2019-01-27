@@ -17,6 +17,8 @@ MEM_SCRAP_BUFFER2   equ     MEM_SCRAP_BUFFER+1024   ; if using multiple buffers,
 TEST_OPT_BIT_TURBO  equ     0
 TEST_OPT_BIT_FULL   equ     1
 
+INSTRUCTIONS_CNT    equ     23
+
 TestOptions:
     db      0       ; (1<<TEST_OPT_BIT_FULL)|(1<<TEST_OPT_BIT_TURBO)
 
