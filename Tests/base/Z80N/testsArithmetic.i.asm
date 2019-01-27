@@ -246,5 +246,3 @@ TestFull_AddHlA:
     pop     ix
     ld      (ix+1),RESULT_ERR   ; set result to ERR
     ret                 ; terminate test
-
-    savesna "!Z80N.sna", Start

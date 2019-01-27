@@ -6,7 +6,6 @@
     INCLUDE "..\..\TestFunctions.asm"
     INCLUDE "..\..\TestData.asm"
     INCLUDE "..\..\OutputFunctions.asm"
-    INCLUDE "..\..\Macros.asm"      ;; FIXME remove in final
 
 MEM_LOG_DATA        equ     $7000   ; 4k buffer (index into log is 8b => 2k max)
 MEM_LOG_TXT_BUFFER  equ     $7A00   ; some sub-buffer for texts wrapping
