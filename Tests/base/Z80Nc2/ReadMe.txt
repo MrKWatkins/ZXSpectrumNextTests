@@ -51,7 +51,8 @@ Details of possible errors (explaining the error log) per instruction:
   be "wrong" by -1 if BSRF did set CF=1 (BSRF should not affect flags).
 
  BSRL DE,B      ED  2A              DE = unsigned(DE)>>(B&31)
-  - no test yet
+  - three values: B (8b), expected DE (16b), obtained DE (16b); The expected value may
+  be "wrong" by -1 if BSRL did set CF=1 (BSRL should not affect flags).
 
  JP (C)         ED  98              PC = PC&$C000 + IN(C)<<6
   - no test yet
