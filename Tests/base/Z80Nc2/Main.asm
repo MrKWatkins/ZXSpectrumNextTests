@@ -25,8 +25,8 @@ TestOptions:
 InstructionsData_FullTests:
     dw      TestFull_Brlc                           ; BRLC DE,B
     dw      TestFull_Bsla                           ; BSLA DE,B
-    dw      0                                       ; BSRA DE,B
-    dw      0                                       ; BSRF DE,B
+    dw      TestFull_Bsra                           ; BSRA DE,B
+    dw      TestFull_Bsrf                           ; BSRF DE,B
     dw      0                                       ; BSRL DE,B
     dw      0                                       ; JP (C)
 ;    dw      TestFull_Outinb

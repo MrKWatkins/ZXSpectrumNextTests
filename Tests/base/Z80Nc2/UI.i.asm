@@ -27,11 +27,10 @@ InstructionMnemonics:
 InstructionsData_KeyLegends:
     db      'Q', KEY_Q      ; BRLC DE,B
     db      'W', KEY_W      ; BSLA DE,B
-    db        0, KEY_NONE   ; BSRA DE,B
-    db        0, KEY_NONE   ; BSRF DE,B
     db        0, KEY_NONE   ; BSRL DE,B
     db        0, KEY_NONE   ; JP (C)
-;   db      'Y', KEY_Y      ; JP (C)
+    db      'E', KEY_E      ; BSRA DE,B
+    db      'R', KEY_R      ; BSRF DE,B
 
 ; four bytes per instruction, either real opcode byte, or special opcode equ
 InstructionsData_Encoding:

@@ -40,13 +40,15 @@ Details of possible errors (explaining the error log) per instruction:
 
  BSLA DE,B      ED  28              DE = DE<<(B&31)
   - three values: B (8b), expected DE (16b), obtained DE (16b); The expected value may
-  be "wrong" by -1 if BRLC did set CF=1 (BSLA should not affect flags).
+  be "wrong" by -1 if BSLA did set CF=1 (BSLA should not affect flags).
 
  BSRA DE,B      ED  29              DE = signed(DE)>>(B&31)
-  - no test yet
+  - three values: B (8b), expected DE (16b), obtained DE (16b); The expected value may
+  be "wrong" by -1 if BSRA did set CF=1 (BSRA should not affect flags).
 
  BSRF DE,B      ED  2B              DE = ~(unsigned(~DE)>>(B&31))
-  - no test yet
+  - three values: B (8b), expected DE (16b), obtained DE (16b); The expected value may
+  be "wrong" by -1 if BSRF did set CF=1 (BSRF should not affect flags).
 
  BSRL DE,B      ED  2A              DE = unsigned(DE)>>(B&31)
   - no test yet
