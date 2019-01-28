@@ -54,5 +54,16 @@ Details of possible errors (explaining the error log) per instruction:
   - three values: B (8b), expected DE (16b), obtained DE (16b); The expected value may
   be "wrong" by -1 if BSRL did set CF=1 (BSRL should not affect flags).
 
- JP (C)         ED  98              PC = PC&$C000 + IN(C)<<6
-  - no test yet
+ JP (C)         ED  98              PC = PC&$C000 + IN(C)<<6, PC is "next-instruction" aka "$+2"
+  - four values (2x 8b + 2x 16b): expected IN (C) value (8b), value in A (should be equal
+  to IN (C) if everything works as expected, or it may be complement of expected value if
+  the CPU jumped into unexpected address, but reached some RET without changing A) (8b),
+  expected target address of jump (16b), and I/O port used for test (should be $243B).
+  The "JP (C)" in this 0..255 loop test is positioned at address $FFFD, jump targets are
+  expected to be $C000 .. $FFC0 (growing by $40 = 1<<6), i.e. $C000 + $40*A.
+  - message about area failure with 8b value as expected IN (C), and two 16b values for
+  area start/end address (the "JP (C)" is positioned at area_start+2).
+  - message only about PC not being advanced - when "JP (C)" at address $BFFF failed to
+  jump to $C000 with "IN (C)" expected to produce 0. This jump should happen, because
+  when target address is being combined from "current" PC and IN (C) value, the PC is
+  already advanced by instruction fetcher, and points at address $C001.

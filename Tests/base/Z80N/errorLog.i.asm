@@ -133,6 +133,7 @@ LogAdd3B:
 ; ZF=0 => log is full (no item added)
 LogAdd2B1W:
     ALLOCATE_NEW_ITEM 2+(1<<LOG_TYPE_W_SHIFT)   ; byte count = 2, word count = 1
+.onlyStore:
     ld      (iy+LOG_ITEM_W1+1),d
     ld      (iy+LOG_ITEM_W1),e
     jr      LogAdd2B.onlyStore
@@ -157,13 +158,30 @@ LogAdd2W:
     ld      (iy+LOG_ITEM_W1),l
     jr      LogAdd1W.onlyStore
 
+; adds new log item with one 8b in B and one 16b value in DE
+; ZF=1: returns in A the index of new log item (and IY = address of item)
+; ZF=0 => log is full (no item added)
+LogAdd1B1W:
+    ALLOCATE_NEW_ITEM 1+(1<<LOG_TYPE_W_SHIFT)   ; byte count = 1, word count = 1
+    call    LogAdd1B.onlyStore
+    jr      LogAdd1W.onlyStore
+
 ; adds new log item with one 8b, two 16b values, 8b in B, first word in DE, second in HL
 ; ZF=1: returns in A the index of new log item (and IY = address of item)
 ; ZF=0 => log is full (no item added)
 LogAdd1B2W:
     ALLOCATE_NEW_ITEM 1+(2<<LOG_TYPE_W_SHIFT)   ; byte count = 1, word count = 2
-    ld      (iy+LOG_ITEM_B0),b
+    call    LogAdd1B.onlyStore
     jr      LogAdd2W.onlyStore
+
+; adds new log item with two 8b values, first in B, second in C and two 16b in DE and HL
+; ZF=1: returns in A the index of new log item (and IY = address of item)
+; ZF=0 => log is full (no item added)
+LogAdd2B2W:
+    ALLOCATE_NEW_ITEM 2+(2<<LOG_TYPE_W_SHIFT)   ; byte count = 2, word count = 2
+    ld      (iy+LOG_ITEM_W2+1),h
+    ld      (iy+LOG_ITEM_W2),l
+    jr      LogAdd2B1W.onlyStore
 
 ; adds new log item with three 16b values, first word in DE, second in HL, third in BC
 ; ZF=1: returns in A the index of new log item (and IY = address of item)
@@ -178,10 +196,10 @@ LogAdd3W:
 ; ZF=1: returns in A the index of new log item (and IY = address of item)
 ; ZF=0 => log is full (no item added)
 LogAddMsg:
-    ALLOCATE_NEW_ITEM 0     ; byte count = 0, word count = 0
+    ALLOCATE_NEW_ITEM 0 ; byte count = 0, word count = 0
 .onlySetMsg:
-    push    hl      ; preserve HL
-    push    ix      ; HL = IX
+    push    hl          ; preserve HL
+    push    ix          ; HL = IX
     pop     hl
     ld      (iy+LOG_ITEM_W2+1),h
     ld      (iy+LOG_ITEM_W2),l
@@ -192,16 +210,32 @@ LogAddMsg:
 ; ZF=1: returns in A the index of new log item (and IY = address of item)
 ; ZF=0 => log is full (no item added)
 LogAddMsg1B:
-    call    LogAdd1B                ; IY = new log item address, A = log index
-    ret     nz      ; log is full
+    call    LogAdd1B    ; IY = new log item address, A = log index
+    ret     nz          ; log is full
+    jr      LogAddMsg.onlySetMsg
+
+; adds new log item with one 8b value in B and one 16b value in DE and msg in IX
+; ZF=1: returns in A the index of new log item (and IY = address of item)
+; ZF=0 => log is full (no item added)
+LogAddMsg1B1W:
+    call    LogAdd1B1W  ; IY = new log item address, A = log index
+    ret     nz          ; log is full
+    jr      LogAddMsg.onlySetMsg
+
+; adds new log item with one 8b value in B and two 16b values in DE, HL and msg in IX
+; ZF=1: returns in A the index of new log item (and IY = address of item)
+; ZF=0 => log is full (no item added)
+LogAddMsg1B2W:
+    call    LogAdd1B2W  ; IY = new log item address, A = log index
+    ret     nz          ; log is full
     jr      LogAddMsg.onlySetMsg
 
 ; adds new log item with two 8b values, first in B, second in C and msg in IX
 ; ZF=1: returns in A the index of new log item (and IY = address of item)
 ; ZF=0 => log is full (no item added)
 LogAddMsg2B:
-    call    LogAdd2B                ; IY = new log item address, A = log index
-    ret     nz      ; log is full
+    call    LogAdd2B    ; IY = new log item address, A = log index
+    ret     nz          ; log is full
     jr      LogAddMsg.onlySetMsg
 
 ; adds new log item with one 16b value in DE and msg in IX

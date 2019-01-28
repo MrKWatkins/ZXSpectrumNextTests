@@ -6,7 +6,9 @@
     INCLUDE "..\..\TestFunctions.asm"
     INCLUDE "..\..\TestData.asm"
     INCLUDE "..\..\OutputFunctions.asm"
-;    INCLUDE "..\..\Macros.asm"      ;; FIXME remove in final
+
+MEM_STACK_ADDRESS   equ     $9F00   ; needs C000..FFFF free for JP (C) test
+MEM_JP_C_AREA       equ     $C000   ; target area to test JP (C) fully
 
 MEM_LOG_DATA        equ     $7000   ; 4k buffer (index into log is 8b => 2k max)
 MEM_LOG_TXT_BUFFER  equ     $7A00   ; some sub-buffer for texts wrapping
@@ -28,7 +30,7 @@ InstructionsData_FullTests:
     dw      TestFull_Bsra                           ; BSRA DE,B
     dw      TestFull_Bsrf                           ; BSRF DE,B
     dw      TestFull_Bsrl                           ; BSRL DE,B
-    dw      0                                       ; JP (C)
+    dw      TestFull_JpInC                          ; JP (C)
 
     INCLUDE "../Z80N/controls.i.asm"
     INCLUDE "../Z80N/errorLog.i.asm"
@@ -226,6 +228,7 @@ TestCallWrapper:
 ;;;;;;;;;;;;;;;;;;;;;;;;; MAIN ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 Start:
+    ld      sp,MEM_STACK_ADDRESS
     call    StartTest
     call    LogInit
     call    SetupKeyControl
@@ -244,10 +247,8 @@ Start:
     call    EndTest
 
 ;;;;;;;;;;;;;;;;;;;;;;;; Tests themselves ;;;;;;;;;;;;;;;;;;;;;
-; ";;DEBUG" mark instructions can be used to intentionally trigger error (test testing)
 
-    INCLUDE "testsBarrelShifts.i.asm"  ; BRLC | BSLA | BSRA | BSRF | BSRL
-
-    ;;FIXME add test for JP (C), probably just here
+    INCLUDE "testsBarrelShifts.i.asm"   ; BRLC | BSLA | BSRA | BSRF | BSRL
+    INCLUDE "testsC2specials.i.asm"     ; JP (C)
 
     savesna "!Z80Nc2.sna", Start
