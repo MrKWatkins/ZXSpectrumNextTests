@@ -35,10 +35,12 @@ http://devnext.referata.com/wiki/Extended_Z80_instruction_set
 Details of possible errors (explaining the error log) per instruction:
 
  BRLC DE,B      ED  2C              DE = DE<<(B&15) | DE>>(16-B&15)
-  - no test yet
+  - three values: B (8b), expected DE (16b), obtained DE (16b); The expected value may
+  be "wrong" by -1 if BRLC did set CF=1 (BRLC should not affect flags).
 
  BSLA DE,B      ED  28              DE = DE<<(B&31)
-  - no test yet
+  - three values: B (8b), expected DE (16b), obtained DE (16b); The expected value may
+  be "wrong" by -1 if BRLC did set CF=1 (BSLA should not affect flags).
 
  BSRA DE,B      ED  29              DE = signed(DE)>>(B&31)
   - no test yet

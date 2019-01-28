@@ -25,8 +25,8 @@ InstructionMnemonics:
 
 ; Two bytes per instruction: Char to display, location in key-array to test
 InstructionsData_KeyLegends:
-    db        0, KEY_NONE   ; BRLC DE,B
-    db        0, KEY_NONE   ; BSLA DE,B
+    db      'Q', KEY_Q      ; BRLC DE,B
+    db      'W', KEY_W      ; BSLA DE,B
     db        0, KEY_NONE   ; BSRA DE,B
     db        0, KEY_NONE   ; BSRF DE,B
     db        0, KEY_NONE   ; BSRL DE,B
@@ -60,7 +60,7 @@ HelpTxt:
     db      'Read "!Z80Nc2.txt" for details.',0
     db      ' ',0
     db      'Press 2 to switch 14Mhz turbo.',0
-    db      'Press 5 to run all tests (~5min)',0
+    db      'Press 5 to run all tests (~?min)',0
     db      'Option 3 is not implemented yet.',0
     db      ' ',0
     db      'To run particular test or check',0

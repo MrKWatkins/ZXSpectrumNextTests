@@ -23,8 +23,8 @@ TestOptions:
     db      0       ; (1<<TEST_OPT_BIT_FULL)|(1<<TEST_OPT_BIT_TURBO)
 
 InstructionsData_FullTests:
-    dw      0                                       ; BRLC DE,B
-    dw      0                                       ; BSLA DE,B
+    dw      TestFull_Brlc                           ; BRLC DE,B
+    dw      TestFull_Bsla                           ; BSLA DE,B
     dw      0                                       ; BSRA DE,B
     dw      0                                       ; BSRF DE,B
     dw      0                                       ; BSRL DE,B
