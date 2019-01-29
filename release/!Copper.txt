@@ -12,3 +12,9 @@ changing palette comes right after it, while Kev's document describes "3 dot" ga
 ahead of desired pixel, but adding single NOOP after wait moves the flags already
 one pixel to the right, so there's some discrepancy at the moment between that
 document and board.
+
+The top flag should begin with blue pixel on the edge of where black dot above ends.
+
+The bottom dots are at X coordinates ...,236,240,244,248,252 below bottom flag, the
+bottom flag is designed to have first pixel at 242, so there should be 1-pixel wide
+gap between 4th-last dot end and start of the flag.
