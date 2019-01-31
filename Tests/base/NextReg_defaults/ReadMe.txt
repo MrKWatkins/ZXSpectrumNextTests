@@ -5,20 +5,17 @@ This test does very basic read+write to every Next-register known to it, testing
 in some cases for known default values (keeping it relaxed where the default value is
 unclear and may depend on user configuration, like 50/60Hz, etc.).
 
-The displayed values are all always hexadecimal, except the MachineID and core versions
-under the "legend" part, those are decimal, as having core "2.0.16" instead of "2.0.22"
-felt very confusing. But now it feels confusing to have hexadecimal everywhere else...
-Then again, it's just a small test targetted at emu-writers, so it's "good enough".
-
-The implemented set of Next registers is according to info about core 2.00.24. The current
-version of test works on real board - the photo shows results with core 2.00.23, where
-sprite index read fails, but that one works in 2.00.24 (as can be seen on older photo,
-where the fails in other registers were mistakes in the test code, now fixed).
+The implemented set of Next registers is according to info about core 2.00.26.
 
 The machine is expected to be configured as ZX48 with NEXT functionality allowed, but
 mostly OFF (expected: turbo speed OFF, memory contention as ZX48, ...)
 Or to put it in other words, the expected defaults are as after power-on and booting
 into ZX48 mode, defaults specified in: https://www.specnext.com/tbblue-io-port-system/
+
+The displayed values are all always hexadecimal, except the MachineID and core versions
+under the "legend" part, those are decimal, as having core "2.0.16" instead of "2.0.22"
+felt very confusing. But now it feels confusing to have hexadecimal everywhere else...
+Then again, it's just a small test targetted at emu-writers, so it's "good enough".
 
 There is 16x16 grid making up for 256 possible NextReg values (see labels for hexa
 notation for number of particular grid cell), which is being colour coded as the test
@@ -117,9 +114,9 @@ MMU regs reading first, then rerun the test, to see remaining values in log outp
 List on unobservable side-effect of "write" tests into NextRegs:
 ================================================================
 
-$02: zero is written into it, technically it shouldn't do anything? From the docs it is
-not clear, when reading value should modify, whether the on-reset flags are one-time-read
-flags, or whole-session flags (allowing for multiple re-reads).
+$02: zero is written into it, it shouldn't do anything. From the docs it is not clear,
+ when reading value should modify, whether the on-reset flags are one-time-read flags,
+ or whole-session flags (allowing for multiple re-reads).
 
 $05: value read is written back (to not affect user's configuration)
 
@@ -127,7 +124,8 @@ $06: %0000_0010: Turbo, divMMC paging, lightpen, Audio chip mode, ... all disabl
 
 $08: %0111_0100: disable RAM contention, ACB stereo, internal speaker, Timex modes
 
-$09: %0000_1000: disable Kempston port $DF, scanlines off
+$09: %0000_1000: disable Kempston port $DF, scanlines off, AY mono off,
+ sprite-index $34 decoupled.
 
 $12, $13: Layer2 beginning set to 9, shadow Layer2 set to 10
 
@@ -137,16 +135,18 @@ $15: %0000_0010: all default, except sprites over border allowed (but invisible)
 
 $16, $17: Layer2 [x,y] scroll set to [$55, $56]
 
-$18, $19, $1A: clip windows are set to {port^$1A, 278-port, (port^$1A)*2, 214-port},
- i.e. L2: {2, 254, 4, 190}, Sprites: {3, 253, 6, 189}, ULA: {0, 252, 0, 188}
+$18, $19, $1A, $1B: clip windows are set to {port^$1A, 278-port, (port^$1A)*2, 214-port},
+ i.e. L2: {2, 254, 4, 190}, Sprites: {3, 253, 6, 189}, ULA: {0, 252, 0, 188},
+ Tile: {1, 251, 2, 187}
  - the reads don't increment particular register-index, so the tests skip "read-only"
  phase, and all testing is done in custom-write part of code. The test will leave
- each index at Y1 (after X2 write), i.e. index==2, so the $1C read should produce $2A.
+ indices at 0, 1, 2 and 3, so the $1C read should produce $C6.
  The test consists of reading the register (i.e. X1 value on first read is expected),
  then writing the new X1, and so on. It does two rounds, first time expecting default
- clip window 0,255,0,191, second time expecting (and writing back again) the new
- clip window coordinates, as mentioned above. Finally two more re-writes are done to set
- index to "2" (pointing at Y1). Fails in 1st round are yellow, 2nd round fails are red.
+ clip window 0,255,0,191 (0,159,0,255 for tilemode), second time expecting (and writing
+ back again) the new clip window coordinates, as mentioned above.
+ Finally 0..3 more re-writes are done to set index.
+ Fails in 1st round are yellow, 2nd round fails are red.
 
 $1C: reset of all internal clip-window-indices (pointing back to X1) is requested
 
@@ -155,11 +155,13 @@ $22, $23: line interrupt is set to $102, but not enabled (original ULA interrupt
 $2D: SoundDrive port mirror: simply zero is written there, I didn't bother to check if
  it is good idea, let me know if some value is less disruptive.
 
-$32, $33: LoRes scroll [x,y] set to [$02, $01] (after test is finished, this gets reset
-back to [0,0]).
+$2F, $30, $41: Tilemode scroll offset [xhi:xlo,y] set to [1:3 (= 259), 6].
 
-$34: Sprite attribute-index is set to $3B, in unlinked fashion
-$35, $36, $37, $38, $39: some sprite attributes for sprite $3B: {$00,$00,$0F,$3F,$0A}
+$32, $33: LoRes scroll [x,y] set to [$02, $01] (after test is finished, this gets reset
+back to [0,0] to make ULA displayed normally).
+
+$34: Sprite attribute-index is set to $7B (core2.00.26 supports 128 sprites)
+$35, $36, $37, $38, $39: some sprite attributes for sprite $7B: {$00,$00,$0F,$3F,$0A}
 
 $40: palette index is set to $70 (as first thing of them)
 $41:
@@ -174,7 +176,8 @@ $44: the index is still $71, the read should see "second" byte of colour $71, $0
  As write-verify the "second" byte of colour $72, $01 is expected to be read back (= $01).
  (to read "first" byte of colours, one would have to read NextReg $41 - not in this test)
 
-$4A, $4B: transparency fallback colour and sprite-transparency-index both set to $1F
+$4A, $4B, $4C: transparency fallback colour, sprite-transparency-index, tilemode
+transparency index - set to: $1F, $20, $0E
 
 $50, $51: MMU0 and MMU1 are set to value read from them (should be 0xFF = ROM), but test
  is checking only by the "non zero" condition (due to technical limitations in code).
@@ -184,12 +187,18 @@ $52, .., $57: MMU2, .., MMU7 are set to defaults {$0A,$0B,$04,$05,$00,$01}, i.e.
 $60, $61, $62: zero is sent to Copper data, then $33 to Copper control LO, and $01 to
  Copper control HI (should keep the Copper in "STOP" state, just modifies indices)
 
-$75, .., $79: again sprite attributes {$00,$00,$0F,$3F,$0A} are written, but this time
- the index should increment after each write, i.e. first attribute lands into sprite $3B
- and last attribute should land into sprite $3F, leaving the index in undefined state.
+$68: ULA Control - value $40 written = enable ULA/tilemap mix for blending in SLU 6&7
 
-Note: seems like core 2.00.24 did bring 128 sprites in total? So the index is probably
-well defined $40 then (and increment from $7F is new point of "undefined behaviour").
-To be confirmed (maybe the message is just about 128 sprite patterns for 4-bit mode)!
+$6B: Tilemap Control - value $60 written = 80x32, global attribute (byte map)
+
+$6C: Default Tilemap Attribute - value $0F written = x+y mirrors and rotate, ULA over T.
+
+$6E: Tilemap Base Address - value $5B as base address, should read back as $1B.
+
+$6F: Tile Definitions Base Address - value $5C as base address, should read back as $1C.
+
+$75, .., $79: again sprite attributes {$00,$00,$0F,$3F,$0A} are written, but this time
+ the index should increment after each write, i.e. first attribute lands into sprite $7B
+ and last attribute should land into sprite $7F, leaving the index in undefined state.
 
 $FF: $01 is written, hopefully doesn't damage Victor's board (no idea about legal values)

@@ -16,12 +16,12 @@ NextRegDefaultRead:
     ; tested fully in the custom-write mode, skipping read-only phase.
     ;    x0  x1  x2  x3  x4  x5  x6  x7  x8  x9  xA  xB  xC  xD  xE  xF
     db  $FD,$FD,$FE,$FD,$FF,$FE,$FE,$00,$10,$00,$FF,$FF,$FF,$FF,$FE,$FF ; $00..0F
-    db  $00,$FF,$08,$0B,$E3,$00,$00,$00,$FF,$FF,$FF,$FF,$2A,$FF,$FE,$FE ; $10..1F
-    db  $FF,$FF,$00,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $20..2F
-    db  $FF,$FF,$00,$00,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $30..3F
-    db  $00,$00,$0F,$00,$01,$FF,$FF,$FF,$FF,$FF,$00,$E3,$FF,$FF,$FF,$FF ; $40..4F
+    db  $00,$FF,$08,$0B,$E3,$00,$00,$00,$FF,$FF,$FF,$FF,$C6,$FF,$FE,$FE ; $10..1F
+    db  $FF,$FF,$00,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$00 ; $20..2F
+    db  $00,$00,$00,$00,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $30..3F
+    db  $00,$00,$0F,$00,$01,$FF,$FF,$FF,$FF,$FF,$00,$E3,$0F,$FF,$FF,$FF ; $40..4F
     db  $FD,$FD,$0A,$0B,$04,$05,$00,$01,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $50..5F
-    db  $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $60..6F
+    db  $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$00,$FF,$FF,$00,$00,$FF,$00,$00 ; $60..6F
     db  $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $70..7F
     db  $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $80..8F
     db  $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $90..9F
@@ -46,12 +46,12 @@ NextRegWriteInfo:       ; must follow NextRegDefaultRead in memory, at 256B boun
     ; $05 register writes back the same value (to not break user's config) = weak test
     ;    x0  x1  x2  x3  x4  x5  x6  x7  x8  x9  xA  xB  xC  xD  xE  xF
     db  $FF,$FF,$00,$FE,$FE,$80,$02,$01,$74,$08,$FF,$FF,$FF,$FF,$FF,$FF ; $00..0F
-    db  $FE,$FE,$09,$0A,$25,$02,$55,$56,$FC,$FC,$FC,$FF,$07,$FF,$FF,$FF ; $10..1F
-    db  $FF,$FF,$01,$02,$FF,$FF,$FF,$FF,$FE,$FE,$FE,$FE,$FF,$00,$FF,$FF ; $20..2F
-    db  $FF,$FF,$02,$01,$3B,$00,$00,$0F,$3F,$0A,$FF,$FF,$FF,$FF,$FF,$FF ; $30..3F
-    db  $70,$1F,$07,$68,$FC,$FF,$FF,$FF,$FF,$FF,$1F,$1F,$FF,$FF,$FF,$FF ; $40..4F
+    db  $FE,$FE,$09,$0A,$25,$02,$55,$56,$FC,$FC,$FC,$FC,$0F,$FF,$FF,$FF ; $10..1F
+    db  $FF,$FF,$01,$02,$FF,$FF,$FF,$FF,$FE,$FE,$FE,$FE,$FF,$00,$FF,$01 ; $20..2F
+    db  $03,$06,$02,$01,$7B,$00,$00,$0F,$3F,$0A,$FF,$FF,$FF,$FF,$FF,$FF ; $30..3F
+    db  $70,$1F,$07,$68,$FC,$FF,$FF,$FF,$FF,$FF,$1F,$20,$0E,$FF,$FF,$FF ; $40..4F
     db  $80,$80,$0A,$0B,$04,$05,$00,$01,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $50..5F
-    db  $00,$33,$01,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $60..6F
+    db  $00,$33,$01,$FF,$FF,$FF,$FF,$FF,$40,$FF,$FF,$60,$0F,$FF,$5B,$5C ; $60..6F
     db  $FF,$FF,$FF,$FF,$FF,$00,$00,$0F,$3F,$0A,$FF,$FF,$FF,$FF,$FF,$FF ; $70..7F
     db  $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $80..8F
     db  $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $90..9F
@@ -68,11 +68,11 @@ NextRegWriteInfo:       ; must follow NextRegDefaultRead in memory, at 256B boun
     ;    x0  x1  x2  x3  x4  x5  x6  x7  x8  x9  xA  xB  xC  xD  xE  xF
     db  $FF,$FF,$FF,$FF,$FF,$FE,$02,$01,$74,$08,$FF,$FF,$FF,$FF,$FF,$FF ; $00..0F
     db  $FF,$FF,$09,$0A,$25,$02,$55,$56,$FF,$FF,$FF,$FF,$00,$FF,$FF,$FF ; $10..1F
-    db  $FF,$FF,$01,$02,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $20..2F
-    db  $FF,$FF,$02,$01,$3B,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $30..3F
-    db  $70,$02,$07,$68,$FF,$FF,$FF,$FF,$FF,$FF,$1F,$1F,$FF,$FF,$FF,$FF ; $40..4F
+    db  $FF,$FF,$01,$02,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$01 ; $20..2F
+    db  $03,$06,$02,$01,$7B,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $30..3F
+    db  $70,$02,$07,$68,$FF,$FF,$FF,$FF,$FF,$FF,$1F,$20,$0E,$FF,$FF,$FF ; $40..4F
     db  $FE,$FE,$0A,$0B,$04,$05,$00,$01,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $50..5F
-    db  $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $60..6F
+    db  $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$40,$FF,$FF,$60,$0F,$FF,$1B,$1C ; $60..6F
     db  $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $70..7F
     db  $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $80..8F
     db  $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $90..9F
@@ -102,6 +102,11 @@ RESULT_DEBUG            equ 12
 
 DataDefaultClipWindow:
     db      0, 255, 0, 191
+    db      0, 0, 0, 0          ; buffer for new coordinates (phase1) (at +4 address)
+    db      0, 0, 0, 0          ; buffer for new coordinates (phase2) (at +8 address)
+
+DataTilemapClipWindow:
+    db      0, 159, 0, 255
     db      0, 0, 0, 0          ; buffer for new coordinates (phase1) (at +4 address)
     db      0, 0, 0, 0          ; buffer for new coordinates (phase2) (at +8 address)
 
@@ -276,6 +281,7 @@ CustomWriteTest:
     ld      a,b
     cp      $1B
     jr      c,.ClipWindowCustomTest
+    jr      z,.TilemapClipWindowCustomTest
     cp      $44
     jr      z,.Set9bPal
     ld      e,RESULT_DEBUG
@@ -306,11 +312,18 @@ CustomWriteTest:
     call    OutErrValue
     jp      DisplayResults      ; else set error result
 
+; 1B clip window for tilemap
+.TilemapClipWindowCustomTest:
+    ; prepare new coordinates data into buffer (twice, at +4 and +8 offsets)
+    ld      iy,DataTilemapClipWindow
+    jr      .continueWithCustomClipWindowTest
+
 ; 18..1A clip windows: write 4 coordinates: port^$1A, 278-port, 2*(port^$1A), 214-port
 ; (also validates the default {0, 255, 0, 191} content
 .ClipWindowCustomTest:
     ; prepare new coordinates data into buffer (twice, at +4 and +8 offsets)
     ld      iy,DataDefaultClipWindow
+.continueWithCustomClipWindowTest:
     ld      a,22                ; to end with (278-port) result (8b wrapped around)
     sub     b
     ld      (iy+1+4),a          ; X2
@@ -334,11 +347,18 @@ CustomWriteTest:
     ; do the second round of read+write (new value check, new value write) = verification
     ld      d,P_RED|A_BRIGHT    ; D = colour for LOG output
     call    .ReadWriteClipWindowTest
-    ; do two more writes just to bump index of clip register to 2
+    ; do Register-$18 more writes just to bump index of clip register to 0..3
+    ld      a,b
+    and     $03
+    ld      c,a                 ; c = 0..3 for NextRegs $18..$1B
+    jr      z,.NoMoreExtraWrites
+.DoExtraWritesLoop:
     ld      a,(iy+0)
     call    WriteNextRegByIo
-    ld      a,(iy+1)
-    call    WriteNextRegByIo
+    inc     iy
+    dec     c
+    jr      nz,.DoExtraWritesLoop
+.NoMoreExtraWrites:
     ; check if some LOG was emitted, if yes, output NextReg number too
     ld      a,RESULT_WRITE_SKIP_FLAG-1
     and     e
