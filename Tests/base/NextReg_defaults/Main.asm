@@ -46,7 +46,7 @@ NextRegWriteInfo:       ; must follow NextRegDefaultRead in memory, at 256B boun
     ; $05 register writes back the same value (to not break user's config) = weak test
     ;    x0  x1  x2  x3  x4  x5  x6  x7  x8  x9  xA  xB  xC  xD  xE  xF
     db  $FF,$FF,$00,$FE,$FE,$80,$02,$01,$74,$08,$FF,$FF,$FF,$FF,$FF,$FF ; $00..0F
-    db  $FE,$FE,$09,$0A,$25,$02,$55,$56,$FC,$FC,$FC,$FC,$0F,$FF,$FF,$FF ; $10..1F
+    db  $FE,$FE,$09,$0A,$25,$02,$55,$56,$FC,$FC,$FC,$FC,$08,$FF,$FF,$FF ; $10..1F
     db  $FF,$FF,$01,$02,$FF,$FF,$FF,$FF,$FE,$FE,$FE,$FE,$FF,$00,$FF,$01 ; $20..2F
     db  $03,$06,$02,$01,$7B,$00,$00,$0F,$3F,$0A,$FF,$FF,$FF,$FF,$FF,$FF ; $30..3F
     db  $70,$1F,$07,$68,$FC,$FF,$FF,$FF,$FF,$FF,$1F,$20,$0E,$FF,$FF,$FF ; $40..4F
@@ -67,7 +67,7 @@ NextRegWriteInfo:       ; must follow NextRegDefaultRead in memory, at 256B boun
     ; Other values are precise values to be compared with value read from register
     ;    x0  x1  x2  x3  x4  x5  x6  x7  x8  x9  xA  xB  xC  xD  xE  xF
     db  $FF,$FF,$FF,$FF,$FF,$FE,$02,$01,$74,$08,$FF,$FF,$FF,$FF,$FF,$FF ; $00..0F
-    db  $FF,$FF,$09,$0A,$25,$02,$55,$56,$FF,$FF,$FF,$FF,$00,$FF,$FF,$FF ; $10..1F
+    db  $FF,$FF,$09,$0A,$25,$02,$55,$56,$FF,$FF,$FF,$FF,$06,$FF,$FF,$FF ; $10..1F
     db  $FF,$FF,$01,$02,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$01 ; $20..2F
     db  $03,$06,$02,$01,$7B,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $30..3F
     db  $70,$02,$07,$68,$FF,$FF,$FF,$FF,$FF,$FF,$1F,$20,$0E,$FF,$FF,$FF ; $40..4F

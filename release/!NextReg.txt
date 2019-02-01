@@ -148,7 +148,7 @@ $18, $19, $1A, $1B: clip windows are set to {port^$1A, 278-port, (port^$1A)*2, 2
  Finally 0..3 more re-writes are done to set index.
  Fails in 1st round are yellow, 2nd round fails are red.
 
-$1C: reset of all internal clip-window-indices (pointing back to X1) is requested
+$1C: reset of Tilemap internal clip-window-indices (pointing back to X1) is requested
 
 $22, $23: line interrupt is set to $102, but not enabled (original ULA interrupt is kept)
 
