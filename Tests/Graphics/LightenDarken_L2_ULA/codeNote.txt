@@ -1,0 +1,64 @@
+--- programming notes (just archiving them)
+
+Visual design - base is the LoRes mixing test:
+
+Legend sprite + layer2 + ulaLoRes - move to RIGHT.
+MachineID + core version = move to top-left, ahead of the legend boxes
+Put "PRESS I O P" (letters under particular legend box) (1 or 2 lines?)
+
+The actual mixing will happen at char lines 6..9 and 12..15 - two empty lines between
+(maybe a bit more down, as the new "PRESS" idea happened)
+
+Left is legend with expected result, next to it is real result box
+
+8x8 Layer2 - pixels needed for colour mixing
+4x4 LoRes - pixels needed for colour mixing
+
+----  ||||      4 intensities of one base colour
+----  ||||
+----  ||||
+----  ||||
+
+base colour options: rotate (11101000) -> 000, 100, 010, 101, 110, 111, 011, 001
+increments from 0 to 7 does cover them too, but rotating is more fun, right?
+
+Two new mixing modes: S L+U, S L+U
+
+Pick LoRes for ULA -> allows for non-hackish pixels using different colours
+
+%110 = S (L+U)
+%111 = S (L+U-5)
+
+transparent = other layer displayed unchanged
+if L2p => final colour is "priority" too
+
+Palette needed:
+black, white, b_white, t_white, text, d_text, Tpink, TpinkP     ; 8
+sprite, layer2, ula    ; legend + expected ; 11
+ ; expected result will display U+L as 1x1 L2 dither!
+l2_0, l2_1, l2_2, l2_3  ; 15
+u_0, u_1, u_2, u_3  ; 19
+
+intesity of 4: 7531 ; for 0 use base colour black
+
+combinations:
+
+Sprites: {ss, sT, sX}
+Layer2: {ll, pp, lT, pT}
+ULA: {uu, uT}
+= 24 combinations (and then after that the clamping has to exercised)
+
+Clamping L+U:
+0+anything = anything
+a+b <= 7 = no clamping
+a+b > 7 = clamp to 7
+7+7 ]= 7 (max case)
+
+Clamping L+U-5:
+0+0-5 ]= 0 (min case)
+0+0..4-5 ]= 0 clamp to 0
+0+5-5 = 0
+5+anything-5 = anything
+6..7 + b - 5 <= 7 = no clamping
+6..7 + b - 5 > 7 ]= 7 clamp to 7
+7+7-5 ]= 7 (max case)

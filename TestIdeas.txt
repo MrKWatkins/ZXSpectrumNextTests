@@ -1,0 +1,36 @@
+Test ideas:
+
+base:
+ - Z80N instructions
+ - DMA
+
+* Palettes:
+ - CSpect seems to render 9b colours $B600/$B601 weird, the blue value seems shifted in either case.
+ - exercise all ways to upload/download + autoincrement on/off
+ - exercise ink masks / borders
+
+* Layer2:
+ . RAM positioning quirks (and 128K shadow quirks) (quirk = switching off L2/wrong content)
+
+* LoRes:
+ - scroll (vs ULA, half-pixel precision)
+ - enable overrides ulanext on/off
+
+* Timex 8x1 colour
+
+* Timex 512x192 hires
+
+* Sprites:
+ - exercise old stuff (core 1.xx)
+ - NextReg mirrors
+ - 4-bit graphics
+ - palette offsets
+ - mirror/rotation
+ - scaling
+ - exhausting pixel throughput on single line
+ - order flip
+ - syncing with scanline while multiplexing
+
+("." points are optional, more like examples/documenting current ZXN board, than trying
+to preserve those features for future ... "-" points are like serious tests where emulator
+is expected to follow the behaviour, if it wants to be accurate)

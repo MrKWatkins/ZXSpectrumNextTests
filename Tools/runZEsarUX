@@ -1,0 +1,7 @@
+#!/bin/sh
+# Run some snapshot file in ZEsarUX emulator, which requires to be run from it's home dir.
+# The directories are of my local installation, if there will be more linux users of this
+# script, it should me moved into some environment variables like $ZXN_TESTS_ZESARUX_DIR
+RUNSNAFILE=`readlink -f $1` && cd ~/zx/ZEsarUX/ZEsarUX-current/ && ./zesarux --noconfigfile --machine tbblue --realvideo --enabletimexvideo --tbblue-fast-boot-mode --sna-no-change-machine --enable-esxdos-handler --nosplash --nowelcomemessage --quickexit --disabletooltips --forcevisiblehotkeys $RUNSNAFILE
+# the "readlink" will produce full path of provided argument, so the emulator will find it
+# --enable-breakpoints --set-breakpoint 1 "PC=60F5h AND B=1Ch"

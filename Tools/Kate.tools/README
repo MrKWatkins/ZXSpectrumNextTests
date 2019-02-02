@@ -1,0 +1,92 @@
+Some hints how to configure Kate editor (KDE5) to support Z80 assembly highlighting, ...
+(by Peter 'Ped' Helcmanovsky, 2018-12-31, under the project's MIT licensing terms)
+
+This setup has been pioneered on Kate v18.12.0 (KDE Frameworks 5.53.0, Qt 5.11.2), under
+GNU linux distribution "KDE Neon" (Ubuntu 18.04LTS based distro with fresh KDE5 packages).
+
+You may want to install "exuberant-ctags" package to have auto-completion across multiple
+assembly files (like Constants.asm in this ZXNextTests project).
+
+File asm-z80.xml contains highlighting rules for Kate editor. On my system the local user
+syntax files belongs to: ~/.local/share/org.kde.syntax-highlighting/syntax/
+
+After copying the syntax file there, and restarting editor, the new "Z80 (pasmo,..."
+item should be available under Assembler group (* see bottom for todo/plan).
+
+Other Kate settings I find personally useful (and relevant to Z80 assembly programming):
+- Sessions: load last used session (personal bias)
+- Plugins: Build Plugin, CTags, Project Plugin, Search & Replace (and whatever you wish)
+- global CTags config: I keep it as is, to not pollute the global with Z80 related stuff.
+- Editing/Auto Completion: enabled everything
+- Fonts & Colours/Highlighting Text Styles - you can colour the Z80 scheme as you wish
+- Open/Save: take a quick look, no obvious suggestion, but I surely tuned it to my taste.
+(and Editing/Indentation set to spaces! That's how I roll!)
+
+Now once you have particular project opened (Kate will autodetect git-controlled projects,
+but you can also manually set project by some config files.. as I use always git for
+myself, the autodetect is enough for me), at bottom or through View menu, get to the
+various toolbars.
+
+One of them is CTags, where at Database tab you can modify command line options for CTags
+for the particular project. The ones working for this particular ZXNextTests projects:
+
+ctags -R --regex-Asm=/^\s*MACRO\s+([A-Za-z_][A-Za-z0-9_.$]*)($|\s)/\1/m,macros/ --Asm-kinds=+dlm --extra=+q --excmd=pattern --exclude=Makefile --exclude=.
+
+There's one extra regexp to support "MACRO name ..." construct, and CTags is instructed
+to fill database with defines, labels and macros (+dlm), remaining settings are defaults
+suggested by Kate. So it basically worked quite nicely out of box.
+
+(you can keep the "database file" field empty, file will be automatically created in /tmp
+folder for every session separately)
+
+After updating the command, go to "Index Targets" tab, and "+ Add" the ".../Tests" folder
+containing all asm sources of this project, and hit "Update Index" to parse the sources.
+
+You can verify it worked by switching to Lookup, and enter for example "SPRI" (after 4
+characters the lookup will start to query symbols automatically and display results, so
+after "SPRI" you should see many SPRITE related defines).
+
+One other feature of Kate I'm personally using is "Build Output" toolview. I have "wine"
+installed (I will leave that one to the kind reader), and I have the folder with sources
+also linked into wine file space, so I can run sjasmplus.exe directly from Kate by
+configuring new target+command to:
+
+wine ~/.wine/zx/ZXNextTests/Tools/sjasmplus.exe --fullpath --nologo %n.asm
+
+(I have also wineprefix set ahead of that, and somewhat different paths, and it took me
+some experimenting in command line first to verify it works well, for example the
+"~/.wine/zx" part of path - the "zx" is symbolic link to my real folder on disk elsewhere,
+but the sjasmplus.exe is not found by wine, if I use the direct path to the exe)
+The "%n.asm" will create file name from base name of currently edited file and adding asm
+extension (full file name %f doesn't work for me, as it includes non-windows file paths).
+
+I have also wine and bash aliases to run CSpect emulator and snasm, so I can try with
+those also, but my expertise is far from the point where I would be capable to advice
+others, how to deal with those effectively.
+
+This document was written primarily as KNOW-HOW for myself in the future, when I will be
+setting up this neat project from scratch on other machine, but I hope it may help also
+others, also as whole project, it's free for discussion and suggestions.
+
+*) about Z80 syntax highlight rules: while writing first version, it became to me quickly
+obvious, that the Z80 assemblers have all so many features and such relaxed syntax, that
+trying to create universal highlight rules for multiple assemblers at the same time has
+many drawbacks (as almost any chunk of random characters means something meaningful in one
+of the assemblers). Even if most of them are actually just trying to be inter-operable
+with other Z80 assemblers. As I'm quite happy with this first version, I think I will keep
+using it for some period of time for actually finally writing also some code (after
+spending weeks just pruning wiki, trying out emulators, trying out assemblers, and writing
+syntax highlight and setting up all tools), to see how well it works, collecting issues
+and ideas. And also to try out different assemblers and probably pick one favourite.
+
+If that ever happens, I will probably fork the highlight file and create new version with
+more narrow rules, supporting only particular assembler, and actually only particular
+style of code (for example colon after label definition being mandatory is a must for me).
+So far the pasmoNext fork of pasmo seems very promising, because it's open and can be
+modified later to make the ZXN support full and ideally stay somewhat compatible with
+other Next enabled assemblers, like Mike Dailly's snasm. But at this moment I'm just
+at the beginning, if you have some particular issue with highlighting, please report
+it on github of this project, to make sure I'm aware of it.
+
+Eventually I may try to send this one upstream into KDE, so the Z80 support will be
+installed by default then.
