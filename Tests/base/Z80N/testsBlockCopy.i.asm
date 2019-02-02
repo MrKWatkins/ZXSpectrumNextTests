@@ -4,7 +4,7 @@
 
 ; ";;DEBUG" mark instructions can be used to intentionally trigger error (test testing)
 
-; This file has tests for: LDWS | LDPIRX | LDDX | LDIX
+; This file has tests for: LDWS | LDPIRX | LDDX | LDDRX | LDIRX | LDIX
 
 ErrorAdvanceRegsMsg:
     db      "HL, DE or BC didn't advance as expected",0
@@ -328,7 +328,8 @@ VerifyLddxBlock:
     call    LogAddMsg1B ; log(IX:msg, B:"A" value)
     pop     ix
     ld      (ix+1),RESULT_ERR   ; set result to ERR
-    ret                 ; terminate test
+    pop     af          ; terminate test (remove one return address back to test)
+    ret
 .errorFound:
     ld      b,a
     ld      c,(hl)
@@ -337,7 +338,8 @@ VerifyLddxBlock:
     call    LogAddMsg2B ; log(IX:msg, B:expected value, C:value in memory)
     pop     ix
     ld      (ix+1),RESULT_ERR   ; set result to ERR
-    ret                 ; terminate test
+    pop     af          ; terminate test (remove one return address back to test)
+    ret
 .errorWrongWriteMsg:
     db      'Value "A" was written into memory',0
 .errorSkippedWriteMsg:
