@@ -294,6 +294,7 @@ TestFull_Lddx:
     inc     a
     jr      nz,.TestALoop
     ret
+
 ; A value used to LDDX/LDDRX block (must be preserved), also will do 1x TestHeartbeat
 VerifyLddxBlock:
     ; The data were copied in backward way 255,254,...,0, so the skipped is at [~A] adr.
@@ -389,6 +390,53 @@ TestFull_Lddrx:
     jr      nz,.TestALoop
     ret
 
+;;;;;;;;;;;;;;;;;;;;;;;; Test LDIRX (2s) ;;;;;;;;;;;;;;;;;;
+TestFull_Ldirx:
+    INIT_HEARTBEAT_256
+    ; verify first that LDIRX does modify HL/DE/BC (ignore data transfers)
+    ld      hl,MEM_SCRAP_BUFFER+127
+    ld      de,MEM_SCRAP_BUFFER2+127
+    ld      bc,1
+    ld      a,(hl)      ; should skip write (A == (HL))
+    db      $ED, $B4    ; LDIRX
+    ;inc     hl ;;DEBUG
+    ;inc     de ;;DEBUG
+    ;inc     bc ;;DEBUG
+    call    TestHlDeBcAfterFullBlockValues
+    call    nz,ErrorFound_AdvanceRegs
+    ; do one more, this time writing byte (but again just to verify HL/DE/BC advance)
+    ld      hl,MEM_SCRAP_BUFFER+127
+    ld      de,MEM_SCRAP_BUFFER2+127
+    ld      bc,1
+    ld      a,(hl)
+    cpl                 ; should write (A == ~(HL))
+    db      $ED, $B4    ; LDIRX
+    ;inc     hl ;;DEBUG
+    ;inc     de ;;DEBUG
+    ;inc     bc ;;DEBUG
+    call    TestHlDeBcAfterFullBlockValues
+    call    nz,ErrorFound_AdvanceRegs
+    ;;; verify now actual data transfers
+    ; create source data which will be used to initialize target buffer
+    call    Set0to255TwiceScrapData
+    ; test all possible "A=0..255" vs 0..255 block transfers
+    xor     a
+.TestALoop:
+    ld      hl,MEM_SCRAP_BUFFER+$80 ; offset "old" data by $80
+    ld      de,MEM_SCRAP_BUFFER2
+    ld      bc,256
+    ldir                ; reinit target area to contain "old" values
+    ; use LDIRX to copy the "new" values over "old" (except test A=xx item)
+    ld      hl,MEM_SCRAP_BUFFER
+    ld      de,MEM_SCRAP_BUFFER2    ; reinit target area to contain "old" values
+    ld      bc,$0100
+    db      $ED, $B4    ; LDIRX
+    ; block of data copied, now check if the correct byte was skipped (and replace it)
+    call    VerifyLdixBlock
+    inc     a
+    jr      nz,.TestALoop
+    ret
+
 ;;;;;;;;;;;;;;;;;;;;;;;; Test LDIX (2s) ;;;;;;;;;;;;;;;;;;
 TestFull_Ldix:
     INIT_HEARTBEAT_256
@@ -433,6 +481,13 @@ TestFull_Ldix:
     db      $ED, $A4    ; LDIX
     djnz    .BlockLoop  ; loop 256 times (accounts also for BC-- of LDIX)
     ; block of data copied, now check if the correct byte was skipped (and replace it)
+    call    VerifyLdixBlock
+    inc     a
+    jr      nz,.TestALoop
+    ret
+
+; A value used to LDIX/LDIRX block (must be preserved), also will do 1x TestHeartbeat
+VerifyLdixBlock:
     ld      h,MEM_SCRAP_BUFFER2>>8
     ld      l,a         ; A = skipped value (at offset MEM_SCRAP_BUFFER2+A)
     xor     $80         ; "old" value should be like this
@@ -453,6 +508,4 @@ TestFull_Ldix:
     jr      nz,.VerifyBlock
     call    TestHeartbeat
     ex      af,af       ; restore current A test value
-    inc     a
-    jr      nz,.TestALoop
     ret

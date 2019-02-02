@@ -25,7 +25,7 @@ InstructionsData_FullTests:
     dw      0, TestFull_AddBcA
     dw      0, TestFull_AddDeA
     dw      0, TestFull_AddHlA
-    dw      TestFull_Lddrx, TestFull_Lddx, 0, TestFull_Ldix
+    dw      TestFull_Lddrx, TestFull_Lddx, TestFull_Ldirx, TestFull_Ldix
     dw      TestFull_Ldpirx, TestFull_Ldws
     dw      TestFull_Mirror, TestFull_MulDE
     dw      0, 0

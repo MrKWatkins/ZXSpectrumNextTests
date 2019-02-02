@@ -50,7 +50,7 @@ InstructionsData_KeyLegends:
     db      'Y', KEY_Y      ; ADD HL,A
     db      'U', KEY_U      ; LDDRX
     db      'I', KEY_I      ; LDDX
-    db        0, KEY_NONE   ; LDIRX
+    db      'O', KEY_O      ; LDIRX
     db      'P', KEY_P      ; LDIX
     db      'A', KEY_A      ; LDPIRX
     db      'S', KEY_S      ; LDWS
