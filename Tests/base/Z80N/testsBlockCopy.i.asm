@@ -9,6 +9,21 @@
 ErrorAdvanceRegsMsg:
     db      "HL, DE or BC didn't advance as expected",0
 
+; Global handler for when HL/DE/BC didn't advance as expected
+; adds to log only once per test, uses bit 7 in scratch area (ix+3) to detect adding
+ErrorFound_AdvanceRegs:
+    ; add this log only once per test, the bit "7" in scratch area is used to detect it
+    bit     7,(ix+3)
+    ret     z           ; already added once
+    ld      (ix+1),RESULT_ERR   ; set result to ERR
+    res     7,(ix+3)    ; remember it was added to log
+    ; add the log item
+    push    ix
+    ld      ix,ErrorAdvanceRegsMsg
+    call    LogAddMsg   ; log(IX:msg)
+    pop     ix
+    ret                 ; continue with test
+
 ;;;;;;;;;;;;;;;;;;;;;;;; Test LDWS (instant) ;;;;;;;;;;;;;;;;;;
 TestFull_Ldws:
     INIT_HEARTBEAT_32
@@ -157,7 +172,7 @@ TestFull_Ldpirx:
     ;inc     de ;;DEBUG
     ;inc     bc ;;DEBUG
     call    TestHlDeBcAfterFullBlockValues
-    call    nz,.errorFound_AdvanceRegs
+    call    nz,ErrorFound_AdvanceRegs
     ; do one more, this time writing byte (but again just to verify HL/DE/BC advance)
     ld      hl,MEM_SCRAP_BUFFER+128
     ld      de,MEM_SCRAP_BUFFER2+127
@@ -169,7 +184,7 @@ TestFull_Ldpirx:
     ;inc     de ;;DEBUG
     ;inc     bc ;;DEBUG
     call    TestHlDeBcAfterFullBlockValues
-    call    nz,.errorFound_AdvanceRegs
+    call    nz,ErrorFound_AdvanceRegs
     ;;; verify now actual data transfers
     ; create source data in MEM_SCRAP_BUFFER at offset +128 (and fill everything around)
     FILL_AREA   MEM_SCRAP_BUFFER, 256, $FF  ; fill 256B area with $FF
@@ -230,16 +245,6 @@ TestFull_Ldpirx:
     call    LogAdd2B    ; log(b: expected, c: value in memory)
     ld      (ix+1),RESULT_ERR   ; set result to ERR
     ret                 ; terminate test
-.errorFound_AdvanceRegs:
-    push    ix
-    ld      ix,ErrorAdvanceRegsMsg
-    call    LogAddMsg   ; log(IX:msg)
-    pop     ix
-    ld      (ix+1),RESULT_ERR   ; set result to ERR
-    ; add this one to log only once, remove the code by putting RET at beginning
-    ld      a,201
-    ld      (.errorFound_AdvanceRegs),a
-    ret                 ; continue with test
 
 ;;;;;;;;;;;;;;;;;;;;;;;; Test LDDX (2s) ;;;;;;;;;;;;;;;;;;
 TestFull_Lddx:
@@ -254,7 +259,7 @@ TestFull_Lddx:
     ;inc     de ;;DEBUG
     ;inc     bc ;;DEBUG
     call    TestHlDeBcForBlockValues
-    call    nz,.errorFound_AdvanceRegs
+    call    nz,ErrorFound_AdvanceRegs
     ; do one more, this time writing byte (but again just to verify HL/DE/BC advance)
     ld      hl,MEM_SCRAP_BUFFER+129
     ld      de,MEM_SCRAP_BUFFER2+127
@@ -266,7 +271,7 @@ TestFull_Lddx:
     ;inc     de ;;DEBUG
     ;inc     bc ;;DEBUG
     call    TestHlDeBcForBlockValues
-    call    nz,.errorFound_AdvanceRegs
+    call    nz,ErrorFound_AdvanceRegs
     ;;; verify now actual data transfers
     ; create source data which will be used to initialize target buffer
     call    Set0to255TwiceScrapData
@@ -285,6 +290,12 @@ TestFull_Lddx:
     db      $ED, $AC    ; LDDX
     djnz    .BlockLoop  ; loop 256 times (accounts also for BC-- of LDDX)
     ; block of data copied, now check if the correct byte was skipped (and replace it)
+    call    VerifyLddxBlock
+    inc     a
+    jr      nz,.TestALoop
+    ret
+; A value used to LDDX/LDDRX block (must be preserved), also will do 1x TestHeartbeat
+VerifyLddxBlock:
     ; The data were copied in backward way 255,254,...,0, so the skipped is at [~A] adr.
     ld      h,MEM_SCRAP_BUFFER2>>8
     cpl
@@ -308,19 +319,7 @@ TestFull_Lddx:
     jr      nz,.VerifyBlock
     call    TestHeartbeat
     ex      af,af       ; restore current A test value
-    inc     a
-    jr      nz,.TestALoop
     ret
-.errorFound_AdvanceRegs:
-    push    ix
-    ld      ix,ErrorAdvanceRegsMsg
-    call    LogAddMsg   ; log(IX:msg)
-    pop     ix
-    ld      (ix+1),RESULT_ERR   ; set result to ERR
-    ; add this one to log only once, remove the code by putting RET at beginning
-    ld      a,201
-    ld      (.errorFound_AdvanceRegs),a
-    ret                 ; continue with test
 .errorFound_IgnoredA:
     ld      b,a
     push    ix
@@ -343,6 +342,53 @@ TestFull_Lddx:
 .errorSkippedWriteMsg:
     db      'Value was not written into memory',0
 
+;;;;;;;;;;;;;;;;;;;;;;;; Test LDDRX (2s) ;;;;;;;;;;;;;;;;;;
+TestFull_Lddrx:
+    INIT_HEARTBEAT_256
+    ; verify first that LDDRX does modify HL/DE/BC (ignore data transfers)
+    ld      hl,MEM_SCRAP_BUFFER+129
+    ld      de,MEM_SCRAP_BUFFER2+127
+    ld      bc,1
+    ld      a,(hl)      ; should skip write (A == (HL))
+    db      $ED, $BC    ; LDDRX
+    ;inc     hl ;;DEBUG
+    ;inc     de ;;DEBUG
+    ;inc     bc ;;DEBUG
+    call    TestHlDeBcAfterFullBlockValues
+    call    nz,ErrorFound_AdvanceRegs
+    ; do one more, this time writing byte (but again just to verify HL/DE/BC advance)
+    ld      hl,MEM_SCRAP_BUFFER+129
+    ld      de,MEM_SCRAP_BUFFER2+127
+    ld      bc,1
+    ld      a,(hl)
+    cpl                 ; should write (A == ~(HL))
+    db      $ED, $BC    ; LDDRX
+    ;inc     hl ;;DEBUG
+    ;inc     de ;;DEBUG
+    ;inc     bc ;;DEBUG
+    call    TestHlDeBcAfterFullBlockValues
+    call    nz,ErrorFound_AdvanceRegs
+    ;;; verify now actual data transfers
+    ; create source data which will be used to initialize target buffer
+    call    Set0to255TwiceScrapData
+    ; test all possible "A=0..255" vs 0..255 block transfers
+    xor     a
+.TestALoop:
+    ld      hl,MEM_SCRAP_BUFFER+$80 ; offset "old" data by $80
+    ld      de,MEM_SCRAP_BUFFER2
+    ld      bc,256
+    ldir                ; reinit target area to contain "old" values
+    ; use LDDRX to copy the "new" values over "old" (except test A=xx item)
+    ld      hl,MEM_SCRAP_BUFFER+255 ; start from "back" with LDDRX
+    ld      de,MEM_SCRAP_BUFFER2    ; reinit target area to contain "old" values
+    ld      bc,$0100
+    db      $ED, $BC    ; LDDRX
+    ; block of data copied, now check if the correct byte was skipped (and replace it)
+    call    VerifyLddxBlock
+    inc     a
+    jr      nz,.TestALoop
+    ret
+
 ;;;;;;;;;;;;;;;;;;;;;;;; Test LDIX (2s) ;;;;;;;;;;;;;;;;;;
 TestFull_Ldix:
     INIT_HEARTBEAT_256
@@ -356,7 +402,7 @@ TestFull_Ldix:
     ;inc     de ;;DEBUG
     ;inc     bc ;;DEBUG
     call    TestHlDeBcForBlockValues
-    call    nz,.errorFound_AdvanceRegs
+    call    nz,ErrorFound_AdvanceRegs
     ; do one more, this time writing byte (but again just to verify HL/DE/BC advance)
     ld      hl,MEM_SCRAP_BUFFER+127
     ld      de,MEM_SCRAP_BUFFER2+127
@@ -368,7 +414,7 @@ TestFull_Ldix:
     ;inc     de ;;DEBUG
     ;inc     bc ;;DEBUG
     call    TestHlDeBcForBlockValues
-    call    nz,.errorFound_AdvanceRegs
+    call    nz,ErrorFound_AdvanceRegs
     ;;; verify now actual data transfers
     ; create source data which will be used to initialize target buffer
     call    Set0to255TwiceScrapData
@@ -392,7 +438,7 @@ TestFull_Ldix:
     xor     $80         ; "old" value should be like this
     ;inc     a ;;DEBUG
     cp      (hl)
-    jp      nz,TestFull_Lddx.errorFound_IgnoredA
+    jp      nz,VerifyLddxBlock.errorFound_IgnoredA
     xor     $80         ; turn it into "new" value
     ld      (hl),a      ; to make full 0..255 block verification simple
     ; now check whole block if it contains 0..255 values
@@ -402,7 +448,7 @@ TestFull_Ldix:
     ld      a,l
     ;inc     a ;;DEBUG
     cp      (hl)
-    jp      nz,TestFull_Lddx.errorFound
+    jp      nz,VerifyLddxBlock.errorFound
     inc     l
     jr      nz,.VerifyBlock
     call    TestHeartbeat
@@ -410,13 +456,3 @@ TestFull_Ldix:
     inc     a
     jr      nz,.TestALoop
     ret
-.errorFound_AdvanceRegs:
-    push    ix
-    ld      ix,ErrorAdvanceRegsMsg
-    call    LogAddMsg   ; log(IX:msg)
-    pop     ix
-    ld      (ix+1),RESULT_ERR   ; set result to ERR
-    ; add this one to log only once, remove the code by putting RET at beginning
-    ld      a,201
-    ld      (.errorFound_AdvanceRegs),a
-    ret                 ; continue with test

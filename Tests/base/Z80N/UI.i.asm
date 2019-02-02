@@ -48,7 +48,7 @@ InstructionsData_KeyLegends:
     db      'R', KEY_R      ; ADD DE,A
     db        0, KEY_NONE   ; ADD HL,$nnnn
     db      'Y', KEY_Y      ; ADD HL,A
-    db        0, KEY_NONE   ; LDDRX
+    db      'U', KEY_U      ; LDDRX
     db      'I', KEY_I      ; LDDX
     db        0, KEY_NONE   ; LDIRX
     db      'P', KEY_P      ; LDIX
@@ -95,7 +95,7 @@ InstructionsData_Encoding:
 ; byte 0 = encoding bytes [2:0], special mask [7:3] (from top to bottom)
 ; byte 1 = result
 ; byte 2 = logIndex (first log index, 0 == no log)
-; byte 3 = ??
+; byte 3 = temporary scratch area for test
 InstructionsData_Details:
     db      $34, RESULT_NONE, 0, -1                            ; ADD BC,$nnnn
     db      $02, RESULT_NONE, 0, -1                            ; ADD BC,A
