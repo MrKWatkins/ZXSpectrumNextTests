@@ -30,7 +30,7 @@ InstructionsData_FullTests:
     dw      TestFull_Mirror, TestFull_MulDE
     dw      0, 0
     dw      TestFull_Outinb, TestFull_Pixelad, TestFull_Pixeldn
-    dw      0, TestFull_Setae, TestFull_Swapnib, TestFull_TestNn
+    dw      TestFull_PushW, TestFull_Setae, TestFull_Swapnib, TestFull_TestNn
 
     INCLUDE "controls.i.asm"
     INCLUDE "UI.i.asm"
@@ -236,7 +236,7 @@ Start:
 
     ;;FIXME:
     ; - implement "full" option and OK1/OK2 statuses (everything about it)
-    ; - add missing tests: ADD rr,**, LD*RX, NEXTREG_any, PUSH **
+    ; - add missing tests: ADD rr,**, NEXTREG_any
 
 .MainLoopPrototype:
     call    RefreshKeyboardState
@@ -248,68 +248,9 @@ Start:
 ;;;;;;;;;;;;;;;;;;;;;;;; Tests themselves ;;;;;;;;;;;;;;;;;;;;;
 ; ";;DEBUG" mark instructions can be used to intentionally trigger error (test testing)
 
-    INCLUDE "testsBlockCopy.i.asm"  ; LDWS | LDPIRX | LDDX | LDIX
+    INCLUDE "testsBlockCopy.i.asm"  ; LDWS | LDPIRX | LDDX | LDDRX | LDIRX | LDIX
     INCLUDE "testsArithmetic.i.asm" ; TEST | MIRROR | SWAPNIB | MUL D,E | ADD rr,A
-
-;;;;;;;;;;;;;;;;;;;;;;;; Test OUTINB (instant) ;;;;;;;;;;;;;;;;;;
-TestFull_Outinb:
-    INIT_HEARTBEAT_256
-OUTINB_TEST_PORT    equ     TBBLUE_REGISTER_SELECT_P_243B
-    call    Set0to255ScrapData
-    ld      bc,OUTINB_TEST_PORT
-.FullTestLoop:
-    ld      d,h         ; preserve HL
-    ld      e,l
-    db      $ED, $90    ; OUTINB ; out (bc),(hl++)
-    ; compare BC if it holds
-    ;inc     bc ;;DEBUG
-    ld      a,OUTINB_TEST_PORT>>8
-    cp      b
-    jr      nz,.PortNumDamaged
-    ld      a,OUTINB_TEST_PORT&$FF
-    cp      c
-    jr      nz,.PortNumDamaged
-    ; read value back from port to verify
-    in      a,(c)
-    ;inc     a ;;DEBUG
-    cp      e           ; should be equal to old L (CF=0 if OK)
-    jr      nz,.PortReadsBackOtherValue
-    ; check if HL was advanced
-    ;dec     hl ;;DEBUG
-    inc     de          ; expected HL
-    sbc     hl,de       ; will set ZF=1 if HL==DE
-    add     hl,de       ; restore HL (preserves ZF)
-    jr      nz,.HlDidNotAdvance
-    ; see if all values were sent+read
-    call    TestHeartbeat
-    xor     a
-    cp      l
-    jp      nz,.FullTestLoop
-    ret
-.PortNumDamaged:
-    ; message with damaged port value (16b)
-    push    ix
-    ld      ix,.PortNumDamagedMsg
-    ld      d,b
-    ld      e,c
-    call    LogAddMsg1W ; log(IX: msg, DE: damaged port)
-    pop     ix
-    ld      (ix+1),RESULT_ERR   ; set result to ERR
-    ret                 ; terminate test
-.PortReadsBackOtherValue:
-    ; expected (8b) vs received (8b) value, if value reads different than expected
-    ld      b,e
-    ld      c,a         ; B is expected value, C received from port
-    call    LogAdd2B
-    ld      (ix+1),RESULT_ERR   ; set result to ERR
-    ret                 ; terminate test
-.HlDidNotAdvance:
-    ; expected HL (16b) vs received HL (16b)
-    call    LogAdd2W    ; log(DE: expected HL, HL: received HL)
-    ld      (ix+1),RESULT_ERR   ; set result to ERR
-    ret                 ; terminate test
-.PortNumDamagedMsg:
-    db      'Port is not $243B any more',0
+    INCLUDE "testsSpecials.i.asm"   ; OUTINB | PUSH **
 
 ;;;;;;;;;;;;;;;;;;;;;;;; Test PIXELDN (1s) ;;;;;;;;;;;;;;;;;;
 TestFull_Pixeldn:

@@ -52,7 +52,11 @@ Details of possible errors (explaining the error log) per instruction:
   the "result" will be -1 to the true result
 
  LDDRX          ED  BC              do LDDX until BC=0, no flags
-  - no test yet
+  - if the adjustments of HL/DE/BC are wrong, message is displayed (values calculated by
+  the instruction are not shown, you will have to use your own debugger).
+  - message is displayed, when value A was written into memory, displays A (8b)
+  - message is displayed when non-A value was not written, displays expected (8b) vs
+  value in memory (8b)
 
  LDDX           ED  AC              if (A != *HL) { *DE = *HL } HL-- DE++ BC--, no flags
   - if the adjustments of HL/DE/BC are wrong, message is displayed (values calculated by
@@ -62,7 +66,11 @@ Details of possible errors (explaining the error log) per instruction:
   value in memory (8b)
 
  LDIRX          ED  B4              do LDIX until BC=0, no flags
-  - no test yet
+  - if the adjustments of HL/DE/BC are wrong, message is displayed (values calculated by
+  the instruction are not shown, you will have to use your own debugger).
+  - message is displayed, when value A was written into memory, displays A (8b)
+  - message is displayed when non-A value was not written, displays expected (8b) vs
+  value in memory (8b)
 
  LDIX           ED  A4              if (A != *HL) { *DE = *HL } HL++ DE++ BC--, no flags
   - if the adjustments of HL/DE/BC are wrong, message is displayed (values calculated by
@@ -109,7 +117,7 @@ Details of possible errors (explaining the error log) per instruction:
   - expected HL (16b) vs received HL (16b) (this test is not sensitive to carry changes)
 
  PUSH $nnnn     ED  8A  high  low   Stores value N onto stack (SP-- *SP=hi SP-- *SP=lo), no flags
-  - no test yet
+  - expected value (16b) vs value found in memory (stored by PUSH) (16b)
 
  SETAE          ED  95              A = uint8_t(0x80)>>(E&7), no flags (E as x-coordinate to bitmask in A) 
   - three values: expected bitmask (8b), calculated bitmask (8b), pixel x-coordinate (8b)

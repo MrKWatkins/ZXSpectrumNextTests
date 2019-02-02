@@ -61,7 +61,7 @@ InstructionsData_KeyLegends:
     db      'J', KEY_J      ; OUTINB
     db      'K', KEY_K      ; PIXELAD
     db      'L', KEY_L      ; PIXELDN
-    db        0, KEY_NONE   ; PUSH $nnnn
+    db      'Z', KEY_Z      ; PUSH $nnnn
     db      'X', KEY_X      ; SETAE
     db      'C', KEY_C      ; SWAPNIB
     db      'V', KEY_V      ; TEST $nn
