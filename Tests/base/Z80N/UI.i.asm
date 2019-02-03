@@ -44,7 +44,7 @@ InstructionMnemonics:
 InstructionsData_KeyLegends:
     db        0, KEY_NONE   ; ADD BC,$nnnn
     db      'W', KEY_W      ; ADD BC,A
-    db        0, KEY_NONE   ; ADD DE,$nnnn
+    db      'E', KEY_E      ; ADD DE,$nnnn
     db      'R', KEY_R      ; ADD DE,A
     db      'T', KEY_T      ; ADD HL,$nnnn
     db      'Y', KEY_Y      ; ADD HL,A

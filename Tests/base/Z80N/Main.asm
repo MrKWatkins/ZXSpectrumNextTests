@@ -26,7 +26,7 @@ InstructionsData_CurrentLevelTests:
 
 InstructionsData_L1Tests:
     dw      0, TestL1_AddBcA
-    dw      0, TestL1_AddDeA
+    dw      TestL1_AddDeW, TestL1_AddDeA
     dw      TestL1_AddHlW, TestL1_AddHlA
     dw      TestFull_Lddrx, TestFull_Lddx, TestFull_Ldirx, TestFull_Ldix
     dw      TestFull_Ldpirx, TestFull_Ldws
@@ -39,7 +39,7 @@ InstructionsData_FullTests:
 ;;TODO "ADD rr,**" are currently available only in "partial" variant, as the full one would take hours...
 ; - maybe add two levels of "full" option to have more thorough partial than current one (OK1/OK2)?
     dw      0, TestFull_AddBcA
-    dw      0, TestFull_AddDeA
+    dw      TestL1_AddDeW, TestFull_AddDeA
     dw      TestL1_AddHlW, TestFull_AddHlA
     dw      TestFull_Lddrx, TestFull_Lddx, TestFull_Ldirx, TestFull_Ldix
     dw      TestFull_Ldpirx, TestFull_Ldws

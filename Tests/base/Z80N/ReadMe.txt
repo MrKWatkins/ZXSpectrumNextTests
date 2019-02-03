@@ -37,7 +37,8 @@ Details of possible errors (explaining the error log) per instruction:
   - displays A (8b), BC (16b) and result (16b), if result seems correct, the CF=1 was set
 
  ADD DE,$nnnn   ED  35  low  high   DE += n, flags undefined at this moment
-  - no test yet
+  - expected result (16b), result (16b), $nnnn used (16b)
+  - the "full" test does NOT EXIST! (would take hours?), "OK1" is "best" result for now
 
  ADD DE,A       ED  32              DE += uint16_t(A), no flags
   - displays A (8b), DE (16b) and result (16b), if the instruction does set CF=1 (error),

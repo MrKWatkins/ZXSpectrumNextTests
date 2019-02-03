@@ -376,7 +376,7 @@ TestL1_AddHlW:          ; partial L1 test (65536 iterations through all $nnnn)
     cp      (ix+1)
     ret     z           ; if Level1 was already run, don't twice
     ; init test variables
-    ld      de,$357B
+    ld      de,$357B    ; expected/base value in HL
     ld      bc,0
 .L1TestLoop:
     ld      h,d
@@ -391,6 +391,42 @@ TestL1_AddHlW:          ; partial L1 test (65536 iterations through all $nnnn)
     or      a
     sbc     hl,de
     jr      nz,.errorFound
+    inc     c
+    jp      nz,.L1TestLoop
+    call    TestHeartbeat
+    inc     b
+    jp      nz,.L1TestLoop
+    ld      (ix+1),RESULT_OK1   ; this was only partial test
+    ret
+.errorFound:
+    add     hl,de       ; restore expected result in HL
+    ex      de,hl       ; DE:expected, HL:real, BC:$nnnn
+    call    LogAdd3W    ; log(DE: expected, HL: result, BC: $nnnn)
+    ld      (ix+1),RESULT_ERR   ; set result to ERR
+    ret                 ; terminate test
+
+;;;;;;;;;;;;;;;;;;;;;;;; Partial test ADD DE,** (0.6s) ;;;;;;;;;;;;;;;;;;
+TestL1_AddDeW:          ; partial L1 test (65536 iterations through all $nnnn)
+    INIT_HEARTBEAT_256
+    ld      a,RESULT_OK1
+    cp      (ix+1)
+    ret     z           ; if Level1 was already run, don't twice
+    ; init test variables
+    ld      hl,$47E2    ; expected/base value in HL
+    ld      bc,0
+.L1TestLoop:
+    ld      d,h
+    ld      e,l
+    ld      (.NnnnValue),bc
+    db      $ED, $35    ; ADD DE,** ; undefined flags ATM (may be changed later)
+.NnnnValue:
+    db      0, 0
+    ;res     7,d ;;DEBUG
+    add     hl,bc
+    or      a
+    sbc     hl,de
+    jr      nz,.errorFound
+    ex      de,hl
     inc     c
     jp      nz,.L1TestLoop
     call    TestHeartbeat
