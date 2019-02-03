@@ -9,15 +9,14 @@ Press "2" to switch on 14MHz turbo mode (if your emulator already supports it,
 NextRegs 6 and 7 are required for turbo enabling+speed setting) (you may also
 want to apply your own emulator "run as fast as possible" setting maybe).
 
-Press "3" to select levels of "fullness" of tests (WIP - at this moment all tests
-are only "full" - to be removed or finished).
+Press "3" to select levels of "fullness" of tests, partial tests take about 12s
+to finish, full tests take about ~5 minutes (at 14MHz).
 
 To run particular test, hit the highlighted letter, or use "5" to run all tests.
 
 At the end of line there will be status of finished tests, "ERR" marks some error
-happened during test, "OK" means the instruction passed the test. (WIP - if levels
-will be added, then "OK1" and "OK2" mean that test did pass, but there are 1 or 2
-more levels of "fuller" tests available).
+happened during test, "OK" means the instruction passed the test. "OK1" means the
+test passed successfully, but there may exist one more (thorough) level of test.
 
 For tests with "ERR" result, by hitting the highlighted key, you can see "error log"
 from particular test. Tests usually abort upon finding first problem, so log will
@@ -32,27 +31,34 @@ http://devnext.referata.com/wiki/Extended_Z80_instruction_set
 Details of possible errors (explaining the error log) per instruction:
 
  ADD BC,$nnnn   ED  36  low  high   BC += n, flags undefined at this moment
-  - no test yet
+  - expected result (16b), result (16b), $nnnn used (16b)
+  * the "full" test does NOT EXIST! (would take hours?), "OK1" is "best" result for now
 
  ADD BC,A       ED  33              BC += uint16_t(A), no flags change
   - displays A (8b), BC (16b) and result (16b), if result seems correct, the CF=1 was set
 
  ADD DE,$nnnn   ED  35  low  high   DE += n, flags undefined at this moment
-  - no test yet
+  - expected result (16b), result (16b), $nnnn used (16b)
+  * the "full" test does NOT EXIST! (would take hours?), "OK1" is "best" result for now
 
  ADD DE,A       ED  32              DE += uint16_t(A), no flags
   - displays A (8b), DE (16b) and result (16b), if the instruction does set CF=1 (error),
   the "result" will be -1 to the true result
 
  ADD HL,$nnnn   ED  34  low  high   HL += n, flags undefined at this moment
-  - no test yet
+  - expected result (16b), result (16b), $nnnn used (16b)
+  * the "full" test does NOT EXIST! (would take hours?), "OK1" is "best" result for now
 
  ADD HL,A       ED  31              HL += uint16_t(A), no flags
   - displays A (8b), HL (16b) and result (16b), if the instruction does set CF=1 (error),
   the "result" will be -1 to the true result
 
  LDDRX          ED  BC              do LDDX until BC=0, no flags
-  - no test yet
+  - if the adjustments of HL/DE/BC are wrong, message is displayed (values calculated by
+  the instruction are not shown, you will have to use your own debugger).
+  - message is displayed, when value A was written into memory, displays A (8b)
+  - message is displayed when non-A value was not written, displays expected (8b) vs
+  value in memory (8b)
 
  LDDX           ED  AC              if (A != *HL) { *DE = *HL } HL-- DE++ BC--, no flags
   - if the adjustments of HL/DE/BC are wrong, message is displayed (values calculated by
@@ -62,7 +68,11 @@ Details of possible errors (explaining the error log) per instruction:
   value in memory (8b)
 
  LDIRX          ED  B4              do LDIX until BC=0, no flags
-  - no test yet
+  - if the adjustments of HL/DE/BC are wrong, message is displayed (values calculated by
+  the instruction are not shown, you will have to use your own debugger).
+  - message is displayed, when value A was written into memory, displays A (8b)
+  - message is displayed when non-A value was not written, displays expected (8b) vs
+  value in memory (8b)
 
  LDIX           ED  A4              if (A != *HL) { *DE = *HL } HL++ DE++ BC--, no flags
   - if the adjustments of HL/DE/BC are wrong, message is displayed (values calculated by
@@ -92,10 +102,12 @@ Details of possible errors (explaining the error log) per instruction:
   (than real result) when instruction did also set carry flag (the error is the flag then).
 
  NEXTREG $rr,$n ED  91  register  value     Writes N to Next register R (directly, no I/O), no flags
-  - no test yet
+  - message when I/O port $243B was modified by nextreg instruction
+  - Value in NextReg: expected (8b), stored/read-back (8b), NextReg number (8b)
 
  NEXTREG $rr,A  ED  92  register    Writes A to Next register R (directly, no I/O), no flags
-  - no test yet
+  - message when I/O port $243B was modified by nextreg instruction
+  - Value in NextReg: expected (8b), stored/read-back (8b), NextReg number (8b)
 
  OUTINB         ED  90              I/O port *BC = *HL HL++, no flags
   - message with damaged port value (16b)
@@ -109,7 +121,7 @@ Details of possible errors (explaining the error log) per instruction:
   - expected HL (16b) vs received HL (16b) (this test is not sensitive to carry changes)
 
  PUSH $nnnn     ED  8A  high  low   Stores value N onto stack (SP-- *SP=hi SP-- *SP=lo), no flags
-  - no test yet
+  - expected value (16b) vs value found in memory (stored by PUSH) (16b)
 
  SETAE          ED  95              A = uint8_t(0x80)>>(E&7), no flags (E as x-coordinate to bitmask in A) 
   - three values: expected bitmask (8b), calculated bitmask (8b), pixel x-coordinate (8b)

@@ -15,13 +15,12 @@ MEM_SCRAP_BUFFER2   equ     MEM_SCRAP_BUFFER+1024   ; if using multiple buffers,
 
 TEST_OPT_BIT_TURBO  equ     0
 TEST_OPT_BIT_FULL   equ     1
+TEST_OPT_BIT_ASTART equ     7
 
 INSTRUCTIONS_CNT    equ     23
 
 TestOptions:
     db      0       ; (1<<TEST_OPT_BIT_FULL)|(1<<TEST_OPT_BIT_TURBO)
-
-;;TODO detect current speed and if 7 or 14Mhz, set the option by default ON and run partial tests automatically
 
 InstructionsData_CurrentLevelTests:
     dw      InstructionsData_L1Tests
@@ -53,6 +52,18 @@ InstructionsData_FullTests:
     INCLUDE "controls.i.asm"
     INCLUDE "UI.i.asm"
     INCLUDE "errorLog.i.asm"
+
+;;;;;;;;;;; detects if Turbo mode is already selected ;;;;;;;;;
+DetectTurboMode:    ; if selected, it will be kept + autostart
+    ld      a,TURBO_CONTROL_NR_07
+    call    ReadNextReg
+    and     $03
+    ret     z       ; no turbo detected
+    ; turbo detected, make the option ON (i.e. it will re-set the turbo to 14MHz)
+    ld      hl,TestOptions
+    set     TEST_OPT_BIT_TURBO,(hl)
+    set     TEST_OPT_BIT_ASTART,(hl)    ; and add auto-start of tests
+    ret
 
 ;;;;;;;;;;;;;;;;;; switch 14MHz turbo mode ON or OFF ;;;;;;;;;;
 SetTurboModeByOption:
@@ -265,11 +276,19 @@ TestCallWrapper:
 ;;;;;;;;;;;;;;;;;;;;;;;;; MAIN ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 Start:
+    call    DetectTurboMode
     call    StartTest
     call    LogInit
     call    SetupKeyControl
     call    RedrawMainScreen
     call    SetTurboModeByOption
+
+    ; check if auto-start of tests is selected (by machine being in turbo mode)
+    ld      hl,TestOptions
+    bit     TEST_OPT_BIT_ASTART,(hl)
+    jr      z,.noAutostart
+    call    GoKeyHandler
+.noAutostart:
 
 .MainLoop:
     call    RefreshKeyboardState

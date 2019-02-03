@@ -1,7 +1,7 @@
 Z80N instructions tests - core 2.00.xx
 ======================================
 
-(this test is identical to Z80N test, but it exercises six new instructions introduced
+(this test is similar to Z80N test, but it exercises six new instructions introduced
 in core 2.00.22+ updates)
 
 Quick tests for new Z80N instructions - *NOT* checking full state of CPU after
