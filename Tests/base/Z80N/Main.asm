@@ -21,6 +21,20 @@ INSTRUCTIONS_CNT    equ     23
 TestOptions:
     db      0       ; (1<<TEST_OPT_BIT_FULL)|(1<<TEST_OPT_BIT_TURBO)
 
+InstructionsData_CurrentLevelTests:
+    dw      InstructionsData_L1Tests
+
+InstructionsData_L1Tests:
+    dw      0, TestL1_AddBcA
+    dw      0, TestL1_AddDeA
+    dw      0, TestL1_AddHlA
+    dw      TestFull_Lddrx, TestFull_Lddx, TestFull_Ldirx, TestFull_Ldix
+    dw      TestFull_Ldpirx, TestFull_Ldws
+    dw      TestFull_Mirror, TestFull_MulDE
+    dw      TestFull_NextRegNn, TestFull_NextRegA
+    dw      TestFull_Outinb, TestFull_Pixelad, TestFull_Pixeldn
+    dw      TestFull_PushW, TestFull_Setae, TestFull_Swapnib, TestFull_TestNn
+
 InstructionsData_FullTests:
     dw      0, TestFull_AddBcA
     dw      0, TestFull_AddDeA
@@ -56,6 +70,17 @@ SetTurboModeByOption:
     ld      b,TURBO_CONTROL_NR_07
     ld      a,%10
     jp      WriteNextRegByIo    ; + ret
+
+;;;;;;; picks choosen levels test ;;;;;;;;;;;;
+SetTestsModeByOption:
+    ld      hl,TestOptions
+    ld      de,InstructionsData_FullTests
+    bit     TEST_OPT_BIT_FULL,(hl)
+    jr      nz,.FullTestsSelected
+    ld      de,InstructionsData_L1Tests     ; partial tests selected
+.FullTestsSelected:
+    ld      (InstructionsData_CurrentLevelTests),de
+    ret
 
 ; returns HL=MEM_SCRAP_BUFFER and 256 bytes of data set (0, 1, 2, ..., 255)
 Set0to255ScrapData:
@@ -114,7 +139,7 @@ RunZ80nTest:
     add     a,a     ; *2
     ld      e,a     ; DE = test index * 2
     ; fetch address of test
-    ld      hl,InstructionsData_FullTests
+    ld      hl,(InstructionsData_CurrentLevelTests)
     add     hl,de
     ld      a,(hl)
     inc     hl
@@ -131,17 +156,24 @@ TestCallWrapper:
     ld      ix,InstructionsData_Details
     add     ix,de
     add     ix,de
-    ld      a,RESULT_OK
-    cp      (ix+1)
+    ld      a,(ix+1)
+    cp      RESULT_OK
     ret     z       ; test was run on all possible levels and there's nothing to show
-    ld      a,RESULT_OK1
-    cp      (ix+1)
-    ret     z       ;;FIXME test if "fuller" level of test is to be called -> let it call (reset result?)
-    ld      a,RESULT_OK2
-    cp      (ix+1)
-    ret     z       ;;FIXME test if "fuller" level of test is to be called -> let it call (reset result?)
-    ; result here is either RESULT_NONE or RESULT_ERR
-    ; highlight the picked instruction
+    ; RESULT_OK1 and RESULT_OK2 should pass through into the test
+    ; the partial tests are responsible of detecting the state and ignore the call
+    cp      RESULT_NONE
+    jr      z,.KeepStatusDisplayed
+    cp      RESULT_ERR
+    jr      z,.KeepStatusDisplayed
+    ;; but RESULT_OK1 and RESULT_OK2 should remove the current status from screen to get
+    ; correct result after test is run (or not run)
+    push    hl
+    push    de
+    call    .RefreshCurrentTestStatusAhead
+    pop     de
+    pop     hl
+.KeepStatusDisplayed:
+    ;; highlight the picked instruction
     push    de
     push    hl
     ex      de,hl
@@ -197,6 +229,7 @@ TestCallWrapper:
     xor     P_WHITE|BLACK
     call    .AdjustInstructionNameAttributes
     ; refresh the test result status on screen
+.RefreshCurrentTestStatusAhead:
     ld      b,e
     rrc     b       ; b = index, now do lazy-coder VRAM line calculation
     inc     b
@@ -235,8 +268,7 @@ Start:
     call    SetTurboModeByOption
 
     ;;FIXME:
-    ; - implement "full" option and OK1/OK2 statuses (everything about it)
-    ; - add missing tests: ADD rr,**
+    ; - add missing tests: ADD rr,**, and maybe add second OK2 level
 
 .MainLoopPrototype:
     call    RefreshKeyboardState

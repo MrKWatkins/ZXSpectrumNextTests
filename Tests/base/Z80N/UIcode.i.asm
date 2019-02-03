@@ -17,11 +17,10 @@
 ; RunZ80nTest - A: 0..(INSTRUCTIONS_CNT-1) - index of instruction to run test
 
 ; possible results (levels of OK are how many tests sub-parts were skipped)
-    ; levels are only wanna-be feature, at this moment all tests are "full" (OK0)
     ; these are offsets into ResultStringBase texts definitions
 RESULT_NONE     equ     3
 RESULT_ERR      equ     0
-RESULT_OK       equ     4
+RESULT_OK       equ     4       ; i.e. OK0
 RESULT_OK1      equ     7
 RESULT_OK2      equ     11
 
@@ -400,7 +399,9 @@ FullKeyHandler:     ; "Full" is selecting faster/slower test variants
     xor     1<<TEST_OPT_BIT_FULL
     ld      (TestOptions),a
     ; refresh main screen top line status
-    jp      UpdateToplineOptionsStatus  ; + ret
+    call    UpdateToplineOptionsStatus
+    ; switch the tests set by full-option
+    jp      SetTestsModeByOption    ; + ret
 
 GoKeyHandler:       ; run all tests sequentially with current settings
     xor     a

@@ -158,6 +158,7 @@ TestFull_AddBcA:
     inc     (ix+2)
     jp      nz,.FullTestLoopSetA
     pop     ix
+    ld      (ix+1),RESULT_OK    ; force result to full OK
     ret
 .errorFound:
     push    bc
@@ -166,6 +167,46 @@ TestFull_AddBcA:
     ld      de,(.FullTestLoop+1)
     call    LogAdd1B2W  ; log(B:"A", DE:original BC, HL: BC+A result)
     pop     ix
+    ld      (ix+1),RESULT_ERR   ; set result to ERR
+    ret                 ; terminate test
+
+;;;;;;;;;;;;;;;;;;;;;;;; Partial test ADD BC,A (3s) ;;;;;;;;;;;;;;;;;;
+TestL1_AddBcA:          ; ADD BC,A has only two levels (L1 and Full)
+    INIT_HEARTBEAT_256
+    ld      a,RESULT_OK1
+    cp      (ix+1)
+    ret     z           ; if Level1 was already run, don't twice
+.L1TestLoopSetA:
+    xor     a           ; A=0, CF=0
+    ld      hl,(.L1TestLoop+1)    ; reset expected value
+.L1TestLoop:
+    ld      bc,$0000
+    db      $ED, $33    ; ADD BC,A  ; if CF is modified, the test will fail!
+    ;inc     bc ;;DEBUG
+    sbc     hl,bc       ; 15T  ZF=1, CF=0 if OK
+    add     hl,bc       ; 11T restore HL (if OK), ZF is preserved from SBC
+    jr      nz,.errorFound  ; 12/7T = 33T test when OK
+    inc     hl          ; update expected result in HL
+    inc     a
+    jp      nz,.L1TestLoop
+    ; increment base BC by 41 (prime number, will jump over 65536 range in 1598 loops)
+    ld      hl,.L1TestLoop+1
+    ld      a,41
+    add     a,(hl)
+    ld      (hl),a
+    jp      nc,.L1TestLoopSetA
+    call    TestHeartbeat
+    inc     hl
+    inc     (hl)
+    jp      nz,.L1TestLoopSetA
+    ld      (ix+1),RESULT_OK1   ; this was only partial test, there's 1 more level
+    ret
+.errorFound:
+    push    bc
+    pop     hl          ; HL = result
+    ld      b,a
+    ld      de,(.L1TestLoop+1)
+    call    LogAdd1B2W  ; log(B:"A", DE:original BC, HL: BC+A result)
     ld      (ix+1),RESULT_ERR   ; set result to ERR
     ret                 ; terminate test
 
@@ -184,8 +225,8 @@ TestFull_AddDeA:
     ;inc     de ;;DEBUG
     ex      de,hl       ; 4T
     sbc     hl,de       ; 15T  ZF=1, CF=0 if OK
-    ex      de,hl       ; 4T
     jr      nz,.errorFound  ; 12/7T = 30T test when OK
+    ex      de,hl       ; 4T
     inc     hl          ; update expected result in HL
     inc     a
     jp      nz,.FullTestLoop
@@ -195,15 +236,56 @@ TestFull_AddDeA:
     inc     (ix+2)
     jp      nz,.FullTestLoopSetA
     pop     ix
+    ld      (ix+1),RESULT_OK    ; force result to full OK
     ret
 .errorFound:
     ld      b,a
     ; restore result of addition (may be -1 due to CF=1)
-    ex      de,hl
     add     hl,de
     ld      de,(.FullTestLoop+1)
     call    LogAdd1B2W  ; log(B:"A", DE:original DE, HL: DE+A result)
     pop     ix
+    ld      (ix+1),RESULT_ERR   ; set result to ERR
+    ret                 ; terminate test
+
+;;;;;;;;;;;;;;;;;;;;;;;; Partial test ADD DE,A (3s) ;;;;;;;;;;;;;;;;;;
+TestL1_AddDeA:          ; ADD DE,A has only two levels (L1 and Full)
+    INIT_HEARTBEAT_256
+    ld      a,RESULT_OK1
+    cp      (ix+1)
+    ret     z           ; if Level1 was already run, don't twice
+.L1TestLoopSetA:
+    xor     a           ; A=0, CF=0
+    ld      hl,(.L1TestLoop+1)    ; reset expected value
+.L1TestLoop:
+    ld      de,$0000
+    db      $ED, $32    ; ADD DE,A  ; if CF is modified, the test will fail!
+    ;inc     de ;;DEBUG
+    ex      de,hl       ; 4T
+    sbc     hl,de       ; 15T  ZF=1, CF=0 if OK
+    jr      nz,.errorFound  ; 12/7T = 30T test when OK
+    ex      de,hl       ; 4T
+    inc     hl          ; update expected result in HL
+    inc     a
+    jp      nz,.L1TestLoop
+    ; increment base DE by 41 (prime number, will jump over 65536 range in 1598 loops)
+    ld      hl,.L1TestLoop+1
+    ld      a,41
+    add     a,(hl)
+    ld      (hl),a
+    jp      nc,.L1TestLoopSetA
+    call    TestHeartbeat
+    inc     hl
+    inc     (hl)
+    jp      nz,.L1TestLoopSetA
+    ld      (ix+1),RESULT_OK1   ; this was only partial test, there's 1 more level
+    ret
+.errorFound:
+    ld      b,a
+    ; restore result of addition (may be -1 due to CF=1)
+    add     hl,de
+    ld      de,(.L1TestLoop+1)
+    call    LogAdd1B2W  ; log(B:"A", DE:original DE, HL: DE+A result)
     ld      (ix+1),RESULT_ERR   ; set result to ERR
     ret                 ; terminate test
 
@@ -236,6 +318,7 @@ TestFull_AddHlA:
     inc     (ix+2)
     jp      nz,.FullTestLoopSetA
     pop     ix
+    ld      (ix+1),RESULT_OK    ; force result to full OK
     ret
 .errorFound:
     ld      b,a
@@ -244,5 +327,44 @@ TestFull_AddHlA:
     ld      de,(.FullTestLoop+1)
     call    LogAdd1B2W  ; log(B:"A", DE:original HL, HL: HL+A result)
     pop     ix
+    ld      (ix+1),RESULT_ERR   ; set result to ERR
+    ret                 ; terminate test
+
+;;;;;;;;;;;;;;;;;;;;;;;; Partial test ADD HL,A (3s) ;;;;;;;;;;;;;;;;;;
+TestL1_AddHlA:          ; ADD HL,A has only two levels (L1 and Full)
+    INIT_HEARTBEAT_256
+    ld      a,RESULT_OK1
+    cp      (ix+1)
+    ret     z           ; if Level1 was already run, don't twice
+.L1TestLoopSetA:
+    xor     a           ; A=0, CF=0
+    ld      de,(.L1TestLoop+1)    ; reset expected value
+.L1TestLoop:
+    ld      hl,$0000
+    db      $ED, $31    ; ADD HL,A  ; if CF is modified, the test will fail!
+    ;inc     hl ;;DEBUG
+    sbc     hl,de       ; 15T  ZF=1, CF=0 if OK
+    jr      nz,.errorFound  ; 12/7T = 22T test when OK
+    inc     de          ; update expected result in DE
+    inc     a
+    jp      nz,.L1TestLoop
+    ; increment base HL by 41 (prime number, will jump over 65536 range in 1598 loops)
+    ld      hl,.L1TestLoop+1
+    ld      a,41
+    add     a,(hl)
+    ld      (hl),a
+    jp      nc,.L1TestLoopSetA
+    call    TestHeartbeat
+    inc     hl
+    inc     (hl)
+    jp      nz,.L1TestLoopSetA
+    ld      (ix+1),RESULT_OK1   ; this was only partial test, there's 1 more level
+    ret
+.errorFound:
+    ld      b,a
+    ; restore result of addition (may be -1 due to CF=1)
+    add     hl,de
+    ld      de,(.L1TestLoop+1)
+    call    LogAdd1B2W  ; log(B:"A", DE:original HL, HL: HL+A result)
     ld      (ix+1),RESULT_ERR   ; set result to ERR
     ret                 ; terminate test
