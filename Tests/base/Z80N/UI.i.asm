@@ -42,7 +42,7 @@ InstructionMnemonics:
 
 ; Two bytes per instruction: Char to display, location in key-array to test
 InstructionsData_KeyLegends:
-    db        0, KEY_NONE   ; ADD BC,$nnnn
+    db      'Q', KEY_Q      ; ADD BC,$nnnn
     db      'W', KEY_W      ; ADD BC,A
     db      'E', KEY_E      ; ADD DE,$nnnn
     db      'R', KEY_R      ; ADD DE,A
@@ -127,8 +127,8 @@ HelpTxt:
     db      'Read the "!Z80N.txt" for details',0
     db      ' ',0
     db      'Press 2 to switch 14Mhz turbo.',0
-    db      'Press 5 to run all tests (~5min)',0
-    db      'Option 3 is not implemented yet.',0
+    db      'Press 5 to run all tests (~12s).',0
+    db      'Option 3 for full tests (~5min).',0
     db      ' ',0
     db      'To run particular test or check',0
     db      'error log in case of "ERR" state',0

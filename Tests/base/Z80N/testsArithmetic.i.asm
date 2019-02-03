@@ -412,11 +412,11 @@ TestL1_AddDeW:          ; partial L1 test (65536 iterations through all $nnnn)
     cp      (ix+1)
     ret     z           ; if Level1 was already run, don't twice
     ; init test variables
-    ld      hl,$47E2    ; expected/base value in HL
+    ld      de,$47E2    ; expected/base value in DE
     ld      bc,0
 .L1TestLoop:
-    ld      d,h
-    ld      e,l
+    ld      h,d         ; copy expected/base into HL
+    ld      l,e
     ld      (.NnnnValue),bc
     db      $ED, $35    ; ADD DE,** ; undefined flags ATM (may be changed later)
 .NnnnValue:
@@ -426,7 +426,6 @@ TestL1_AddDeW:          ; partial L1 test (65536 iterations through all $nnnn)
     or      a
     sbc     hl,de
     jr      nz,.errorFound
-    ex      de,hl
     inc     c
     jp      nz,.L1TestLoop
     call    TestHeartbeat
@@ -437,6 +436,44 @@ TestL1_AddDeW:          ; partial L1 test (65536 iterations through all $nnnn)
 .errorFound:
     add     hl,de       ; restore expected result in HL
     ex      de,hl       ; DE:expected, HL:real, BC:$nnnn
+    call    LogAdd3W    ; log(DE: expected, HL: result, BC: $nnnn)
+    ld      (ix+1),RESULT_ERR   ; set result to ERR
+    ret                 ; terminate test
+
+;;;;;;;;;;;;;;;;;;;;;;;; Partial test ADD BC,** (0.6s) ;;;;;;;;;;;;;;;;;;
+TestL1_AddBcW:          ; partial L1 test (65536 iterations through all $nnnn)
+    INIT_HEARTBEAT_256
+    ld      a,RESULT_OK1
+    cp      (ix+1)
+    ret     z           ; if Level1 was already run, don't twice
+    ; init test variables
+    ld      bc,$C277    ; expected/base value in BC
+    ld      de,0
+.L1TestLoop:
+    ld      h,b         ; copy expected/base into HL
+    ld      l,c
+    ld      (.NnnnValue),de
+    db      $ED, $36    ; ADD BC,** ; undefined flags ATM (may be changed later)
+.NnnnValue:
+    db      0, 0
+    ;set     7,b ;;DEBUG
+    add     hl,de
+    or      a
+    sbc     hl,bc
+    jr      nz,.errorFound
+    inc     e
+    jp      nz,.L1TestLoop
+    call    TestHeartbeat
+    inc     d
+    jp      nz,.L1TestLoop
+    ld      (ix+1),RESULT_OK1   ; this was only partial test
+    ret
+.errorFound:
+    add     hl,bc       ; restore expected result in HL = HL:expected, DE:$nnnn, BC:real result
+    ex      de,hl       ; DE:expected, HL:$nnnn, BC:real result
+    push    bc
+    pop     hl          ; DE:expected, HL:real result, BC:real result
+    ld      bc,(.NnnnValue)
     call    LogAdd3W    ; log(DE: expected, HL: result, BC: $nnnn)
     ld      (ix+1),RESULT_ERR   ; set result to ERR
     ret                 ; terminate test

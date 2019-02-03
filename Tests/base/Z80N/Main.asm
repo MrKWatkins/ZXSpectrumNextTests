@@ -21,11 +21,13 @@ INSTRUCTIONS_CNT    equ     23
 TestOptions:
     db      0       ; (1<<TEST_OPT_BIT_FULL)|(1<<TEST_OPT_BIT_TURBO)
 
+;;TODO detect current speed and if 7 or 14Mhz, set the option by default ON and run partial tests automatically
+
 InstructionsData_CurrentLevelTests:
     dw      InstructionsData_L1Tests
 
 InstructionsData_L1Tests:
-    dw      0, TestL1_AddBcA
+    dw      TestL1_AddBcW, TestL1_AddBcA
     dw      TestL1_AddDeW, TestL1_AddDeA
     dw      TestL1_AddHlW, TestL1_AddHlA
     dw      TestFull_Lddrx, TestFull_Lddx, TestFull_Ldirx, TestFull_Ldix
@@ -38,7 +40,7 @@ InstructionsData_L1Tests:
 InstructionsData_FullTests:
 ;;TODO "ADD rr,**" are currently available only in "partial" variant, as the full one would take hours...
 ; - maybe add two levels of "full" option to have more thorough partial than current one (OK1/OK2)?
-    dw      0, TestFull_AddBcA
+    dw      TestL1_AddBcW, TestFull_AddBcA
     dw      TestL1_AddDeW, TestFull_AddDeA
     dw      TestL1_AddHlW, TestFull_AddHlA
     dw      TestFull_Lddrx, TestFull_Lddx, TestFull_Ldirx, TestFull_Ldix

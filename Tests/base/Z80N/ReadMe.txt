@@ -31,14 +31,15 @@ http://devnext.referata.com/wiki/Extended_Z80_instruction_set
 Details of possible errors (explaining the error log) per instruction:
 
  ADD BC,$nnnn   ED  36  low  high   BC += n, flags undefined at this moment
-  - no test yet
+  - expected result (16b), result (16b), $nnnn used (16b)
+  * the "full" test does NOT EXIST! (would take hours?), "OK1" is "best" result for now
 
  ADD BC,A       ED  33              BC += uint16_t(A), no flags change
   - displays A (8b), BC (16b) and result (16b), if result seems correct, the CF=1 was set
 
  ADD DE,$nnnn   ED  35  low  high   DE += n, flags undefined at this moment
   - expected result (16b), result (16b), $nnnn used (16b)
-  - the "full" test does NOT EXIST! (would take hours?), "OK1" is "best" result for now
+  * the "full" test does NOT EXIST! (would take hours?), "OK1" is "best" result for now
 
  ADD DE,A       ED  32              DE += uint16_t(A), no flags
   - displays A (8b), DE (16b) and result (16b), if the instruction does set CF=1 (error),
@@ -46,7 +47,7 @@ Details of possible errors (explaining the error log) per instruction:
 
  ADD HL,$nnnn   ED  34  low  high   HL += n, flags undefined at this moment
   - expected result (16b), result (16b), $nnnn used (16b)
-  - the "full" test does NOT EXIST! (would take hours?), "OK1" is "best" result for now
+  * the "full" test does NOT EXIST! (would take hours?), "OK1" is "best" result for now
 
  ADD HL,A       ED  31              HL += uint16_t(A), no flags
   - displays A (8b), HL (16b) and result (16b), if the instruction does set CF=1 (error),
