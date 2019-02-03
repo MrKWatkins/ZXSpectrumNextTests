@@ -28,7 +28,7 @@ InstructionsData_FullTests:
     dw      TestFull_Lddrx, TestFull_Lddx, TestFull_Ldirx, TestFull_Ldix
     dw      TestFull_Ldpirx, TestFull_Ldws
     dw      TestFull_Mirror, TestFull_MulDE
-    dw      0, 0
+    dw      TestFull_NextRegNn, TestFull_NextRegA
     dw      TestFull_Outinb, TestFull_Pixelad, TestFull_Pixeldn
     dw      TestFull_PushW, TestFull_Setae, TestFull_Swapnib, TestFull_TestNn
 
@@ -236,7 +236,7 @@ Start:
 
     ;;FIXME:
     ; - implement "full" option and OK1/OK2 statuses (everything about it)
-    ; - add missing tests: ADD rr,**, NEXTREG_any
+    ; - add missing tests: ADD rr,**
 
 .MainLoopPrototype:
     call    RefreshKeyboardState
@@ -250,7 +250,7 @@ Start:
 
     INCLUDE "testsBlockCopy.i.asm"  ; LDWS | LDPIRX | LDDX | LDDRX | LDIRX | LDIX
     INCLUDE "testsArithmetic.i.asm" ; TEST | MIRROR | SWAPNIB | MUL D,E | ADD rr,A
-    INCLUDE "testsSpecials.i.asm"   ; OUTINB | PUSH **
+    INCLUDE "testsSpecials.i.asm"   ; NEXTREG *r,*n | NEXTREG *r,A | OUTINB | PUSH **
 
 ;;;;;;;;;;;;;;;;;;;;;;;; Test PIXELDN (1s) ;;;;;;;;;;;;;;;;;;
 TestFull_Pixeldn:

@@ -4,7 +4,133 @@
 
 ; ";;DEBUG" mark instructions can be used to intentionally trigger error (test testing)
 
-; This file has tests for: OUTINB | PUSH **
+; This file has tests for: NEXTREG *r,*n | NEXTREG *r,A | OUTINB | PUSH **
+
+IoPortSelectorModifiedMsg:
+    db      'I/O port $243B was also modified.',0
+
+;;;;;;;;;;;;;;;;;;;; Test NEXTREG *r,*n (instant) ;;;;;;;;;;;;;;;
+TestFull_NextRegNn:
+    INIT_HEARTBEAT_256
+    ; write 256 values to 4 NextRegs which should survive any value write (no effect on test)
+    ld      bc,TBBLUE_REGISTER_SELECT_P_243B
+    ld      e,TRANSPARENCY_FALLBACK_COL_NR_4A
+    ld      hl,.ValueNumber
+.FullTestLoop:
+    ld      a,LAYER2_XOFFSET_NR_16
+    call    .TestNextReg
+    ld      a,RASTER_INTERUPT_VALUE_NR_23
+    call    .TestNextReg
+    ld      a,PALETTE_INDEX_NR_40
+    call    .TestNextReg
+    ld      a,SPRITE_TRANSPARENCY_I_NR_4B
+    call    .TestNextReg
+    call    TestHeartbeat
+    inc     (hl)
+    jp      nz,.FullTestLoop
+    ret
+.TestNextReg:
+    ; set TBBLUE I/O to TRANSPARENCY_FALLBACK_COL_NR_4A before "nextreg"
+    out     (c),e
+    ; modify nextreg instruction to correct number
+    ld      (.RegNumber),a
+    ; execute: NEXTREG *r, *n  ED  91  register  value
+    db      $ED, $91
+.RegNumber:
+    db      $00
+.ValueNumber:
+    db      $00
+    ; test I/O (but keep A preserved)
+    ld      d,a         ; preserve NextReg number
+    in      a,(c)
+    ;or      (hl) ;;DEBUG
+    cp      e
+    call    nz,.IoPortSelectorModified
+    ; test value in next reg
+    ld      a,d
+    call    ReadNextReg
+    ;res     7,a ;;DEBUG
+    cp      (hl)
+    ret     z
+    ; value test failed, report
+    ld      c,a
+    ld      b,(hl)
+    ld      e,d
+    call    LogAdd3B    ; log(B: expected, C: read, E:NextReg)
+    ld      (ix+1),RESULT_ERR   ; set result to ERR
+    pop     af          ; remove one return address to terminate test
+    ret                 ; terminate test
+.IoPortSelectorModified:
+    bit     6,(ix+3)    ; report only once, use the scratch area bit 6 to detect more.
+    ret     z
+    res     6,(ix+3)
+    push    ix
+    ld      ix,IoPortSelectorModifiedMsg
+    call    LogAddMsg
+    pop     ix
+    ld      (ix+1),RESULT_ERR   ; set result to ERR
+    ret                 ; continue test
+
+;;;;;;;;;;;;;;;;;;;;; Test NEXTREG *r,A (instant) ;;;;;;;;;;;;;;;
+TestFull_NextRegA:
+    INIT_HEARTBEAT_256
+    ; write 256 values to 4 NextRegs which should survive any value write (no effect on test)
+    ld      bc,TBBLUE_REGISTER_SELECT_P_243B
+    ld      e,TRANSPARENCY_FALLBACK_COL_NR_4A
+    ld      l,0         ; value to write into NextReg
+.FullTestLoop:
+    ld      a,LAYER2_XOFFSET_NR_16
+    call    .TestNextReg
+    ld      a,RASTER_INTERUPT_VALUE_NR_23
+    call    .TestNextReg
+    ld      a,PALETTE_INDEX_NR_40
+    call    .TestNextReg
+    ld      a,SPRITE_TRANSPARENCY_I_NR_4B
+    call    .TestNextReg
+    call    TestHeartbeat
+    inc     l
+    jp      nz,.FullTestLoop
+    ret
+.TestNextReg:
+    ; set TBBLUE I/O to TRANSPARENCY_FALLBACK_COL_NR_4A before "nextreg"
+    out     (c),e
+    ; modify nextreg instruction to correct number
+    ld      (.RegNumber),a
+    ld      d,a         ; preserve NextReg number
+    ld      a,l
+    ; execute: NEXTREG *r,A  ED  92  register
+    db      $ED, $92
+.RegNumber:
+    db      $00
+    ; test I/O (but keep A preserved)
+    in      a,(c)
+    ;or      l ;;DEBUG
+    cp      e
+    call    nz,.IoPortSelectorModified
+    ; test value in next reg
+    ld      a,d
+    call    ReadNextReg
+    ;res     7,a ;;DEBUG
+    cp      l
+    ret     z
+    ; value test failed, report
+    ld      c,a
+    ld      b,l
+    ld      e,d
+    call    LogAdd3B    ; log(B: expected, C: read, E:NextReg)
+    ld      (ix+1),RESULT_ERR   ; set result to ERR
+    pop     af          ; remove one return address to terminate test
+    ret                 ; terminate test
+.IoPortSelectorModified:
+    bit     6,(ix+3)    ; report only once, use the scratch area bit 6 to detect more.
+    ret     z
+    res     6,(ix+3)
+    push    ix
+    ld      ix,IoPortSelectorModifiedMsg
+    call    LogAddMsg
+    pop     ix
+    ld      (ix+1),RESULT_ERR   ; set result to ERR
+    ret                 ; continue test
 
 ;;;;;;;;;;;;;;;;;;;;;;;; Test OUTINB (instant) ;;;;;;;;;;;;;;;;;;
 TestFull_Outinb:

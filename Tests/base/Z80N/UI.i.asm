@@ -56,8 +56,8 @@ InstructionsData_KeyLegends:
     db      'S', KEY_S      ; LDWS
     db      'D', KEY_D      ; MIRROR
     db      'F', KEY_F      ; MUL D,E
-    db        0, KEY_NONE   ; NEXTREG $rr,$n
-    db        0, KEY_NONE   ; NEXTREG $rr,A
+    db      'G', KEY_G      ; NEXTREG $rr,$n
+    db      'H', KEY_H      ; NEXTREG $rr,A
     db      'J', KEY_J      ; OUTINB
     db      'K', KEY_K      ; PIXELAD
     db      'L', KEY_L      ; PIXELDN

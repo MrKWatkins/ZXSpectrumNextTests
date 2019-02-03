@@ -100,10 +100,12 @@ Details of possible errors (explaining the error log) per instruction:
   (than real result) when instruction did also set carry flag (the error is the flag then).
 
  NEXTREG $rr,$n ED  91  register  value     Writes N to Next register R (directly, no I/O), no flags
-  - no test yet
+  - message when I/O port $243B was modified by nextreg instruction
+  - Value in NextReg: expected (8b), stored/read-back (8b), NextReg number (8b)
 
  NEXTREG $rr,A  ED  92  register    Writes A to Next register R (directly, no I/O), no flags
-  - no test yet
+  - message when I/O port $243B was modified by nextreg instruction
+  - Value in NextReg: expected (8b), stored/read-back (8b), NextReg number (8b)
 
  OUTINB         ED  90              I/O port *BC = *HL HL++, no flags
   - message with damaged port value (16b)
