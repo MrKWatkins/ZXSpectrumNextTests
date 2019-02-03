@@ -156,8 +156,8 @@ PERIPHERAL_4_NR_09              equ $09     ;Sets scanlines, AY mono output, dis
 NEXT_VERSION_MINOR_NR_0E        equ $0E
 ANTI_BRICK_NR_10                equ $10
 VIDEO_TIMING_NR_11              equ $11
-LAYER2_RAM_PAGE_NR_12           equ $12     ;bank number where Layer 2 video memory begins.
-LAYER2_RAM_SHADOW_PAGE_NR_13    equ $13     ;bank number for Layer2 "shadow" write-over-rom
+LAYER2_RAM_BANK_NR_12           equ $12     ;bank number where Layer 2 video memory begins.
+LAYER2_RAM_SHADOW_BANK_NR_13    equ $13     ;bank number for Layer2 "shadow" write-over-rom
 GLOBAL_TRANSPARENCY_NR_14       equ $14     ;Sets the color treated as transparent for ULA/Layer2/LoRes
 SPRITE_CONTROL_NR_15            equ $15     ;LoRes mode, Sprites configuration, layers priority
     ; bit 7: enable LoRes mode, bits 6-5: reserved, write 0
@@ -167,7 +167,8 @@ LAYER2_XOFFSET_NR_16            equ $16
 LAYER2_YOFFSET_NR_17            equ $17
 CLIP_LAYER2_NR_18               equ $18
 CLIP_SPRITE_NR_19               equ $19
-CLIP_ULA_LORES_NR_1A            equ $1a
+CLIP_ULA_LORES_NR_1A            equ $1A
+CLIP_TILEMAP_NR_1B              equ $1B
 CLIP_WINDOW_CONTROL_NR_1C       equ $1C     ;set to 7 to reset all clip-window indices to 0
 RASTER_LINE_MSB_NR_1E           equ $1E
 RASTER_LINE_LSB_NR_1F           equ $1F
@@ -178,8 +179,11 @@ LOW_ADRESS_KEYMAP_NR_29         equ $29
 HIGH_DATA_TO_KEYMAP_NR_2A       equ $2A
 LOW_DATA_TO_KEYMAP_NR_2B        equ $2B
 SOUNDDRIVE_DF_MIRROR_NR_2D      equ $2D     ;Nextreg port-mirror of port 0xDF
-LORES_XOFFSET_NR_32             equ $32
-LORES_YOFFSET_NR_33             equ $33
+TILEMAP_XOFFSET_MSB_NR_2F       equ $2F
+TILEMAP_XOFFSET_LSB_NR_30       equ $30
+TILEMAP_YOFFSET_NR_31           equ $31
+LORES_XOFFSET_NR_32             equ $32     ;Also ULA scroll register (since core 2.00.26)
+LORES_YOFFSET_NR_33             equ $33     ;Also ULA scroll register (since core 2.00.26)
 SPRITE_ATTR_SLOT_SEL_NR_34      equ $34     ;Sprite-attribute slot index for $35-$39/$75-$79 port $57 mirrors
 SPRITE_ATTR0_NR_35              equ $35     ;port $57 mirror in nextreg space (accessible to copper)
 SPRITE_ATTR1_NR_36              equ $36
@@ -193,6 +197,7 @@ PALETTE_CONTROL_NR_43           equ $43     ;Enables or disables ULANext interpr
 PALETTE_VALUE_9BIT_NR_44        equ $44     ;Holds the additional blue color bit for RGB333 color selection.
 TRANSPARENCY_FALLBACK_COL_NR_4A equ $4A     ;8-bit colour to be drawn when all layers are transparent
 SPRITE_TRANSPARENCY_I_NR_4B     equ $4B     ;index of transparent colour in sprite palette (only bottom 4 bits for 4-bit patterns)
+TILEMAP_TRANSPARENCY_I_NR_4C    equ $4C     ;index of transparent colour in tilemap graphics (only bottom 4 bits)
 MMU0_0000_NR_50                 equ $50     ;Set a Spectrum RAM page at position 0x0000 to 0x1fff
 MMU1_2000_NR_51                 equ $51     ;Set a Spectrum RAM page at position 0x2000 to 0x3fff
 MMU2_4000_NR_52                 equ $52     ;Set a Spectrum RAM page at position 0x4000 to 0x5fff
@@ -204,6 +209,11 @@ MMU7_E000_NR_57                 equ $57     ;Set a Spectrum RAM page at position
 COPPER_DATA_NR_60               equ $60
 COPPER_CONTROL_LO_NR_61         equ $61
 COPPER_CONTROL_HI_NR_62         equ $62
+ULA_CONTROL_NR_68               equ $68
+TILEMAP_CONTROL_NR_6B           equ $6B
+TILEMAP_DEFAULT_ATTR_NR_6C      equ $6C
+TILEMAP_BASE_ADR_NR_6E          equ $6E     ;Tilemap base address of map
+TILEMAP_GFX_ADR_NR_6F           equ $6F     ;Tilemap definitions (graphics of tiles)
 SPRITE_ATTR0_INC_NR_75          equ $75     ;port $57 mirror in nextreg space (accessible to copper) (slot index++)
 SPRITE_ATTR1_INC_NR_76          equ $76
 SPRITE_ATTR2_INC_NR_77          equ $77

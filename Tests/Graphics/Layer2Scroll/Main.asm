@@ -43,7 +43,7 @@ Start:
     ; setup global transparency features
     NEXTREG_nn GLOBAL_TRANSPARENCY_NR_14, $FC       ; global transparency colour
     ; setup Layer2 bank to 9 (like NextZXOS does)
-    NEXTREG_nn LAYER2_RAM_PAGE_NR_12, 9
+    NEXTREG_nn LAYER2_RAM_BANK_NR_12, 9
     ; draw ULA screen0
     FILL_AREA   MEM_ZX_ATTRIB_5800, 32*24, P_WHITE|BLUE ; change attributes
     call    DrawUlaPart             ; draw lines

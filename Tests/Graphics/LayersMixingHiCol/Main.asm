@@ -102,7 +102,7 @@ Start:
     NEXTREG_nn LAYER2_XOFFSET_NR_16, 0
     NEXTREG_nn LAYER2_YOFFSET_NR_17, 0
     ; setup Layer2 bank to 9 (like NextZXOS does)
-    NEXTREG_nn LAYER2_RAM_PAGE_NR_12, 9
+    NEXTREG_nn LAYER2_RAM_BANK_NR_12, 9
     ; make Layer2 visible
     ld      bc, LAYER2_ACCESS_P_123B
     ld      a, LAYER2_ACCESS_L2_ENABLED
