@@ -57,6 +57,11 @@ SetTurboModeByOption:
     ld      a,%10
     jp      WriteNextRegByIo    ; + ret
 
+;;;;;;; picks choosen levels test ;;;;;;;;;;;;
+SetTestsModeByOption:
+    ;;TODO - empty stub to make this compile with latest UIcode.i.asm from Z80N test
+    ret
+
 ; returns HL=MEM_SCRAP_BUFFER and 256 bytes of data set (0, 1, 2, ..., 255)
 Set0to255ScrapData:
     ld      hl,MEM_SCRAP_BUFFER

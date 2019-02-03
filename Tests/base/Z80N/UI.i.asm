@@ -46,7 +46,7 @@ InstructionsData_KeyLegends:
     db      'W', KEY_W      ; ADD BC,A
     db        0, KEY_NONE   ; ADD DE,$nnnn
     db      'R', KEY_R      ; ADD DE,A
-    db        0, KEY_NONE   ; ADD HL,$nnnn
+    db      'T', KEY_T      ; ADD HL,$nnnn
     db      'Y', KEY_Y      ; ADD HL,A
     db      'U', KEY_U      ; LDDRX
     db      'I', KEY_I      ; LDDX

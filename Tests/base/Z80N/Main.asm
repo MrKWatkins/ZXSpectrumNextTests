@@ -27,7 +27,7 @@ InstructionsData_CurrentLevelTests:
 InstructionsData_L1Tests:
     dw      0, TestL1_AddBcA
     dw      0, TestL1_AddDeA
-    dw      0, TestL1_AddHlA
+    dw      TestL1_AddHlW, TestL1_AddHlA
     dw      TestFull_Lddrx, TestFull_Lddx, TestFull_Ldirx, TestFull_Ldix
     dw      TestFull_Ldpirx, TestFull_Ldws
     dw      TestFull_Mirror, TestFull_MulDE
@@ -36,9 +36,11 @@ InstructionsData_L1Tests:
     dw      TestFull_PushW, TestFull_Setae, TestFull_Swapnib, TestFull_TestNn
 
 InstructionsData_FullTests:
+;;TODO "ADD rr,**" are currently available only in "partial" variant, as the full one would take hours...
+; - maybe add two levels of "full" option to have more thorough partial than current one (OK1/OK2)?
     dw      0, TestFull_AddBcA
     dw      0, TestFull_AddDeA
-    dw      0, TestFull_AddHlA
+    dw      TestL1_AddHlW, TestFull_AddHlA
     dw      TestFull_Lddrx, TestFull_Lddx, TestFull_Ldirx, TestFull_Ldix
     dw      TestFull_Ldpirx, TestFull_Ldws
     dw      TestFull_Mirror, TestFull_MulDE
@@ -267,20 +269,16 @@ Start:
     call    RedrawMainScreen
     call    SetTurboModeByOption
 
-    ;;FIXME:
-    ; - add missing tests: ADD rr,**, and maybe add second OK2 level
-
-.MainLoopPrototype:
+.MainLoop:
     call    RefreshKeyboardState
-
-    jr      .MainLoopPrototype
+    jr      .MainLoop
 
     call    EndTest
 
     ;;;;;;;;;;;;;;;;;;;;;;;; Tests ;;;;;;;;;;;;;;;;;;;;;
 
     INCLUDE "testsBlockCopy.i.asm"  ; LDWS | LDPIRX | LDDX | LDDRX | LDIRX | LDIX
-    INCLUDE "testsArithmetic.i.asm" ; TEST | MIRROR | SWAPNIB | MUL D,E | ADD rr,A
+    INCLUDE "testsArithmetic.i.asm" ; TEST | MIRROR | SWAPNIB | MUL D,E | ADD rr,A | ADD rr,**
     INCLUDE "testsSpecials.i.asm"   ; NEXTREG *r,*n | NEXTREG *r,A | OUTINB | PUSH **
     INCLUDE "testsPixelRelated.i.asm"   ; PIXELDN | PIXELAD | SETAE
 

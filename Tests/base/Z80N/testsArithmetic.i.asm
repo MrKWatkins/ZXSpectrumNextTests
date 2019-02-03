@@ -4,7 +4,7 @@
 
 ; ";;DEBUG" mark instructions can be used to intentionally trigger error (test testing)
 
-; This file has tests for: TEST | MIRROR | SWAPNIB | MUL D,E | ADD rr,A
+; This file has tests for: TEST | MIRROR | SWAPNIB | MUL D,E | ADD rr,A | ADD rr,**
 
 ;;;;;;;;;;;;;;;;;;;;;;;; Test TEST * (2s) ;;;;;;;;;;;;;;;;;;
 TestFull_TestNn:
@@ -366,5 +366,41 @@ TestL1_AddHlA:          ; ADD HL,A has only two levels (L1 and Full)
     add     hl,de
     ld      de,(.L1TestLoop+1)
     call    LogAdd1B2W  ; log(B:"A", DE:original HL, HL: HL+A result)
+    ld      (ix+1),RESULT_ERR   ; set result to ERR
+    ret                 ; terminate test
+
+;;;;;;;;;;;;;;;;;;;;;;;; Partial test ADD HL,** (0.6s) ;;;;;;;;;;;;;;;;;;
+TestL1_AddHlW:          ; partial L1 test (65536 iterations through all $nnnn)
+    INIT_HEARTBEAT_256
+    ld      a,RESULT_OK1
+    cp      (ix+1)
+    ret     z           ; if Level1 was already run, don't twice
+    ; init test variables
+    ld      de,$357B
+    ld      bc,0
+.L1TestLoop:
+    ld      h,d
+    ld      l,e
+    ld      (.NnnnValue),bc
+    db      $ED, $34    ; ADD HL,** ; undefined flags ATM (may be changed later)
+.NnnnValue:
+    db      0, 0
+    ;res     7,h ;;DEBUG
+    ex      de,hl
+    add     hl,bc
+    or      a
+    sbc     hl,de
+    jr      nz,.errorFound
+    inc     c
+    jp      nz,.L1TestLoop
+    call    TestHeartbeat
+    inc     b
+    jp      nz,.L1TestLoop
+    ld      (ix+1),RESULT_OK1   ; this was only partial test
+    ret
+.errorFound:
+    add     hl,de       ; restore expected result in HL
+    ex      de,hl       ; DE:expected, HL:real, BC:$nnnn
+    call    LogAdd3W    ; log(DE: expected, HL: result, BC: $nnnn)
     ld      (ix+1),RESULT_ERR   ; set result to ERR
     ret                 ; terminate test
