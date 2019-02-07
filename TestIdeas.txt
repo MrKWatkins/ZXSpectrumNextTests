@@ -1,7 +1,6 @@
 Test ideas:
 
 base:
- - Z80N instructions
  - DMA
 
 * Palettes:

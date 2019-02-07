@@ -14,6 +14,9 @@ to finish, full tests take about ~5 minutes (at 14MHz).
 
 To run particular test, hit the highlighted letter, or use "5" to run all tests.
 
+If the emulator/board was already in one of turbo modes (NextReg 7 bottom two bits are
+non zero), the test code will enforce 14MHz turbo mode, and auto-start "run all tests".
+
 At the end of line there will be status of finished tests, "ERR" marks some error
 happened during test, "OK" means the instruction passed the test. "OK1" means the
 test passed successfully, but there may exist one more (thorough) level of test.

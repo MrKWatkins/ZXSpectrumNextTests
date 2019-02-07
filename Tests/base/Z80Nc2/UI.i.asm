@@ -59,8 +59,8 @@ HelpTxt:
     db      'Read "!Z80Nc2.txt" for details.',0
     db      ' ',0
     db      'Press 2 to switch 14Mhz turbo.',0
-    db      'Press 5 to run all tests (~7min)',0
-    db      'Option 3 is not implemented yet.',0
+    db      'Press 5 to run all tests (~11s).',0
+    db      'Option 3 for full tests (~7min).',0
     db      ' ',0
     db      'To run particular test or check',0
     db      'error log in case of "ERR" state',0

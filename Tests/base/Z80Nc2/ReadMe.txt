@@ -12,15 +12,17 @@ Press "2" to switch on 14MHz turbo mode (if your emulator already supports it,
 NextRegs 6 and 7 are required for turbo enabling+speed setting) (you may also
 want to apply your own emulator "run as fast as possible" setting maybe).
 
-Press "3" to select levels of "fullness" of tests (WIP - at this moment all tests
-are only "full" - to be removed or finished).
+Press "3" to select levels of "fullness" of tests, partial tests take about 11s
+to finish, full tests take about ~7 minutes (at 14MHz).
 
 To run particular test, hit the highlighted letter, or use "5" to run all tests.
 
+If the emulator/board was already in one of turbo modes (NextReg 7 bottom two bits are
+non zero), the test code will enforce 14MHz turbo mode, and auto-start "run all tests".
+
 At the end of line there will be status of finished tests, "ERR" marks some error
-happened during test, "OK" means the instruction passed the test. (WIP - if levels
-will be added, then "OK1" and "OK2" mean that test did pass, but there are 1 or 2
-more levels of "fuller" tests available).
+happened during test, "OK" means the instruction passed the test. "OK1" means the
+test passed successfully, but there may exist one more (thorough) level of test.
 
 For tests with "ERR" result, by hitting the highlighted key, you can see "error log"
 from particular test. Tests usually abort upon finding first problem, so log will
