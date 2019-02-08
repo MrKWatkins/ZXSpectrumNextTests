@@ -20,6 +20,7 @@ base:
 * Timex 512x192 hires
 
 * Sprites:
+ - keep core1 vs core2 stuff separate, so emu authors have chance to proceed in smaller sets
  - exercise old stuff (core 1.xx)
  - NextReg mirrors
  - 4-bit graphics
@@ -29,6 +30,7 @@ base:
  - exhausting pixel throughput on single line
  - order flip
  - syncing with scanline while multiplexing
+ - relative sprites
 
 ("." points are optional, more like examples/documenting current ZXN board, than trying
 to preserve those features for future ... "-" points are like serious tests where emulator

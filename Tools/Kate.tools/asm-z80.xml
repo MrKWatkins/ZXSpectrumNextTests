@@ -10,6 +10,9 @@ Changelog:
   // dd/mm/yyyy: version x.y (keep changelog in descending order)
   //   what was modified
 
+  08/02/2019: version 0.6
+    + fix: "out (c), 0" was not highlighted as unofficial instruction (space ahead 0)
+
   19/01/2019: version 0.5
     + "error" context added to report unexpected arguments on remaining line (only *FEW*
         cases are detected at the moment, it's nowhere near checking syntax properly)
@@ -39,7 +42,7 @@ Changelog:
   30/12/2018: version 0.1
     Initial version, released as part of ZXNextTests project (as "work in progress")
 -->
-<language name="Z80 (pasmo, sjasm, ...)" section="Assembler" version="3" kateversion="5.0" extensions="*.asm" mimetype="" author="Peter Helcmanovsky (ped@7gods.org)" license="MIT">
+<language name="Z80 (pasmo, sjasm, ...)" section="Assembler" version="4" kateversion="5.0" extensions="*.asm" mimetype="" author="Peter Helcmanovsky (ped@7gods.org)" license="MIT">
   <!-- TODO
     pasmo: PC, $, local labels, "??" operator (banknum) ... all operators having extra style?
     sjasm: many IFcc, ELSEIFcc variants
@@ -312,7 +315,7 @@ Changelog:
         <RegExpr attribute="Control Flow ins." context="Error" insensitive="true"
                  String="ret\s+(nz|z|nc|c|po|pe|p|m|ns|s)\b\s*"/>
         <RegExpr attribute="Unofficial ins." context="Error" insensitive="true"
-                 String="(in\s+(f,\s*|)\(c\)|out\s+\(c\),0\b)\s*"/>
+                 String="(in\s+(f,\s*|)\(c\)|out\s+\(c\),\s*0\b)\s*"/>
         <RegExpr attribute="Unofficial ins." context="Error" insensitive="true"
                  String="(rlc|rrc|rl|rr|sla|sll|sra|sli|sl1|srl)\s+\(\s*(ix|iy)\s*(\+|\-)[^;]*\),\s*[a-ehl]\b\s*"/>
         <RegExpr attribute="Unofficial ins." context="Error" insensitive="true"
