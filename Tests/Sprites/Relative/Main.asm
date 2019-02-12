@@ -21,112 +21,94 @@ CustomFont:
 
     org     $8000
 
-    INCLUDE "..\..\Constants.asm"
-    INCLUDE "..\..\Macros.asm"
-    INCLUDE "..\..\TestFunctions.asm"
-    INCLUDE "..\..\OutputFunctions.asm"
+    INCLUDE "../../Constants.asm"
+    INCLUDE "../../Macros.asm"
+    INCLUDE "../../TestFunctions.asm"
+    INCLUDE "../../OutputFunctions.asm"
+    INCLUDE "../../controls.i.asm"
 
 SPRITE_WRONG_PIX_COLOUR equ $A2
 
 OPT_BIT_MARK    equ     0
-OPT_BIT_SHOW    equ     1
-OPT_BIT_MIRX    equ     2
-OPT_BIT_MIRY    equ     3
-OPT_BIT_ROT     equ     4
-OPTIONS_COUNT   equ     5
+OPT_BIT_ROT     equ     1
+OPT_BIT_MIRY    equ     2
+OPT_BIT_MIRX    equ     3
+OPT_BIT_SHOW    equ     4
+OPT_BIT_CLIP    equ     5
+OPTIONS_COUNT   equ     6
 
 Options:
     db      0       ; (1<<OPT_BIT_MARK)|(1<<OPT_BIT_SHOW)
     db      OPTIONS_COUNT   ; must follow in memory right after options byte
 
 OptionsAttrOfs:
-    db      4*32+0, 4*32+8, 5*32+0, 5*32+10, 5*32+20    ; into last third of attribs
+    ;       mark, rot, mirY, mirX, show, clip
+    db      4*32+0, 5*32+20, 5*32+10, 5*32+0, 4*32+8, 4*32+18 ; into last third of attribs
 
 Start:
     call    StartTest
+    ; register control keys
+    REGISTER_KEY KEY_Q, KeyHandlerMarks
+    REGISTER_KEY KEY_W, KeyHandlerShowAll
+    REGISTER_KEY KEY_E, KeyHandlerClipWindow
+    REGISTER_KEY KEY_A, KeyHandlerMirrorX
+    REGISTER_KEY KEY_S, KeyHandlerMirrorY
+    REGISTER_KEY KEY_D, KeyHandlerRotate
+    ; draw ULA part of screen
     call    DrawUlaPart
-    ; Layers: USL, over border ON, sprites ON
-    NEXTREG_nn SPRITE_CONTROL_NR_15, %00010011
     call    SetSpritePalette
-.MainLoop:
+RefreshSpritesAndLoop:
+    call    SetClipWindowAndNR15
     call    LoadPatterns
     call    ShowSprites
-.KeyboardWaitForNoKey:
-    ld      a,$FB       ; row with QWERT keys
-    in      a,(ULA_P_FE)
-    cpl
-    and     $1F
-    jr      nz,.KeyboardWaitForNoKey
-.KeyboardWaitForSomeKey:
-    ld      a,$FB       ; row with QWERT keys
-    in      a,(ULA_P_FE)
-    cpl
-    and     $1F
-    jr      z,.KeyboardWaitForSomeKey
-    rra
-    jr      c,.HandleQ
-    rra
-    jr      c,.HandleW
-    rra
-    jr      c,.HandleE
-    rra
-    jr      c,.HandleR
-.HandleT:
-    ld      a,(Options)
-    xor     (1<<OPT_BIT_ROT)
-    ld      (Options),a
-    jr      .FinishKeyHandler
-.HandleR:
-    ld      a,(Options)
-    xor     (1<<OPT_BIT_MIRY)
-    ld      (Options),a
-    jr      .FinishKeyHandler
-.HandleE:
-    ld      a,(Options)
-    xor     (1<<OPT_BIT_MIRX)
-    ld      (Options),a
-    jr      .FinishKeyHandler
-.HandleW:
-    ld      a,(Options)
-    xor     (1<<OPT_BIT_SHOW)
-    ld      (Options),a
-    jr      .FinishKeyHandler
-.HandleQ:
-    ld      a,(Options)
-    xor     (1<<OPT_BIT_MARK)
-    ld      (Options),a
-.FinishKeyHandler:
-    call    UpdateKeysStatus
-    jp      .MainLoop       ; will also reload patterns and sprite attributes
-
+.MainLoop:
+    call    RefreshKeyboardState
+    jr      .MainLoop
     ;call    EndTest
+
+KeyHandlerMarks:
+    ld      a,1<<OPT_BIT_MARK
+    jr      FlipOptionAndRefreshSprites
+KeyHandlerShowAll:
+    ld      a,1<<OPT_BIT_SHOW
+    jr      FlipOptionAndRefreshSprites
+KeyHandlerClipWindow:
+    ld      a,1<<OPT_BIT_CLIP
+    jr      FlipOptionAndRefreshSprites
+KeyHandlerMirrorX:
+    ld      a,1<<OPT_BIT_MIRX
+    jr      FlipOptionAndRefreshSprites
+KeyHandlerMirrorY:
+    ld      a,1<<OPT_BIT_MIRY
+    jr      FlipOptionAndRefreshSprites
+KeyHandlerRotate:
+    ld      a,1<<OPT_BIT_ROT
+    ; continue with FlipOptionAndRefreshSprites
+FlipOptionAndRefreshSprites:
+    ; flip the option
+    ld      hl,Options
+    xor     (hl)
+    ld      (hl),a
+    ; update the UI state
+    call    UpdateKeysStatus
+    ; Reload patterns and sprite attributes
+    jr      RefreshSpritesAndLoop
 
 ShowSprites:
     ; Select pattern and sprite slot 0
     ld      bc, SPRITE_STATUS_SLOT_SELECT_P_303B
     xor     a
     out     (c),a
-    ; prepare modifier bytes into D (B3) and E (B4)
-    ld      hl,Options
-    xor     a
+    ; prepare modifier bytes into D (Byte3) and E (Byte4)
     ld      e,a         ; E = 0 by default (no change to B4)
-    bit     OPT_BIT_ROT,(hl)
-    jr      z,.NoRotate
-    or      B3_ROTATE
-.NoRotate:
-    bit     OPT_BIT_MIRX,(hl)
-    jr      z,.NoMirrorX
-    or      B3_MIRRORX
-.NoMirrorX:
-    bit     OPT_BIT_MIRY,(hl)
-    jr      z,.NoMirrorY
-    or      B3_MIRRORY
-.NoMirrorY:
-    ld      d,a         ; D = enforce extra bits in B3
-    bit     OPT_BIT_SHOW,(hl)
+    ld      a,(Options)
+    bit     OPT_BIT_SHOW,a
     jr      z,.NoShowAll
     ld      e,B4_VIS    ; E = enforce visible
 .NoShowAll:
+    ; OPT bits for rot/mir are identical to actual functional bits, so just AND them
+    and     B3_ROTATE|B3_MIRRORX|B3_MIRRORY
+    ld      d,a         ; D = enforce extra bits in B3
     ; upload all sprite attributes
     ld      hl, SpritesDefs
     ld      c, SPRITE_ATTRIBUTE_P_57
@@ -350,6 +332,25 @@ SetSpritePalette:
     db      $44, %11101001, $22, %01011101, $55, %00000010  ; 8 bit colours (lighter than 4b)
     db      0
 
+SetClipWindowAndNR15:
+    ld      a,(Options)
+    bit     OPT_BIT_CLIP,a
+    ld      a,%00010011     ; Layers: USL, over border ON, sprites ON
+    jr      z,.NoClip
+    or      %00100000       ; enable clipping in over-border mode
+    push    af
+    ; set clip window coordinates to: [136,72] -> [287, 223]
+    NEXTREG_nn CLIP_WINDOW_CONTROL_NR_1C, 2 ; reset sprite clip window index
+    NEXTREG_nn CLIP_SPRITE_NR_19, 68    ; X1 (*2 in "over border" mode)
+    NEXTREG_nn CLIP_SPRITE_NR_19, 143   ; X2 (*2 in "over border" mode)
+    NEXTREG_nn CLIP_SPRITE_NR_19, 72    ; Y1
+    NEXTREG_nn CLIP_SPRITE_NR_19, 223   ; Y2
+    pop     af
+.NoClip:
+    ; set the NR15 to final value
+    NEXTREG_A SPRITE_CONTROL_NR_15
+    ret
+
 UpdateKeysStatus:
     ld      bc,(Options)    ; C = options, B = number of options
     ld      hl,OptionsAttrOfs
@@ -438,8 +439,8 @@ SpriteLabels:
     db  '                                '  ; 7
     db  '                                '  ; 8 1
     db  '                                '  ; 9
-    db  'Qmarks  WshowAll              L '  ; 0 2
-    db  'EXmirror  RYmirror  Trotate     '  ; 1
+    db  'Qmarks  WshowAll  Eclip       L '  ; 0 2
+    db  'AmirrorX  SmirrorY  Drotate     '  ; 1
     db  0
 
 SpriteLines:

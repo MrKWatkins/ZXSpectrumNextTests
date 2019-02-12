@@ -24,9 +24,10 @@ get separate test one day).
 If there is green sprite outside of rectangle, or red sprite displayed anywhere, that's
 bug.
 
-You can use keys Q,W,E,R,T to switch various features ON/OFF:
+You can use keys Q,W,E,A,S,D to switch various features ON/OFF:
 * "marks" will draw light blue marks over sprite pattern to identify pattern orientation
 * "show all" will make also "invisible" red sprites visible (except "0")
+* "clip" will turn on/off sprite clipping window at coordinates [136,72] -> [287, 223]
 * X-mirror, Y-mirror and rotate - switch ON/OFF transformation bits in "byte 3" of sprites
 
 8 bit colours:
