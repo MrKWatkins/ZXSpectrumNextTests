@@ -2,10 +2,11 @@
 
     org     $8000
 
-    INCLUDE "..\..\Constants.asm"
-    INCLUDE "..\..\TestFunctions.asm"
-    INCLUDE "..\..\TestData.asm"
-    INCLUDE "..\..\OutputFunctions.asm"
+    INCLUDE "../../Constants.asm"
+    INCLUDE "../../TestFunctions.asm"
+    INCLUDE "../../TestData.asm"
+    INCLUDE "../../OutputFunctions.asm"
+    INCLUDE "../../controls.i.asm"
 
 MEM_STACK_ADDRESS   equ     $9F00   ; needs C000..FFFF free for JP (C) test
 MEM_JP_C_AREA       equ     $C000   ; target area to test JP (C) fully
@@ -35,7 +36,6 @@ InstructionsData_FullTests:
     dw      TestFull_JpInC                          ; JP (C)
 
     INCLUDE "../Z80N/main.i.asm"
-    INCLUDE "../Z80N/controls.i.asm"
     INCLUDE "../Z80N/errorLog.i.asm"
     INCLUDE "UI.i.asm"
 

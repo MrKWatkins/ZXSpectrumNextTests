@@ -2,10 +2,11 @@
 
     org     $8000
 
-    INCLUDE "..\..\Constants.asm"
-    INCLUDE "..\..\TestFunctions.asm"
-    INCLUDE "..\..\TestData.asm"
-    INCLUDE "..\..\OutputFunctions.asm"
+    INCLUDE "../../Constants.asm"
+    INCLUDE "../../TestFunctions.asm"
+    INCLUDE "../../TestData.asm"
+    INCLUDE "../../OutputFunctions.asm"
+    INCLUDE "../../controls.i.asm"
 
 MEM_STACK_ADDRESS   equ     $9F00
 MEM_LOG_DATA        equ     $7000   ; 4k buffer (index into log is 8b => 2k max)
@@ -41,7 +42,6 @@ InstructionsData_FullTests:
     dw      TestFull_PushW, TestFull_Setae, TestFull_Swapnib, TestFull_TestNn
 
     INCLUDE "../Z80N/main.i.asm"
-    INCLUDE "../Z80N/controls.i.asm"
     INCLUDE "../Z80N/errorLog.i.asm"
     INCLUDE "../Z80N/UI.i.asm"
 
