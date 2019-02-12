@@ -1,3 +1,9 @@
+    MACRO REGISTER_KEY keyCode, handlerAddress
+        ld      a,keyCode
+        ld      de,handlerAddress
+        call    RegisterKeyhandler
+    ENDM
+
 KEY_NONE    equ     $FF
 KEY_CAPS    equ     0
 KEY_Z       equ     1

@@ -359,18 +359,10 @@ HelpKeyHandler:
 ;;;;;;;;;;;;;;;; key controls routines (setup + handlers) ;;;;;;;;;;;;
 
 SetupKeyControl:
-    ld      a,KEY_1
-    ld      de,HelpKeyHandler
-    call    RegisterKeyhandler
-    ld      a,KEY_2
-    ld      de,TurboKeyHandler
-    call    RegisterKeyhandler
-    ld      a,KEY_3
-    ld      de,FullKeyHandler
-    call    RegisterKeyhandler
-    ld      a,KEY_5
-    ld      de,GoKeyHandler
-    call    RegisterKeyhandler
+    REGISTER_KEY KEY_1, HelpKeyHandler
+    REGISTER_KEY KEY_2, TurboKeyHandler
+    REGISTER_KEY KEY_3, FullKeyHandler
+    REGISTER_KEY KEY_5, GoKeyHandler
     ; register all single-test keys
     ld      hl,InstructionsData_KeyLegends
     ld      de,SingleTestKeyHandler
