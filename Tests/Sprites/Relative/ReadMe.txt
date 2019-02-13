@@ -100,6 +100,3 @@ M : relati, invis, [ -64,-128], 4RG0.LO (+240) +anchor.pal_ofs = 4RG0.LO, scale 
 N : relati, visib, [-128,-128], 4RG0.HI (+240) +anchor.pal_ofs = 4RG0.HI, scale 1x1 =[192,112]
     ; 8 bit graphics, just final dot after everything, sporting over-border feature
 X : anchor, visib, [ 286, 222], 8b dot, scale 1x1
-
-TODO/ideas:
-- clipping window on/off for [2,2]->[317,253] (will anchor get registered?)
