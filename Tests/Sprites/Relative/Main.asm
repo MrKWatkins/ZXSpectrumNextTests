@@ -203,7 +203,7 @@ SpritesDefs:
     db  0, 16, $10, B4_VIS|B4_5BEXT|NAME_4R1, B5_REL
     ;; 4 bit graphics, red anchor beyond screen (top left), relative palette offset/name
     ; G : anchor, visib, [  64, -63], 4R1.HI (+16), scale 1x1
-    db  64, -63, $10, B4_VIS|B4_5BEXT|NAME_4R1, B5_4BIT_HI
+    db  64, -63, $10, B4_VIS|B4_5BEXT|NAME_4R1, B5_4BIT_HI|B5_MSBY
     ; H : relati, visib, [  48, 127], "-1" +anchor.N +anchor.pal_ofs = 4G1.LO, scale 1x1 =[112,64]
     db  48, 127, B3_REL_PAL, B4_VIS|B4_5BEXT|(-1&B4_NAME_MSK), B5_REL|B5_REL_NAME
     ; I : relati, invis, [ -32, 127], 4RG0.HI +anchor.pal_ofs = 4GR1.HI, scale 1x1 =[32,64]
