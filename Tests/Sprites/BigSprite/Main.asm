@@ -273,14 +273,14 @@ BigSpriteDef:
     ; R-- --X ---
 .relativeSpritesData:
     db  -15, -15, $00|B3_MIRRORY|B3_MIRRORX,            B4_VIS|NAME_S0|B4_5BEXT,    B5_REL
-    db   +2, -15, $10|B3_MIRRORY,                       B4_VIS|NAME_S1|B4_5BEXT,    B5_REL
+    db   +2, -15, $D0|B3_MIRRORY|B3_REL_PAL,            B4_VIS|NAME_S1|B4_5BEXT,    B5_REL
     db   +6, -15, $20|B3_ROTATE|B3_MIRRORY|B3_MIRRORX,  B4_VIS|NAME_S2|B4_5BEXT,    B5_REL
     db   -4,  -4, 0,                                    B4_INVIS|NAME_RED|B4_5BEXT, B5_REL
     db   +6,  +3, $30|B3_ROTATE|B3_MIRRORX,             B4_VIS|NAME_S3|B4_5BEXT,    B5_REL
-    db   +6,  +8, $50|0,                                B4_VIS|NAME_S0|B4_5BEXT,    B5_REL
+    db   +6,  +8, $50|0,                                B4_VIS|0|B4_5BEXT,          B5_REL|B5_REL_NAME
     db  -11,  +8, $60|B3_MIRRORX,                       B4_VIS|NAME_S1|B4_5BEXT,    B5_REL
-    db  -15,  +8, $70|B3_ROTATE,                        B4_VIS|NAME_S2|B4_5BEXT,    B5_REL
-    db  -15, -10, $80|B3_ROTATE|B3_MIRRORY,             B4_VIS|NAME_S3|B4_5BEXT,    B5_REL
+    db  -15,  +8, $70|B3_ROTATE,                        B4_VIS|2|B4_5BEXT,          B5_REL|B5_REL_NAME
+    db  -15, -10, $40|B3_ROTATE|B3_MIRRORY|B3_REL_PAL,  B4_VIS|NAME_S3|B4_5BEXT,    B5_REL
 BIG_SPRITE_REL_SZ  equ  $ - .relativeSpritesData
 
 BigSpriteDef_departed:      ; variant with the relatives being +-60px further away
@@ -289,14 +289,14 @@ BigSpriteDef_departed:      ; variant with the relatives being +-60px further aw
     db   SPRITE_POSX_BASE,  0, $40, B4_VIS|NAME_S0|B4_5BEXT, B5_RELT_BIG
 .relativeSpritesData:
     db  -75, -75, $00|B3_MIRRORY|B3_MIRRORX,            B4_VIS|NAME_S0|B4_5BEXT,    B5_REL
-    db   +2, -75, $10|B3_MIRRORY,                       B4_VIS|NAME_S1|B4_5BEXT,    B5_REL
+    db   +2, -75, $D0|B3_MIRRORY|B3_REL_PAL,            B4_VIS|NAME_S1|B4_5BEXT,    B5_REL
     db  +66, -75, $20|B3_ROTATE|B3_MIRRORY|B3_MIRRORX,  B4_VIS|NAME_S2|B4_5BEXT,    B5_REL
     db   20,  20, 0,                                    B4_INVIS|NAME_RED|B4_5BEXT, B5_REL
     db  +66,  +3, $30|B3_ROTATE|B3_MIRRORX,             B4_VIS|NAME_S3|B4_5BEXT,    B5_REL
-    db  +66, +68, $50|0,                                B4_VIS|NAME_S0|B4_5BEXT,    B5_REL
+    db  +66, +68, $50|0,                                B4_VIS|0|B4_5BEXT,          B5_REL|B5_REL_NAME
     db  -11, +68, $60|B3_MIRRORX,                       B4_VIS|NAME_S1|B4_5BEXT,    B5_REL
-    db  -75, +68, $70|B3_ROTATE,                        B4_VIS|NAME_S2|B4_5BEXT,    B5_REL
-    db  -75, -10, $80|B3_ROTATE|B3_MIRRORY,             B4_VIS|NAME_S3|B4_5BEXT,    B5_REL
+    db  -75, +68, $70|B3_ROTATE,                        B4_VIS|2|B4_5BEXT,          B5_REL|B5_REL_NAME
+    db  -75, -10, $40|B3_ROTATE|B3_MIRRORY|B3_REL_PAL,  B4_VIS|NAME_S3|B4_5BEXT,    B5_REL
 
 NAME_S0     equ     4
 NAME_S1     equ     5

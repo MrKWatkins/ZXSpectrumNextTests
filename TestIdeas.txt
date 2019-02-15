@@ -24,13 +24,9 @@ base:
  - exercise old stuff (core 1.xx)
  - NextReg mirrors
  - 4-bit graphics
- - palette offsets
- - mirror/rotation
- - scaling
  - exhausting pixel throughput on single line
- - order flip
  - syncing with scanline while multiplexing
- - relative sprites
+ - relative BigSprite with 4-bit gfx
 
 ("." points are optional, more like examples/documenting current ZXN board, than trying
 to preserve those features for future ... "-" points are like serious tests where emulator
