@@ -14,14 +14,19 @@ Colours used are: blue for anchor in middle, then red, orange, yellow, light yel
 light green, green, cyan and light blue clockwise from top left corner.
 
 You can use keys Q,W,E,A,S to switch various features ON/OFF:
-* "show all" will make also "invisible" red sprites visible
+* "show all" will make also "invisible" red sprites visible and ninth big sprite too
 * "clip" will turn on/off sprite clipping window at coordinates [52,63] -> [283, 151]
 * "priority" will change the sprite-0 to be on bottom/top of drawn sprites
 * "scale X/Y" will cycle through all scales (1x, 2x, 4x, 8x)
-* "depart" will move the relative subparts further away from anchor by extra +-60px
+* "depart" will move the relative parts +-60px away from centre (anchor), and it will
+make only single one of the base eight big sprites visible (toggles through)
 
 The "big sprite" relatives should inherit anchor scale and global space rotate/mirror
 flags, i.e. they should look as if single big sprite is being operated.
+
+There are eight big sprites visible, exercising all possible mirror/rotate flags states
+at the anchor sprite, and there is one hidden ninth big sprite (just to verify the
+visibility is propagated to all relative sprites).
 
 There's one single normal sprite in bottom left part of border, showing the "invalid"
 colour (violet $A2), which shouldn't appear on the big sprites (this sprite does NOT

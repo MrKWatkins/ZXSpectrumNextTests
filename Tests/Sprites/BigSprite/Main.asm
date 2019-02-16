@@ -2,7 +2,7 @@
 
 SPRITE_POSX_BASE    equ 35      ; X coordinates are at offset to make "275" fit into byte
 
-; this table is at $7FFE address, so the low byte of address will also set up B3 features
+; this table is at $7FFE address, the low byte of address will also set up byte3 features
 ; (rotate|mirY|mirX = 2,4,8) (after 2x inc, i.e. first used will be $00 = no-extras)
     org     $7FFE
 SpriteAnchorPositions:
@@ -15,6 +15,18 @@ SpriteAnchorPositions:
     db      115-SPRITE_POSX_BASE, 145
     db      195-SPRITE_POSX_BASE, 145
     db      275-SPRITE_POSX_BASE, 145
+    db       75-SPRITE_POSX_BASE, 100   ; the invisible extra one!
+
+BigSpriteVisibility_Normal:
+    db      B4_VIS, B4_VIS, B4_VIS, B4_VIS
+    db      B4_VIS, B4_VIS, B4_VIS, B4_VIS
+    db      B4_INVIS
+
+BigSpriteVisibility_Departed:
+    db      B4_INVIS, B4_INVIS, B4_INVIS, B4_INVIS
+    db      B4_INVIS, B4_INVIS, B4_INVIS, B4_VIS
+    db      B4_INVIS, B4_INVIS, B4_INVIS, B4_INVIS
+    db      B4_INVIS, B4_INVIS, B4_INVIS, B4_INVIS
 
     INCLUDE "../../Constants.asm"
     INCLUDE "../../Macros.asm"
@@ -39,6 +51,9 @@ Options:
 BigSpriteScale:
     db      0
 
+DepartedIndex:      ; valid values are 0..7 and 8 is OFF
+    dw      8
+
 OptionsAttrOfs:
     ;       show, clip, prior, scaleX, scaleY, depart
     db      5*32+0, 5*32+11, 5*32+19, 6*32+0, 6*32+10, 6*32+20 ; into last third of attribs
@@ -61,14 +76,15 @@ RefreshSpritesAndLoop:
     call    ShowSprites
 .MainLoop:
     call    RefreshKeyboardState
-    ; make ScaleX/Y hotkeys just "blip" upon press (check debounceState for zero)
+    ; make ScaleX/Y/depart hotkeys just "blip" upon press (check debounceState for zero)
     ld      a,(debounceState)
     or      a
     jr      nz,.MainLoop
-    ; force-clear scale opt-bits and refresh VRAM attributes
+    ; force-clear scale and depart opt-bits and refresh VRAM attributes
     ld      hl,Options
     res     OPT_BIT_SCALEX,(hl)
     res     OPT_BIT_SCALEY,(hl)
+    res     OPT_BIT_DEPART,(hl)
     call    UpdateKeysStatus    ; update the UI state
     jr      .MainLoop
     ;call    EndTest
@@ -101,6 +117,13 @@ KeyHandlerScaleY:
     ld      a,1<<OPT_BIT_SCALEY
     jr      FlipOptionAndRefreshSprites
 KeyHandlerDepart:
+    ; loop DepartedIndex through values 8,7,..,0 (8 = OFF)
+    ld      a,(DepartedIndex)
+    dec     a
+    jp      p,.ValidDepartedIndex
+    ld      a,8
+.ValidDepartedIndex:
+    ld      (DepartedIndex),a
     ld      a,1<<OPT_BIT_DEPART
     ; continue with FlipOptionAndRefreshSprites
 FlipOptionAndRefreshSprites:
@@ -148,16 +171,29 @@ ShowSprites:
     jr      .Upload256BBlocks
 
 PrepareDynamicBigSprites:
-    ;; prepare the eight big sprites (all possible rotate/mirror combinations)
-    ld      bc,SpriteAnchorPositions    ; C = B3 extra feature bits
-.OneBigSprite:
+    ;; prepare the eight+1 big sprites (all possible rotate/mirror combinations + hidden)
     ld      hl,BigSpriteDef
-    ld      a,(Options) ; check if "departed" is ON, then use the alternate data
-    bit     OPT_BIT_DEPART,a
+    ld      ix,BigSpriteVisibility_Normal   ; IX = anchor visibility data
+    ; check if "departed" is ON, then use the alternate data
+    ld      a,(DepartedIndex)
+    cp      8
     jr      z,.NotDeparted
     ld      hl,BigSpriteDef_departed
+    ld      ix,BigSpriteVisibility_Departed
+    ld      bc,(DepartedIndex)
+    add     ix,bc
 .NotDeparted:
-    ; out anchor sprite, offset by "SpriteAnchorPositions" offset data
+    ld      bc,SpriteAnchorPositions    ; C = byte3 extra feature bits
+.OneBigSprite:
+    call    .PrepareOneBigSprite
+    ; check if all big sprites were uploaded
+    ld      a,(B3_ROTATE|B3_MIRRORY|B3_MIRRORX)+2
+    cp      c
+    jr      nz,.OneBigSprite
+    ret
+.PrepareOneBigSprite:
+    push    hl          ; preserve pointer to source data
+    ; prepare anchor sprite, offset by "SpriteAnchorPositions" offset data
     ld      a,(bc)
     inc     bc
     add     a,(hl)
@@ -173,19 +209,29 @@ PrepareDynamicBigSprites:
     inc     de
     pop     af          ; restore of CF for MSBX
     ld      a,(hl)
-    inc     hl
     adc     a,0         ; add MSBX
-    or      c           ; add B3 features (rotate/mirror)
+    inc     hl
+    or      c           ; add byte 3 features (rotate/mirror)
     ld      (de),a      ; byte 3 = MSBX+rotate/mirror+pal.ofs
     inc     de
-    ldi                 ; byte 4 (just copy, anchor + 5B_extension)
-    inc     bc          ; restore BC after LDI
+    ; byte 4
+    ld      a,(Options)
+    bit     OPT_BIT_SHOW,a
+    ld      a,(hl)
+    jr      z,.KeepAnchorRegularVisibility
+    or      B4_VIS      ; enforce big sprite visible in "show all"
+.KeepAnchorRegularVisibility:
+    inc     hl
+    or      (ix+0)      ; add anchor visibility
+    inc     ix
+    ld      (de),a      ; byte 4
+    inc     de
     ld      a,(BigSpriteScale)
     or      (hl)        ; no MSBY
     inc     hl
     ld      (de),a      ; byte 5
     inc     de
-    ; out relative sub-sprites
+    ; prepare relative sub-sprites
     push    bc          ; preserve X/Y offset data pointer
     ld      bc,BIG_SPRITE_REL_SZ
 .RelativeSubspritesLoop:
@@ -206,10 +252,7 @@ PrepareDynamicBigSprites:
     ldi     ; byte 5
     jp      pe,.RelativeSubspritesLoop
     pop     bc          ; restore X/Y offset data pointer
-    ; check if all big sprites were uploaded
-    ld      a,B3_ROTATE|B3_MIRRORY|B3_MIRRORX
-    cp      c
-    jr      nz,.OneBigSprite
+    pop     hl          ; restore source data pointer
     ret
 
 PrepareFixedSprites:    ; DE = memory buffer to prepare sprites
@@ -266,7 +309,7 @@ SpritesDefsEnd  equ $
 BigSpriteDef:
     ; !!! KEEP IN SYNC with BigSpriteDef_departed data !!!
     ;; anchor of big-sprite
-    db   SPRITE_POSX_BASE,  0, $40, B4_VIS|NAME_S0|B4_5BEXT, B5_RELT_BIG
+    db   SPRITE_POSX_BASE,  0, $40, NAME_S0|B4_5BEXT, B5_RELT_BIG
     ; big sprite subsprites flags:
     ; -YX -Y- RYZ
     ; RY- ... R-X
@@ -286,7 +329,7 @@ BIG_SPRITE_REL_SZ  equ  $ - .relativeSpritesData
 BigSpriteDef_departed:      ; variant with the relatives being +-60px further away
     ; !!! KEEP IN SYNC with BigSpriteDef data !!!
     ;; anchor of big-sprite
-    db   SPRITE_POSX_BASE,  0, $40, B4_VIS|NAME_S0|B4_5BEXT, B5_RELT_BIG
+    db   SPRITE_POSX_BASE,  0, $40, NAME_S0|B4_5BEXT, B5_RELT_BIG
 .relativeSpritesData:
     db  -75, -75, $00|B3_MIRRORY|B3_MIRRORX,            B4_VIS|NAME_S0|B4_5BEXT,    B5_REL
     db   +2, -75, $D0|B3_MIRRORY|B3_REL_PAL,            B4_VIS|NAME_S1|B4_5BEXT,    B5_REL
