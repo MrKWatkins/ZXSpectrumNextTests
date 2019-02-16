@@ -1,17 +1,24 @@
 Does test "big-sprite" relative sprites (feature of core 2.00.27+).
 
-The big sprite is composed of 10 ordinary sprites, occupying total area of 23x25 pixels.
+This is almost identical test to SpritBig.sna (Tests/Sprites/BigSprite), except
+the graphical patterns are 4-bit and displaying "Golden Wings" item "B" graphics.
+
+The first half (0..127) of pattern slot has original "B" item graphics, the second
+half (128..255) has modified copy showing "E"-like letter.
+
+In the big sprite there are two sprites using the "E" variant (top-left and middle-right).
+
+The big sprite is composed of 10 ordinary sprites, occupying total area of ~40x40 pixels.
 
 The middle element is also "anchor" of the big sprite, the eight edge sprites are
 exercising all possible mirror/rotate flags states and there is also one extra sprite
 with disabled visibility (shouldn't be visible) inserted in middle of the relatives list.
 
-The pixel shape of each sub-sprite resembles "b" with arrow pointing to top (before its
-orientation is modified for particular position). The invisible sprite has pattern of
-red square.
+The pixel shape of each sub-sprite resembles bonus-like "B item" (before its orientation
+is modified for particular position). The invisible sprite has pattern of red square.
 
-Colours used are: blue for anchor in middle, then red, orange, yellow, light yellow,
-light green, green, cyan and light blue clockwise from top left corner.
+Colours on middle anchor and top left sprites should be close to original Amiga graphics,
+then clockwise the palette is slowly saturated toward yellow colour.
 
 You can use keys Q,W,E,A,S to switch various features ON/OFF:
 * "show all" will make also "invisible" red sprites visible and ninth big sprite too
@@ -28,9 +35,8 @@ There are eight big sprites visible, exercising all possible mirror/rotate flags
 at the anchor sprite, and there is one hidden ninth big sprite (just to verify the
 visibility is propagated to all relative sprites).
 
-There's one single normal sprite in bottom left part of border, showing the "invalid"
-colour (violet $A2), which shouldn't appear on the big sprites (this sprite does NOT
-react to the scale/depart/etc controls).
+There're two normal sprites in bottom left part of border, showing both possible gfx
+patterns (these sprites do NOT react to the scale/depart/etc controls).
 
 To get correct output also ULANext mode with ink format 7 is used, and ULA transparency
 is required to work properly to have sprites visible in "USL" layer priority mode (ULA
