@@ -23,6 +23,7 @@ Start:
     call StartTest
     ;; configure machine to specific state
     NEXTREG_nn TURBO_CONTROL_NR_07,0            ; 3.5hz
+    NEXTREG_nn MACHINE_TYPE_NR_03, %10110011    ; enforce +3e/Next timing
     NEXTREG_nn GLOBAL_TRANSPARENCY_NR_14,$E3    ; default transparent colour
     NEXTREG_nn TRANSPARENCY_FALLBACK_COL_NR_4A,$E3  ; +make it visible (i.e. "solid" :) )
     NEXTREG_nn SPRITE_CONTROL_NR_15, %00010100    ; Set ULS layer priority, sprites OFF

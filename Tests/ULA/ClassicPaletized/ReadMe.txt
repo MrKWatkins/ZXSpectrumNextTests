@@ -1,5 +1,14 @@
 Exercising ULA classic mode with Next palette capabilities and 128k/+3 machine timing.
 
+------------------------------------------------------------------------------------------
+WARNING: the timing of the test is not perfect with core 2.00.27, so visual artefacts
+while running at real HW are OK at this moment, check the included photo of correct
+output - also as with anything precisely timed by CPU on Next, the baseline is VGA-0 50Hz
+output mode. Other output modes may be broken even more (especially 60Hz modes and HDMI
+modes are looking lot more "broken"). Still the test content is valid even if the BORDER
+stripes don't align pixel-perfect with attribute rows, only their position is invalid.
+------------------------------------------------------------------------------------------
+
 The top half of screen is displaying first ULA palette (should contain default
 ZX Spectrum colours), the bottom half of screen is displaying second ULA palette,
 set up to custom colours.
