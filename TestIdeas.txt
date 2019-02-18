@@ -2,6 +2,7 @@ Test ideas:
 
 base:
  - DMA
+ - EI keeps interrupt disabled for next instruction test
 
 * Palettes:
  - CSpect seems to render 9b colours $B600/$B601 weird, the blue value seems shifted in either case.
@@ -26,7 +27,6 @@ base:
  - 4-bit graphics
  - exhausting pixel throughput on single line
  - syncing with scanline while multiplexing
- - relative BigSprite with 4-bit gfx
 
 ("." points are optional, more like examples/documenting current ZXN board, than trying
 to preserve those features for future ... "-" points are like serious tests where emulator
