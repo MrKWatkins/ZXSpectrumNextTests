@@ -6,7 +6,7 @@ base:
 
 * Palettes:
  - CSpect seems to render 9b colours $B600/$B601 weird, the blue value seems shifted in either case.
- - exercise all ways to upload/download + autoincrement on/off
+ - exercise all ways to upload/download + autoincrement on/off (layer2 + auto-inc + 9b = bug in .27)
  - exercise ink masks / borders
 
 * Layer2:
@@ -27,6 +27,9 @@ base:
  - 4-bit graphics
  - exhausting pixel throughput on single line
  - syncing with scanline while multiplexing
+
+* Copper:
+ - writing code on fly, changing index while keeping mode, etc..
 
 ("." points are optional, more like examples/documenting current ZXN board, than trying
 to preserve those features for future ... "-" points are like serious tests where emulator
