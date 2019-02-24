@@ -6,9 +6,13 @@
     INCLUDE "../../Macros.asm"
     INCLUDE "../../TestData.asm"
     INCLUDE "../../TestFunctions.asm"
+    INCLUDE "../../OutputFunctions.asm"
 
 Start:
     call StartTest
+    ld   hl,TestTxt
+    ld   de,MEM_ZX_SCREEN_4000
+    call OutStringAtDe
 
     ; Set ULA over Layer2 over sprites, with sprites not visible.
     NEXTREG_nn SPRITE_CONTROL_NR_15, %00010100
@@ -19,6 +23,9 @@ Start:
     NEXTREG_nn PALETTE_INDEX_NR_40, 128+7   ; Change paper 7 = 128 + 7 = 135.
     NEXTREG_nn PALETTE_VALUE_9BIT_NR_44, $E3
     NEXTREG_nn PALETTE_VALUE_9BIT_NR_44, $00; Set to default "pink" transparent colour.
+    NEXTREG_nn PALETTE_INDEX_NR_40, 0       ; Change ink 0 = 0
+    NEXTREG_nn PALETTE_VALUE_9BIT_NR_44, $E3
+    NEXTREG_nn PALETTE_VALUE_9BIT_NR_44, $01; Set to default "pink" transparent colour.
     ; default "pink" as transparency colour and bright cyan as transparency fallback
     NEXTREG_nn GLOBAL_TRANSPARENCY_NR_14, $E3
     NEXTREG_nn TRANSPARENCY_FALLBACK_COL_NR_4A, $1F
@@ -26,5 +33,8 @@ Start:
     call FillLayer2WithTestData
 
     call EndTest
+
+TestTxt:
+    db  'White screen + this text = OK', 0
 
     savesna "CPalTrV3.sna", Start
