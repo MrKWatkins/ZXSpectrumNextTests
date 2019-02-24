@@ -5,9 +5,13 @@
 	INCLUDE "../../Constants.asm"
 	INCLUDE "../../Macros.asm"
 	INCLUDE "../../TestFunctions.asm"
+	INCLUDE "../../OutputFunctions.asm"
 
 Start:
 	call   StartTest
+	ld     hl,TestTxt
+	ld     de,MEM_ZX_SCREEN_4000
+	call   OutStringAtDe
 	ei
 
 	;; set Next speed to turbo mode at 14MHz
@@ -22,8 +26,9 @@ Start:
 	or     $40          ; disable RAM contention
 	NEXTREG_A  PERIPHERAL_3_NR_08
     ; make sure Layer2 is DISABLED
-    ld  bc, LAYER2_ACCESS_P_123B
-    out (c), 0
+    ld      bc, LAYER2_ACCESS_P_123B
+    xor     a
+    out     (c), a
 
 TestLoop:
 	halt
@@ -54,5 +59,8 @@ TestLoop:
 	call   EndTiming
 
 	jr     TestLoop
+
+TestTxt:
+    db      '256x 8k switch, contention OFF', 0
 
 	savesna "Chg8kB_2.sna", Start
