@@ -11,33 +11,35 @@
 ; colour definitions
 C_BLACK     equ     %00000000       ; 0
 C_WHITE     equ     %10110110       ; 1
-C_B_WHITE   equ     %11111111       ; 2
-C_T_WHITE   equ     %01101101       ; 3
-C_B_YELLOW  equ     %11011000       ; 4
-C_B_GREEN   equ     %00011000       ; 5
-C_B_GREEN2  equ     %00011100       ; 6
-C_B_CYAN    equ     %00011011       ; 7
-C_PINK      equ     $E3             ; 8
-C_PINK2     equ     $E3             ; 9
-C_TEXT      equ     %11110011       ; 10
-C_D_TEXT    equ     %01100101       ; 11
+C_WHITE2    equ     %10010010       ; 2
+C_B_WHITE   equ     %11111111       ; 3
+C_T_WHITE   equ     %01101101       ; 4
+C_B_YELLOW  equ     %11011000       ; 5
+C_B_GREEN   equ     %00011000       ; 6
+C_PINK      equ     $E3             ; 7
+C_B_GREEN2  equ     %00011100       ; 8
+C_B_CYAN    equ     %00011011       ; 9
+C_PINK2     equ     $E3             ; 10
+C_TEXT      equ     %11110011       ; 11
+C_D_TEXT    equ     %01100101       ; 12
 
 CI_BLACK    equ     0
 CI_WHITE    equ     1
-CI_B_WHITE  equ     2
-CI_T_WHITE  equ     3
-CI_B_YELLOW equ     4
-CI_B_GREEN  equ     5
-CI_B_GREEN2 equ     6   ; for Layer2 it will get "priority" bit set
-CI_B_CYAN   equ     7
-CI_PINK     equ     8
-CI_PINK2    equ     9   ; for Layer2 it will get "priority" bit set
-CI_TEXT     equ     10
-CI_D_TEXT   equ     11
+CI_WHITE2   equ     2   ; for emphasisig different layer priority block
+CI_B_WHITE  equ     3
+CI_T_WHITE  equ     4
+CI_B_YELLOW equ     5
+CI_B_GREEN  equ     6
+CI_PINK     equ     7
+CI_B_GREEN2 equ     8   ; for Layer2 it will get "priority" bit set
+CI_B_CYAN   equ     9
+CI_PINK2    equ     10  ; for Layer2 it will get "priority" bit set
+CI_TEXT     equ     11
+CI_D_TEXT   equ     12
 
 colourDef:
-    db      C_BLACK, C_WHITE, C_B_WHITE, C_T_WHITE, C_B_YELLOW, C_B_GREEN
-    db      C_B_GREEN2, C_B_CYAN, C_PINK, C_PINK2, C_TEXT, C_D_TEXT
+    db      C_BLACK, C_WHITE, C_WHITE2, C_B_WHITE, C_T_WHITE, C_B_YELLOW
+    db      C_B_GREEN, C_PINK, C_B_GREEN2, C_B_CYAN, C_PINK2, C_TEXT, C_D_TEXT
 colourDefSz equ     $ - colourDef
 
 LegendText:
@@ -162,7 +164,7 @@ ScanlinesLoop:
     call    WaitForScanlineAndHalf
     ;; LSU phase (scanlines 32..63) - white border
     NEXTREG_nn SPRITE_CONTROL_NR_15, %00000101
-    ld      a,CI_T_WHITE
+    ld      a,CI_WHITE2
     out     (ULA_P_FE),a
     ld      l,63
     call    WaitForScanlineAndHalf
@@ -174,7 +176,7 @@ ScanlinesLoop:
     call    WaitForScanlineAndHalf
     ;; LUS phase (scanlines 96..127) - white border
     NEXTREG_nn SPRITE_CONTROL_NR_15, %00001101
-    ld      a,CI_T_WHITE
+    ld      a,CI_WHITE2
     out     (ULA_P_FE),a
     ld      l,127
     call    WaitForScanlineAndHalf
@@ -186,7 +188,7 @@ ScanlinesLoop:
     call    WaitForScanlineAndHalf
     ;; ULS phase (scanlines 160..191) - white border
     NEXTREG_nn SPRITE_CONTROL_NR_15, %00010101
-    ld      a,CI_T_WHITE
+    ld      a,CI_WHITE2
     out     (ULA_P_FE),a
     ; make bottom border white
     ld      l,191
@@ -219,7 +221,7 @@ DrawUlaPart:
     ld      e,3
 .DarkSectionsLoop:
     ld      bc,$040F
-    ld      a,CI_BLACK + (CI_T_WHITE<<4)
+    ld      a,CI_BLACK + (CI_WHITE2<<4)
     call    .DrawNxM_AttributeBox
     ld      bc,4*32
     add     hl,bc
@@ -292,7 +294,7 @@ DrawLayer2Part:
     ld      hl,0*256 + 0
     call    FillL2Box
     ; set dark white under certain areas to emphasise the separate sections
-    ld      de,CI_T_WHITE*256 + CI_T_WHITE
+    ld      de,CI_WHITE2*256 + CI_WHITE2
     ld      bc,$0404
     ld      hl,4*8*256 + 0
 .DarkSectionsLoop:
@@ -821,7 +823,7 @@ WaitForScanlineMSB: ; code is somewhat optimized to return ASAP when it happens
 ; basically same as WaitForScanline, but even less precise, and wait extra "half" of line
 WaitForScanlineAndHalf:
     call    WaitForScanline
-    ld      bc,$0501                ; wait until line 31 is well over half
+    ld      bc,$0401                ; wait until detected scanline is well over half
     ; continue with WaitSomeIdleTime code
 
 ; C = time to spend = (C-1)*(256x empty NOP loop), B = 1/256th of C extra wait
