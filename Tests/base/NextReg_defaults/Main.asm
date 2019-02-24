@@ -2,7 +2,7 @@
 
     org	$6000
 
-    INCLUDE "..\..\Constants.asm"
+    INCLUDE "../../Constants.asm"
 
     ; data at beginning, as they will be 256B-aligned thanks to org $6000 "for free"
     ALIGN 256
@@ -140,8 +140,8 @@ LegendMachineId:
 ReadmeNoticeText:
     db      'For details check: ReadMe.txt',0
 
-    INCLUDE "..\..\TestFunctions.asm"
-    INCLUDE "..\..\OutputFunctions.asm"
+    INCLUDE "../../TestFunctions.asm"
+    INCLUDE "../../OutputFunctions.asm"
 
 Start:
     call StartTest

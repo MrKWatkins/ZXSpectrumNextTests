@@ -2,8 +2,8 @@
 
 	org	$6000
 
-	INCLUDE "..\..\Constants.asm"
-	INCLUDE "..\..\TestFunctions.asm"
+	INCLUDE "../../Constants.asm"
+	INCLUDE "../../TestFunctions.asm"
 
 Start
 	call StartTest

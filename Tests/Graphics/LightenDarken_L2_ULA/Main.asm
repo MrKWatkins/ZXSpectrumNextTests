@@ -5,11 +5,11 @@
 
     org     $C000       ; must be in last 16k as I'm using all-RAM mapping for Layer2
 
-    INCLUDE "..\..\Constants.asm"
-    INCLUDE "..\..\Macros.asm"
-    INCLUDE "..\..\TestFunctions.asm"
-    INCLUDE "..\..\TestData.asm"
-    INCLUDE "..\..\OutputFunctions.asm"
+    INCLUDE "../../Constants.asm"
+    INCLUDE "../../Macros.asm"
+    INCLUDE "../../TestFunctions.asm"
+    INCLUDE "../../TestData.asm"
+    INCLUDE "../../OutputFunctions.asm"
 
 C_BLACK     equ     %00000000       ; 0
 C_WHITE     equ     %10110110       ; 1

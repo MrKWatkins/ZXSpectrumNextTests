@@ -2,11 +2,11 @@
 
     org     $C000       ; must be in last 16k as I'm using all-RAM mapping for Layer2
 
-    INCLUDE "..\..\Constants.asm"
-    INCLUDE "..\..\Macros.asm"
-    INCLUDE "..\..\TestFunctions.asm"
-    INCLUDE "..\..\TestData.asm"
-    INCLUDE "..\..\OutputFunctions.asm"
+    INCLUDE "../../Constants.asm"
+    INCLUDE "../../Macros.asm"
+    INCLUDE "../../TestFunctions.asm"
+    INCLUDE "../../TestData.asm"
+    INCLUDE "../../OutputFunctions.asm"
 
     ; ULA white $B601 (%101 per channel)
 

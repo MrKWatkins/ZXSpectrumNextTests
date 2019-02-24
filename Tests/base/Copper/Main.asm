@@ -2,9 +2,9 @@
 
     org     $8000
 
-    INCLUDE "..\..\Constants.asm"
-    INCLUDE "..\..\TestFunctions.asm"
-    INCLUDE "..\..\OutputFunctions.asm"
+    INCLUDE "../../Constants.asm"
+    INCLUDE "../../TestFunctions.asm"
+    INCLUDE "../../OutputFunctions.asm"
 
 LegendText:
     db      'Copper draws Swedish flags',0
