@@ -40,6 +40,9 @@ colourDef:
     db      C_B_GREEN2, C_B_CYAN, C_PINK, C_PINK2, C_TEXT, C_D_TEXT
 colourDefSz equ     $ - colourDef
 
+LegendText:
+    db      'Legend', 0
+
     MACRO   IDLE_WAIT loop_count
         ld      bc,loop_count
         call    WaitSomeIdleTime
@@ -146,7 +149,7 @@ ScanlinesLoop:
     halt
     ld      a,CI_WHITE
     out     (ULA_P_FE),a
-    ;; SLU phase (first 32 scanlines)
+    ;; SLU phase (scanlines 0..31)
     ; Set layers to: SLU, enable sprites (no over border), no LoRes
     NEXTREG_nn SPRITE_CONTROL_NR_15, %00000001
     ; wait some fixed time after IM1 handler to get into scanlines 255+
@@ -154,44 +157,41 @@ ScanlinesLoop:
     ; wait until scanline MSB becomes 0 again (scanline 0)
     ld      l,0
     call    WaitForScanlineMSB
-    ; grey border for SLU area
-    ld      a,CI_T_WHITE
-    out     (ULA_P_FE),a
-    ; wait until scanline 32
-    ld      l,32
-    call    WaitForScanline
+    ; wait until scanline 32 (31 and well over half, flip rendering after half-line)
+    ld      l,31
+    call    WaitForScanlineAndHalf
     ;; LSU phase (scanlines 32..63) - white border
     NEXTREG_nn SPRITE_CONTROL_NR_15, %00000101
-    ld      a,CI_WHITE
+    ld      a,CI_T_WHITE
     out     (ULA_P_FE),a
-    ld      l,64
-    call    WaitForScanline
+    ld      l,63
+    call    WaitForScanlineAndHalf
     ;; SUL phase (scanlines 64..95) - grey border
     NEXTREG_nn SPRITE_CONTROL_NR_15, %00001001
-    ld      a,CI_T_WHITE
+    ld      a,CI_WHITE
     out     (ULA_P_FE),a
-    ld      l,96
-    call    WaitForScanline
+    ld      l,95
+    call    WaitForScanlineAndHalf
     ;; LUS phase (scanlines 96..127) - white border
     NEXTREG_nn SPRITE_CONTROL_NR_15, %00001101
-    ld      a,CI_WHITE
+    ld      a,CI_T_WHITE
     out     (ULA_P_FE),a
-    ld      l,128
-    call    WaitForScanline
+    ld      l,127
+    call    WaitForScanlineAndHalf
     ;; USL phase (scanlines 128..159) - grey border
     NEXTREG_nn SPRITE_CONTROL_NR_15, %00010001
-    ld      a,CI_T_WHITE
-    out     (ULA_P_FE),a
-    ld      l,160
-    call    WaitForScanline
-    ;; ULS phase (scanlines 160..191) - white border
-    NEXTREG_nn SPRITE_CONTROL_NR_15, %00010101
     ld      a,CI_WHITE
     out     (ULA_P_FE),a
-    ld      l,192
-    call    WaitForScanline
-    ; grey border at bottom
+    ld      l,159
+    call    WaitForScanlineAndHalf
+    ;; ULS phase (scanlines 160..191) - white border
+    NEXTREG_nn SPRITE_CONTROL_NR_15, %00010101
     ld      a,CI_T_WHITE
+    out     (ULA_P_FE),a
+    ; make bottom border white
+    ld      l,191
+    call    WaitForScanlineAndHalf
+    ld      a,CI_WHITE
     out     (ULA_P_FE),a
     jr      ScanlinesLoop
 
@@ -214,27 +214,40 @@ SetTestPalette:
 DrawUlaPart:
     ; set all attributes: black on white
     FILL_AREA   MEM_ZX_ATTRIB_5800, 32*24, CI_BLACK + (CI_WHITE<<4)
+    ; set dark white under certain areas to emphasise the separate sections
+    ld      hl,MEM_ZX_ATTRIB_5800+4*32
+    ld      e,3
+.DarkSectionsLoop:
+    ld      bc,$040F
+    ld      a,CI_BLACK + (CI_T_WHITE<<4)
+    call    .DrawNxM_AttributeBox
+    ld      bc,4*32
+    add     hl,bc
+    dec     e
+    jr      nz,.DarkSectionsLoop
+
     ; draw MachineID and core versions:
-    ld      de,MEM_ZX_SCREEN_4000 + 5*32 + 18   ; AT [5,18] machineID
-    ld      bc,MEM_ZX_SCREEN_4000 + 6*32 + 18   ; AT [6,18] core
+    ld      de,MEM_ZX_SCREEN_4000 + 1*32 + 18   ; AT [1,18] machineID
+    ld      bc,MEM_ZX_SCREEN_4000 + 2*32 + 18   ; AT [2,18] core
     call    OutMachineIdAndCore_defLabels
+    ld      hl,LegendText
+    ld      de,MEM_ZX_SCREEN_4000 + 4*32 + 23
+    call    OutStringAtDe
 
     ; make ULA transparent under other "legend" boxes
-    ld      hl,MEM_ZX_ATTRIB_5800 + 5
+    ld      hl,MEM_ZX_ATTRIB_5800 + 6*32 + 23   ; SPRITE leg. NEEDS even line, odd column!
     call    .Draw4x6TransparentBoxes
-    ld      hl,MEM_ZX_ATTRIB_5800 + 5 + 7
+    ld      hl,MEM_ZX_ATTRIB_5800 + 11*32 + 23
     call    .Draw4x6TransparentBoxes
-    ld      hl,MEM_ZX_ATTRIB_5800 + 5 + 2*7
+    ld      hl,MEM_ZX_ATTRIB_5800 + 16*32 + 23
     call    .Draw4x6TransparentBoxes
     ; make ULA transparent under legend-label area
     ld      hl,MEM_ZX_ATTRIB_5800 + 0
     ld      bc,$1804
     call    .DrawNxMTransparentBoxes
     ; set attributes of "result" 6x4 boxes
-    ld      hl,MEM_ZX_ATTRIB_5800 + 5 + 3*7
-    call    .Draw4x6TestData
-    ld      hl,MEM_ZX_ATTRIB_5800 + (4*32) + 4 + 1*7
-    ld      e,5
+    ld      hl,MEM_ZX_ATTRIB_5800 + 5
+    ld      e,6
 .DrawTestDataForOtherModes:
     call    .Draw4x6TestData
     dec     e
@@ -278,6 +291,18 @@ DrawLayer2Part:
     ld      bc,$0418
     ld      hl,0*256 + 0
     call    FillL2Box
+    ; set dark white under certain areas to emphasise the separate sections
+    ld      de,CI_T_WHITE*256 + CI_T_WHITE
+    ld      bc,$0404
+    ld      hl,4*8*256 + 0
+.DarkSectionsLoop:
+    ld      a,8
+    call    FillL2Box
+    ld      a,h
+    add     a,8*8
+    ld      h,a
+    cp      3*8*8
+    jr      c,.DarkSectionsLoop
 
     ; draw expected result area for orders: SLU, LSU, SUL, LUS, USL, ULS
     ld      hl,12*256 + 4
@@ -335,67 +360,57 @@ DrawLayer2Part:
 
     ; draw Sprite-legend
     ld      a,1
-    ld      hl,0*256 + 8*(5+0)
+    ld      hl,6*8*256 + 8*(23+0)
     ld      de,CI_BLACK*256 + CI_WHITE
     ld      bc,$0820
     call    FillL2Box
-    ld      hl,0*256 + 8*(5+5)
+    ld      l,8*(23+5)
     call    FillL2Box
     ld      de,CI_B_YELLOW*256 + CI_B_YELLOW
-    ld      hl,0*256 + 8*(5+1)
+    ld      l,8*(23+1)
     call    FillL2Box
-    ld      hl,0*256 + 8*(5+3)
+    ld      l,8*(23+3)
     call    FillL2Box
     ld      de,CI_B_WHITE*256 + CI_T_WHITE
     ld      bc,$0410
-    ld      hl,0*256 + 8*(5+2)
+    ld      l,8*(23+2)
     call    FillL2BoxWithDither2x2
-    ld      hl,0*256 + 8*(5+4)
+    ld      l,8*(23+4)
     call    FillL2BoxWithDither2x2
     ; draw the dithered 16x16 boxes to reveal full sprite size
     ld      de,SPR_DITHER_BOX_GFX
-    ld      hl,0*256 + 8*(5+1)
+    ld      hl,(6+0)*8*256 + 8*(23+1)
     call    DrawDitherGfxInside16x16Box
-    ld      hl,0*256 + 8*(5+3)
+    ld      hl,(6+0)*8*256 + 8*(23+3)
     call    DrawDitherGfxInside16x16Box
-    ld      hl,16*256 + 8*(5+1)
+    ld      hl,(6+2)*8*256 + 8*(23+1)
     call    DrawDitherGfxInside16x16Box
-    ld      hl,16*256 + 8*(5+3)
+    ld      hl,(6+2)*8*256 + 8*(23+3)
     call    DrawDitherGfxInside16x16Box
 
     ; draw Layer2-legend
     ld      bc,$0C08
     ld      de,CI_B_WHITE*256 + CI_T_WHITE
-    ld      hl,2*8*256 + 8*(5+7+0)
+    ld      hl,(11+2)*8*256 + 8*(23+0)
     call    FillL2BoxWithDither2x2
     ld      de,CI_B_WHITE*256 + CI_WHITE
-    ld      hl,2*8*256 + 8*(5+7+3)
+    ld      hl,(11+2)*8*256 + 8*(23+3)
     call    FillL2BoxWithDither2x2
     ld      de,CI_B_GREEN*256 + CI_B_GREEN
-    ld      hl,0*8*256 + 8*(5+7+0)
+    ld      hl,(11+0)*8*256 + 8*(23+0)
     call    FillL2BoxWithDither2x2
     ld      de,CI_B_GREEN2*256 + CI_B_GREEN2
-    ld      hl,0*8*256 + 8*(5+7+3)
+    ld      hl,(11+0)*8*256 + 8*(23+3)
     call    FillL2BoxWithDither2x2
 
-    ; draw also Layer2 TEST pixels (final area in last 6 characters)
-    ld      hl,0*8*256 + 8*(5+3*7+3)
-    call    FillL2BoxWithDither2x2
-    ld      de,CI_B_GREEN*256 + CI_B_GREEN
-    ld      hl,0*8*256 + 8*(5+3*7+0)
-    call    FillL2BoxWithDither2x2
-    ld      de,CI_PINK2*256 + CI_PINK2  ; overwrite also transparent half with priority
-    ld      hl,2*8*256 + 8*(5+3*7+3)
-    call    FillL2BoxWithDither2x2
-
-    ; draw Layer2 TEST pixels for other combining modes (TEST area under ~L2 legend)
-    ld      h,4*8
-    ld      ixl,5
+    ; draw Layer2 TEST pixels for all combining modes
+    ld      h,(0+0)*8
+    ld      ixl,6
 .OtherModesDrawLoop:
-    ld      l,8*(4+1*7+0)
+    ld      l,8*(5+0)
     ld      de,CI_B_GREEN*256 + CI_B_GREEN
     call    FillL2BoxWithDither2x2
-    ld      l,8*(4+1*7+3)
+    ld      l,8*(5+3)
     ld      de,CI_B_GREEN2*256 + CI_B_GREEN2
     call    FillL2BoxWithDither2x2
     ld      a,16
@@ -412,13 +427,13 @@ DrawLayer2Part:
     ; draw ULA-legend
     ld      de,CI_B_WHITE*256 + CI_T_WHITE
     ld      bc,$180C
-    ld      hl,1*8*256 + 8*(5+2*7+0)
+    ld      hl,(16+1)*8*256 + 8*(23+0)
     call    FillL2BoxWithDither2x2
     ld      de,CI_B_CYAN*256 + CI_B_CYAN
     ld      bc,$1804
-    ld      hl,0*8*256 + 8*(5+2*7+0)
+    ld      hl,(16+0)*8*256 + 8*(23+0)
     call    FillL2BoxWithDither2x2
-    ld      hl,2*8*256 + 8*(5+2*7+0)
+    ld      hl,(16+2)*8*256 + 8*(23+0)
     call    FillL2BoxWithDither2x2
     ret
 
@@ -543,20 +558,9 @@ PrepareSpriteGraphics:
     call    .UploadOnePatternFromL2
 
     ; set up sprites to be drawn (4 byte attribute set is enough for this test)
-    ; set four sprites over test area (pattern 0) (SLU mode)
-    ld      de,$2020 + 0*8*256 + 8*(5+3*7+1)    ; [x,y]
-    ld      hl,$8000                ; H: visible, 4Bset, pattern 0, L:palOfs 0, ..., X9 0
-    call    .UploadOneAttribSet
-    ld      d,$20 + 2*8
-    call    .UploadOneAttribSet
-    ld      e,$20 + 8*(5+3*7+3) - 256
-    inc     l                       ; X9 1
-    call    .UploadOneAttribSet
-    ld      d,$20 + 0*8
-    call    .UploadOneAttribSet
-    ; set four sprites for other 5 modes (+20 sprites)
-    ld      b,5
-    ld      de,$2020 + 4*8*256 + 8*(4+1*7+1)    ; [x,y]
+    ; set four sprites over test area for all 6 modes
+    ld      b,6
+    ld      de,$2020 + 0*8*256 + 8*(5+1)    ; [x,y]
     ld      hl,$8000                ; H: visible, 4Bset, pattern 0, L:palOfs 0, ..., X9 0
 .SetSpritesForOtherModes:
     call    .UploadOneAttribSet
@@ -577,8 +581,8 @@ PrepareSpriteGraphics:
     ld      d,a
     djnz    .SetSpritesForOtherModes
 
-    ; make sure all other sprites are not visible
-    ld      h,0
+    ; make sure all other sprites are not visible (only expects 64 total sprites)
+    ld      h,0                     ; with new total 128 the remaining 64 are not set!
     ld      b,64-6*4
 .SetRemainingSpritesLoop:
     call    .UploadOneAttribSet
@@ -611,19 +615,19 @@ PrepareSpriteGraphics:
 
 DrawCharLabels:
     ; single-letter hints into the Separate-layer graphics
-    ld      de,$0400 + 8*(5+0*7+1)+4
+    ld      de,(6*8+4)*256 + 8*(23+1)+4
     ld      a,'S'
     call    OutL2WhiteOnBlackCharAndAdvanceDE
-    ld      de,$0C00 + 8*(5+1*7+1)
+    ld      de,((11+1)*8+4)*256 + 8*(23+1)
     ld      a,'L'
     call    OutL2WhiteOnBlackCharAndAdvanceDE
-    ld      de,$0C00 + 8*(5+1*7+4)-4
+    ld      de,((11+1)*8+4)*256 + 8*(23+4)-4
     ld      a,'L'
     call    OutL2WhiteOnBlackCharAndAdvanceDE
-    ld      de,$0C00 + 8*(5+1*7+4)+4
+    ld      de,((11+1)*8+4)*256 + 8*(23+4)+4
     ld      a,'p'
     call    OutL2WhiteOnBlackCharAndAdvanceDE
-    ld      de,$0C00 + 8*(5+2*7+3)-4
+    ld      de,((16+1)*8+4)*256 + 8*(23+3)-4
     ld      a,'U'
     call    OutL2WhiteOnBlackCharAndAdvanceDE
 
@@ -813,6 +817,12 @@ WaitForScanlineMSB: ; code is somewhat optimized to return ASAP when it happens
     and     l
     jr      z,.waitForMsbSet
     ret
+
+; basically same as WaitForScanline, but even less precise, and wait extra "half" of line
+WaitForScanlineAndHalf:
+    call    WaitForScanline
+    ld      bc,$0501                ; wait until line 31 is well over half
+    ; continue with WaitSomeIdleTime code
 
 ; C = time to spend = (C-1)*(256x empty NOP loop), B = 1/256th of C extra wait
 WaitSomeIdleTime:
