@@ -12,12 +12,17 @@
 ; * AdvanceVramHlToNextChar         - HL += 1 char, adjusts for VRAM thirds
 ; * AdvanceVramHlToNextLine         - HL += 32 chars (next line), adjusts for VRAM thirds
 ; * AdvanceAttrHlToNextLine         - HL += 32
+; * GetRomAddressOfChar             - HL = ROM char gfx address of A
 ; * OutChar                         - output char A at VRAM (OutCurrentAdr)++
+; * OutL2Char                       - output char A at DE with colour C in Layer2 way
+; * OutL2CharIn3ColsAndAdvanceE     - output char A at DE (3 colours), advance E += 8
 ; * OutHexaDigit                    - output value A[3:0] as hexa-digit at OutCurrentAdr
 ; * OutHexaValue                    - output value A as two hexa-digits at OutCurrentAdr
 ; * OutDecimalValue                 - output value A as one-three decimal digits at OutC..
 ; * OutString                       - output zero-terminated string (HL) at OutCurrentAdr
 ; * OutStringAtDe                   - as OutString, but sets OutCurrentAdr to DE first
+; * OutL2StringIn3ColsAtDE          - output zero-terminated string (HL) at DE for Layer2
+; * OutL2StringsIn3Cols             - output multiple zero-terminated strings for Layer2
 ; * OutMachineIdAndCore             - output MachineID and core version at DE into ULA
 ; * OutMachineIdAndCore_defLabels   - as previous, but with default labels
 ; * FillSomeUlaLines                - Fills C char-lines with pattern D (B columns only)
@@ -58,6 +63,16 @@ AdvanceAttrHlToNextLine:
     inc     h
     ret
 
+; A = ASCII char (0..127), will calculate into HL address of char data ($3D00 for space)
+GetRomAddressOfChar:
+    ld      h,MEM_ROM_CHARS_3C00/(8*256)
+    add     a,$80
+    ld      l,a     ; hl = $780+A (for A=0..127) (for A=128..255 result is undefined)
+    add     hl,hl
+    add     hl,hl
+    add     hl,hl   ; hl *= 8
+    ret
+
 ; A = ASCII char to output, output is done by XOR (!) mode, to "OutCurrentAdr" cell
 OutChar:
     push    af
@@ -65,12 +80,7 @@ OutChar:
     push    de
     push    bc
     ; calculate ROM data address of ASCII code in A into DE
-    ld      h,MEM_ROM_CHARS_3C00/(8*256)
-    add     a,$80
-    ld      l,a     ; hl = $780+A (for A=0..127) (for A=128..255 result is undefined)
-    add     hl,hl
-    add     hl,hl
-    add     hl,hl   ; hl *= 8
+    call    GetRomAddressOfChar
     ex      de,hl   ; de = Address of character in ROM (8*($780+A)) = $3D00 for <space>
     ; output char to the VRAM
     ld      hl,(OutCurrentAdr)      ; hl = VRAM address to output next char
@@ -91,6 +101,61 @@ OutChar:
     pop     de
     pop     hl
     pop     af
+    ret
+
+; A = ASCII char, C = Layer2 colour, DE = target VRAM address
+OutL2Char:
+    push    af
+    push    hl
+    push    de
+    push    bc
+    ; calculate ROM data address of ASCII code in A into DE
+    call    GetRomAddressOfChar
+    ex      de,hl   ; HL = VRAM target address, DE = ROM charmap with letter data
+    ; output char to the VRAM
+    ld      b,8
+.LinesLoop:
+    ld      a,(de)
+    push    hl
+.PixelLoop:
+    sla     a
+    jr      nc,.SkipDotFill
+    ld      (hl),c
+.SkipDotFill:
+    inc     hl      ; inc HL to keep ZF from `SLA A`
+    jr      nz,.PixelLoop
+    pop     hl
+    inc     h
+    inc     e
+    djnz    .LinesLoop
+    pop     bc
+    pop     de
+    pop     hl
+    pop     af
+    ret
+
+; A = ASCII char, DE = target VRAM address
+; B = text colour, C = soft-shadow colour (C+1 must be hard-shadow colour)
+; modifies: A, DE
+OutL2CharIn3ColsAndAdvanceE:
+    push    bc
+    inc     e
+    call    OutL2Char
+    dec     e
+    inc     d
+    call    OutL2Char
+    inc     c           ; C = hard-shadow colour
+    inc     e
+    call    OutL2Char
+    ld      c,b         ; C = text colour
+    dec     d
+    dec     e
+    call    OutL2Char
+    ; increment char position by one to right
+    ld      a,8
+    add     a,e
+    ld      e,a
+    pop     bc
     ret
 
 ; output value in A[3:0] as hexa-digit at "OutCurrentAdr", modifies OutCurrentAdr
@@ -147,7 +212,7 @@ OutDecimalValue:
     ret     z
 .OutDecDigit:
     add     a,'0'
-    jr      OutChar
+    jp      OutChar
 
 ; output zero terminated string from HL address into VRAM at DE (HL points after zero)
 OutStringAtDe:
@@ -163,6 +228,39 @@ OutString:
     ret     z
     call    OutChar
     jr      OutString
+
+; HL = ASCIIZ string, DE = target VRAM address
+; B = text colour, C = soft-shadow colour (C+1 must be hard-shadow colour)
+; modifies: AF, DE, HL
+OutL2StringIn3ColsAtDE:
+    ld      a,(hl)
+    inc     hl
+    or      a
+    ret     z
+    call    OutL2CharIn3ColsAndAdvanceE
+    jr      OutL2StringIn3ColsAtDE
+
+; HL = byte stream of: X-pos, Y-pos, ASCIIZ string, terminated by X-pos==$FF
+; B = text colour, C = soft-shadow colour (C+1 must be hard-shadow colour)
+; modifies: AF, HL
+OutL2StringsIn3Cols:
+    push    de
+.stringsLoop:
+    ; x-pos ($FF = end)
+    ld      e,(hl)
+    inc     hl
+    ; test for $FF
+    inc     e
+    jr      z,.finish
+    dec     e
+    ; y-pos
+    ld      d,(hl)
+    inc     hl
+    call    OutL2StringIn3ColsAtDE
+    jr      .stringsLoop
+.finish:
+    pop     de
+    ret
 
 ; DE = VRAM address for machineID output (will take strlen(label) + two chars for "10")
 ; BC = VRAM address for core output (strlen(core) + 6 + 0..3 characters)

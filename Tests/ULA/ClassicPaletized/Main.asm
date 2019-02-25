@@ -6,6 +6,7 @@
     INCLUDE "../../Macros.asm"
     INCLUDE "../../TestData.asm"
     INCLUDE "../../TestFunctions.asm"
+    INCLUDE "../../timing.i.asm"
 
 ; ink is single channel gradient -1+1, paper is two channel gradient -1+1
 PalDef:
@@ -85,39 +86,33 @@ Start:
     halt                ; interrupt handler is 18T long
     ; set ULA to display first palette
     NEXTREG_nn PALETTE_CONTROL_NR_43,0  ; display first ULA palette, ULA classic mode (+20T = 38T)
-    ld      a,7
-    out     (ULA_P_FE),a    ; BORDER 7 in top area of screen (+7+11T = 56T)
+    BORDER  WHITE           ; BORDER 7 in top area of screen (+7+11T = 56T)
 
     ;; wait for left border of line -1 (to create border rainbow with 1px edges)
     ; => switch border colour somewhere between 14064T..14112T (horizontal retrace) -35!
     ; let's try 14040T (13984T to wait)
     nop
-    ld      bc,$3204
-    call    Delay           ; +13986T = 14042T (+35 = 14077)
+    IDLE_WAIT $3204         ; +13986T = 14042T (+35 = 14077)
     ; do the rainbow border (1px green, 8x8px spectrum, 1px green)
     call    DoBorderRainbow ; A = 0, +15048T = 29090T
     ; do white border (extra timing to make it +35 till OUT ends)
     ld      bc,0            ; 10T
     ld      b,0             ; 7T
-    ld      a,7             ; 7T
-    out     (ULA_P_FE),a    ; +11T = 29125T (line 65)
+    BORDER  WHITE           ; +7+11T = 29125T (line 65)
     ; wait for half of the screen -> 36180T earliest => wait cca. 7055T
-    ld      bc,$9C02
-    call    Delay           ; 7058T = 36183T
+    IDLE_WAIT $9C02         ; +7058T = 36183T
     ;; switch to second ULA palette in the middle of screen
     NEXTREG_nn PALETTE_CONTROL_NR_43,2  ; display second ULA palette, +20T = 36203T
     ; wait till cca. 43248T (earliest) -35! and do the BORDER rainbow again
     ; => 43213 earliest => 7010T wait
     nop
     ld      bc,0
-    ld      bc,$9902
-    call    Delay           ; +4+10+7007T = 43224T
+    IDLE_WAIT $9902         ; +4+10+7007T = 43224T
     call    DoBorderRainbow
     ; do white border (extra timing to make it +35 till OUT ends)
     ld      bc,0            ; 10T
     ld      b,0             ; 7T
-    ld      a,7             ; 7T
-    out     (ULA_P_FE),a    ; +11T = 29125T (line 65)
+    BORDER  WHITE           ; +7+11T
 
     jr      .mainLoop
 ;    call EndTest
@@ -132,8 +127,7 @@ DoBorderRainbow:
     ;; now wait 8 scanlines (8*228=1824T), and turn BORDER to 1, 2, ... 7
     ; there's already 35+4+7+12=58T in loop management: 1824-58=1766T to wait
     inc     bc              ; +6T
-    ld      bc,$6501
-    call    Delay           ; = 1766T
+    IDLE_WAIT $6501         ; +1760T
     inc     a               ; 4T
     cp      8               ; 7T
     jr      nz,.OneCharLineLoop ; 12/7T
@@ -144,21 +138,10 @@ DoBorderRainbow:
 ; total including "call": 17+7+11+179+4+10 = 228T, the OUT ends at +35T
 ; returns A = 0 (!)
 .Green1pxLine:
-    ld      a,4
-    out     (ULA_P_FE),a
-    ld      bc,$0A01
-    call    Delay           ; +179T
+    BORDER  GREEN           ; +7+11T
+    IDLE_WAIT $0A01         ; +179T
     xor     a
     ret
-
-; delays for (C-1)x4363T + Bx17T + 16T, where B/C=0 is as 256 count
-; with "ld bc,** call Delay" the final duration is: (C-1)x4363T + Bx17T + 16T + 27T
-Delay:
-    nop                     ; 4T
-    djnz    Delay           ; 13/8T = 4347T for B=0
-    dec     c               ; 4T
-    jr      nz,Delay        ; 12/7T
-    ret                     ; 10T
 
 Fill0to255:
     ld      (hl),l

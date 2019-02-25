@@ -17,3 +17,9 @@
     MACRO CSPECT_BRK
         db  $DD, $01
     ENDM
+
+; Set border to desired colour
+    MACRO BORDER out_value
+        ld  a, out_value
+        out (ULA_P_FE), a
+    ENDM

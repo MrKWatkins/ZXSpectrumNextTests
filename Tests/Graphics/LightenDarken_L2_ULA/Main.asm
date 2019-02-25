@@ -10,19 +10,21 @@
     INCLUDE "../../TestFunctions.asm"
     INCLUDE "../../TestData.asm"
     INCLUDE "../../OutputFunctions.asm"
+    INCLUDE "../../timing.i.asm"
 
 C_BLACK     equ     %00000000       ; 0
 C_WHITE     equ     %10110110       ; 1
 C_B_WHITE   equ     %11111111       ; 2
 C_T_WHITE   equ     %01101101       ; 3
 C_TEXT      equ     %11110011       ; 4
-C_D_TEXT    equ     %01100101       ; 5
-C_PINK      equ     %11101011       ; 6
-C_PINK2     equ     %11101011       ; 7     ; for layer2 with priority
-C_SPRITE    equ     %11100011-1*%01000001       ; 8     ; for expected result drawing
-C_LAYER2    equ     %10110100       ; 9     ; the "mixed" areas will be displayed
-C_LAYER2P   equ     %11111100       ; 10    ; as 1x1 dither (C_LAYER2 + C_ULA)
-C_ULA       equ     %00011111       ; 11
+C_D1_TEXT   equ     %01100101       ; 5     ; soft shadow edges ([+1,0], [0,+1])
+C_D2_TEXT   equ     %00000000       ; 6     ; hard shadow [+1,+1]
+C_PINK      equ     %11101011       ; 7
+C_PINK2     equ     %11101011       ; 8     ; for layer2 with priority
+C_SPRITE    equ     %11100011-1*%01000001   ; 9     ; for expected result drawing
+C_LAYER2    equ     %10110100       ; 10    ; the "mixed" areas will be displayed
+C_LAYER2P   equ     %11111100       ; 11    ; as 1x1 dither (C_LAYER2 + C_ULA)
+C_ULA       equ     %00011111       ; 12
 ; 12 .. 15 will be used for Layer2 intensities
 ; 16 .. 19 will be used for Layer2 intensities with priority
 ; 20 .. 23 will be used for ULA intensities
@@ -40,8 +42,10 @@ CI_T_WHITE  equ     $-colourDef
     db      C_T_WHITE
 CI_TEXT     equ     $-colourDef
     db      C_TEXT
-CI_D_TEXT   equ     $-colourDef
-    db      C_D_TEXT
+CI_D1_TEXT  equ     $-colourDef
+    db      C_D1_TEXT
+CI_D2_TEXT  equ     $-colourDef
+    db      C_D2_TEXT
 CI_PINK     equ     $-colourDef
     db      C_PINK
 CI_PINK2    equ     $-colourDef
@@ -98,11 +102,6 @@ colourGenDelta:         ; will be subtracted from base
     db      %01001000   ; base %110
     db      %01001001   ; base %111
 
-    MACRO   IDLE_WAIT loop_count
-        ld      bc,loop_count
-        call    WaitSomeIdleTime
-    ENDM
-
 Start:
     call    StartTest
 
@@ -133,8 +132,7 @@ Start:
     NEXTREG_nn SPRITE_TRANSPARENCY_I_NR_4B, CI_PINK     ; sprite transparency needs index
 
     ; show text-pink border while drawing and preparing...
-    ld      a,CI_TEXT
-    out     (ULA_P_FE),a
+    BORDER  CI_TEXT
 
     ; reset LoRes scroll registers
     NEXTREG_nn LORES_XOFFSET_NR_32, 0
@@ -197,8 +195,7 @@ Start:
 ScanlinesLoop:
     ei
     halt
-    ld      a,CI_WHITE
-    out     (ULA_P_FE),a
+    BORDER  CI_WHITE
     ;; SLU "legend" phase (first 52 scanlines)
     ; Set layers to: SLU, enable sprites (no over border), LoRes ON
     NEXTREG_nn SPRITE_CONTROL_NR_15, %10000001
@@ -210,31 +207,22 @@ ScanlinesLoop:
     ; wait some fixed time after IM1 handler to get into scanlines 255+
     IDLE_WAIT   $E001
     ; wait until scanline MSB becomes 0 again (scanline 0)
-    ld      l,0
-    call    WaitForScanlineMSB
-    ; wait until scanline 52
-    ld      l,54
-    call    WaitForScanline
+    WAIT_FOR_SCANLINE_MSB 0
+    ; wait until scanline 54 (53 and well over half, flip rendering after half-line)
+    WAIT_HALF_SCANLINE_AFTER 53
     ;; L+U phase (scanlines 54..89) - grey border
-    ld      a,CI_T_WHITE
-    out     (ULA_P_FE),a
+    BORDER  CI_T_WHITE
     NEXTREG_nn SPRITE_CONTROL_NR_15, %10011001
-    ld      l,90
-    call    WaitForScanline
+    WAIT_HALF_SCANLINE_AFTER 89
     ; interphase displaying white border for scanlines 90..93
-    ld      a,CI_WHITE
-    out     (ULA_P_FE),a
-    ld      l,94
-    call    WaitForScanline
+    BORDER  CI_WHITE
+    WAIT_HALF_SCANLINE_AFTER 93
     ;; L+U-5 phase (scanlines 94..129) - grey border
-    ld      a,CI_T_WHITE
-    out     (ULA_P_FE),a
+    BORDER  CI_T_WHITE
     NEXTREG_nn SPRITE_CONTROL_NR_15, %10011101
-    ld      l,130
-    call    WaitForScanline
+    WAIT_HALF_SCANLINE_AFTER 129
     ; restore SLU standard mode and white border for remaining scanlines 130..
-    ld      a,CI_WHITE
-    out     (ULA_P_FE),a
+    BORDER  CI_WHITE
     NEXTREG_nn SPRITE_CONTROL_NR_15, %10000001
     jr      ScanlinesLoop
 
@@ -859,101 +847,41 @@ PrepareSpriteGraphics:
 
 ;;;;;;;;;;;;;;;;; Draw letter-hints into Layer2 ;;;;;;;;;;;;;;;;;;;
 
-DrawCharLabels:
-    ; single-letter hints into the Separate-layer graphics
-    ld      de,$0400 + 256 - 3*7*8 + 1*8 + 4
-    ld      a,'S'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
-    ld      de,$0C00 + 256 - 2*7*8 + 1*8
-    ld      a,'L'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
-    ld      de,$0C00 + 256 - 2*7*8 + 4*8 - 4
-    ld      a,'L'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
-    ld      a,'p'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
-    ld      de,$0400 + 256 - 1*7*8 + 3*8 - 4
-    ld      a,'U'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
-    ld      de,$1400 + 256 - 1*7*8 + 1*8 - 4
-    ld      a,'L'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
-    ld      a,'o'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
-    ld      a,'R'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
-    ld      a,'e'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
-    ld      a,'s'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
-
+LayerOrderLabelsTxt:    ; array[X, Y, ASCIIZ], $FF
+    ; single-letter hints into legend with the Separate-layer graphics
+    db      $64, $04, "S", 0, $98, $0C, "L", 0, $AC, $0C, "Lp", 0
+    db      $DC, $04, "U", 0, $CC, $14, "LoRes",0
     ; Layers order scheme above expected results
-
-    ; S U+L
-    ld      de,$3B0C
-    ld      a,'L'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
-    ld      a,'+'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
-    ld      a,'U'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
-    ; S U+L-5
-    ld      de,$6304
-    ld      a,'L'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
-    ld      a,'+'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
-    ld      a,'U'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
-    ld      a,'-'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
-    ld      a,'5'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
-
+    db      $0C, $3B, "L+U", 0, $04, $63, "L+U-5", 0
     ; draw controls legend
-    ld      de,9*4*256 + 256 - 3*7*8 + 8
-    ld      a,'A'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
-    ld      de,9*4*256 + 256 - 2*7*8 + 3
-    ld      a,'S'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
-    ld      de,9*4*256 + 256 - 2*7*8 + 4 + 32
-    ld      a,'F'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
-    ld      de,9*4*256 + 256 - 1*7*8 + 8
-    ld      a,'D'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
+    db      $60, $24, "A", 0, $93, $24, "S", 0, $B4, $24, "F", 0, $D0, $24, "D", 0
+    db      $24, $24, "Press", 0
+    db      $FF
 
-    ld      de,9*4*256 + 4*8 + 4
-    ld      a,'P'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
-    ld      a,'r'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
-    ld      a,'e'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
-    ld      a,'s'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
-    ld      a,'s'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
+DrawCharLabels:
+    ld      bc,CI_TEXT*256 + CI_D1_TEXT
+    ld      hl,LayerOrderLabelsTxt
+    call    OutL2StringsIn3Cols
 
+.drawMachineId:
     ; draw MachineID and core versions:
     ld      de,$0800 + 4
     ld      a,'m'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
+    call    OutL2CharIn3ColsAndAdvanceE
     NEXTREG2A MACHINE_ID_NR_00
     call    OutDecimalValueToL2
     ld      a,12
     add     a,e
     ld      e,a
     ld      a,'t'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
+    call    OutL2CharIn3ColsAndAdvanceE
     NEXTREG2A MACHINE_TYPE_NR_03
     and     $7F             ; omit lock timing bit to keep it reasonably decimal
     call    OutDecimalValueToL2
 
     ld      de,$1000 + 4
     ld      a,'c'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
+    call    OutL2CharIn3ColsAndAdvanceE
     NEXTREG2A NEXT_VERSION_NR_01
     push    af
     rrca
@@ -963,31 +891,31 @@ DrawCharLabels:
     and     $0F
     call    OutDecimalValueToL2
     ld      a,'.'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
+    call    OutL2CharIn3ColsAndAdvanceE
     pop     af
     and     $0F
     call    OutDecimalValueToL2
     ld      a,'.'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
+    call    OutL2CharIn3ColsAndAdvanceE
     NEXTREG2A NEXT_VERSION_MINOR_NR_0E
     call    OutDecimalValueToL2
 
     ret
 
-;A: 0..99 value, modifies B,A
+;A: 0..99 value, modifies L,A
 OutDecimalValueToL2:
-    ld      b,-1
+    ld      l,-1
 .MidToDec:
-    inc     b
+    inc     l
     sub     10
     jr      nc,.MidToDec
     add     a,'0'+10    ; 10^0 amount to ASCII
     push    af
     ld      a,'0'
-    add     a,b         ; 10^1 amount to ASCII
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
+    add     a,l         ; 10^1 amount to ASCII
+    call    OutL2CharIn3ColsAndAdvanceE
     pop     af
-    jr    OutL2WhiteOnBlackCharAndAdvanceDE
+    jp      OutL2CharIn3ColsAndAdvanceE
 
 ;;;;;;;;;;;;;;;;;;;;;;;; Helper functions ;;;;;;;;;;;;;;;;;;;
 
@@ -1028,108 +956,6 @@ DrawDitherGfxInside16x16Box:
     pop     bc
     pop     hl
     pop     af
-    ret
-
-; A = ASCII char, DE = target VRAM address (modifies A, DE)
-OutL2WhiteOnBlackCharAndAdvanceDE:  ; whiteOnBlack has become "bright pink on black"
-    push    bc
-    ld      c,CI_D_TEXT
-    inc     e
-    call    OutL2Char
-    dec     e
-    inc     d
-    call    OutL2Char
-    ld      c,CI_BLACK
-    inc     e
-    call    OutL2Char
-    ld      c,CI_TEXT
-    dec     d
-    dec     e
-    call    OutL2Char
-    ; increment char position by one to right
-    ld      a,8
-    add     a,e
-    ld      e,a
-    pop     bc
-    ret
-
-; A = ASCII char, C = Layer2 colour, DE = target VRAM address
-OutL2Char:
-    push    af
-    push    hl
-    push    de
-    push    bc
-    ; calculate ROM data address of ASCII code in A into DE
-    ld      h,MEM_ROM_CHARS_3C00/(8*256)
-    add     a,$80
-    ld      l,a     ; hl = $780+A (for A=0..127) (for A=128..255 result is undefined)
-    add     hl,hl
-    add     hl,hl
-    add     hl,hl   ; hl *= 8
-    ex      de,hl   ; HL = VRAM target address, DE = ROM charmap with letter data
-    ; output char to the VRAM
-    ld      b,8
-.LinesLoop:
-    ld      a,(de)
-    push    hl
-.PixelLoop:
-    sla     a
-    jr      nc,.SkipDotFill
-    ld      (hl),c
-.SkipDotFill:
-    inc     hl      ; inc HL to keep ZF from `SLA A`
-    jr      nz,.PixelLoop
-    pop     hl
-    inc     h
-    inc     e
-    djnz    .LinesLoop
-    pop     bc
-    pop     de
-    pop     hl
-    pop     af
-    ret
-
-; this is not precisely robust routine, it waits while (scanline-low8-bits < L)
-; the code calling this should be partially aware where the scanline was prior
-; and call it only when it makes sense (i.e. high bit of scanline is known to it)
-WaitForScanline:    ; code is somewhat optimized to return ASAP when it happens
-    ld      bc, TBBLUE_REGISTER_SELECT_P_243B
-    ld      a, RASTER_LINE_LSB_NR_1F
-    out     (c),a
-    inc     b       ; bc = TBBLUE_REGISTER_ACCESS_P_253B
-.waitLoop:
-    in      a,(c)   ; read RASTER_LINE_LSB_NR_1F
-    cp      l
-    jr      c,.waitLoop
-    ret
-
-; this wait until MSB is equal to L (0/1)
-WaitForScanlineMSB: ; code is somewhat optimized to return ASAP when it happens
-    ld      bc, TBBLUE_REGISTER_SELECT_P_243B
-    ld      a, RASTER_LINE_MSB_NR_1E
-    out     (c),a
-    inc     b       ; bc = TBBLUE_REGISTER_ACCESS_P_253B
-    dec     l
-    ld      l,1
-    jr      z,.waitForMsbSet
-.waitForMsbReset:
-    in      a,(c)   ; read RASTER_LINE_MSB_NR_1E
-    and     l
-    jr      nz,.waitForMsbReset
-    ret
-.waitForMsbSet:
-    in      a,(c)   ; read RASTER_LINE_MSB_NR_1E
-    and     l
-    jr      z,.waitForMsbSet
-    ret
-
-; C = time to spend = (C-1)*(256x empty NOP loop), B = 1/256th of C extra wait
-WaitSomeIdleTime:
-.idleLoop:
-    nop
-    djnz    .idleLoop
-    dec     c
-    jr      nz,.idleLoop
     ret
 
     savesna "Lmix_LxU.sna", Start

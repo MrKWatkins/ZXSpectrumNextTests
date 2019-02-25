@@ -11,43 +11,43 @@
     INCLUDE "../../TestFunctions.asm"
     INCLUDE "../../TestData.asm"
     INCLUDE "../../OutputFunctions.asm"
+    INCLUDE "../../timing.i.asm"
 
 ; colour definitions
 C_BLACK     equ     %00000000       ; 0
 C_WHITE     equ     %10110110       ; 1
-C_B_WHITE   equ     %11111111       ; 2
-C_T_WHITE   equ     %01101101       ; 3
-C_B_YELLOW  equ     %11011000       ; 4
-C_B_GREEN   equ     %00011000       ; 5
-C_B_GREEN2  equ     %00011100       ; 6
-C_B_CYAN    equ     %00011011       ; 7
-C_PINK      equ     $E3             ; 8
-C_PINK2     equ     $E3             ; 9
-C_TEXT      equ     %11110011       ; 10
-C_D_TEXT    equ     %01100101       ; 11
+C_WHITE2    equ     %10010010       ; 2
+C_B_WHITE   equ     %11111111       ; 3
+C_T_WHITE   equ     %01101101       ; 4
+C_B_YELLOW  equ     %11011000       ; 5
+C_B_GREEN   equ     %00011000       ; 6
+C_PINK      equ     $E3             ; 7
+C_B_GREEN2  equ     %00011100       ; 8
+C_B_CYAN    equ     %00011011       ; 9
+C_PINK2     equ     $E3             ; 10
+C_TEXT      equ     %11110011       ; 11
+C_D1_TEXT   equ     %01100101       ; 12    ; soft shadow edges ([+1,0], [0,+1])
+C_D2_TEXT   equ     %00000000       ; 13    ; hard shadow [+1,+1]
 
 CI_BLACK    equ     0
 CI_WHITE    equ     1
-CI_B_WHITE  equ     2
-CI_T_WHITE  equ     3
-CI_B_YELLOW equ     4
-CI_B_GREEN  equ     5
-CI_B_GREEN2 equ     6   ; for Layer2 it will get "priority" bit set
-CI_B_CYAN   equ     7
-CI_PINK     equ     8
-CI_PINK2    equ     9   ; for Layer2 it will get "priority" bit set
-CI_TEXT     equ     10
-CI_D_TEXT   equ     11
+CI_WHITE2   equ     2   ; for emphasisig different layer priority block
+CI_B_WHITE  equ     3
+CI_T_WHITE  equ     4
+CI_B_YELLOW equ     5
+CI_B_GREEN  equ     6
+CI_PINK     equ     7
+CI_B_GREEN2 equ     8   ; for Layer2 it will get "priority" bit set
+CI_B_CYAN   equ     9
+CI_PINK2    equ     10  ; for Layer2 it will get "priority" bit set
+CI_TEXT     equ     11
+CI_D1_TEXT  equ     12
+CI_D2_TEXT  equ     13
 
 colourDef:
-    db      C_BLACK, C_WHITE, C_B_WHITE, C_T_WHITE, C_B_YELLOW, C_B_GREEN
-    db      C_B_GREEN2, C_B_CYAN, C_PINK, C_PINK2, C_TEXT, C_D_TEXT
+    db      C_BLACK, C_WHITE, C_WHITE2, C_B_WHITE, C_T_WHITE, C_B_YELLOW, C_B_GREEN
+    db      C_PINK, C_B_GREEN2, C_B_CYAN, C_PINK2, C_TEXT, C_D1_TEXT, C_D2_TEXT
 colourDefSz equ     $ - colourDef
-
-    MACRO   IDLE_WAIT loop_count
-        ld      bc,loop_count
-        call    WaitSomeIdleTime
-    ENDM
 
 Start:
     call    StartTest
@@ -81,8 +81,7 @@ Start:
     NEXTREG_nn TRANSPARENCY_FALLBACK_COL_NR_4A, C_PINK
     NEXTREG_nn SPRITE_TRANSPARENCY_I_NR_4B, CI_PINK     ; sprite transparency needs index
     ; show yellow border while drawing and preparing...
-    ld      a,CI_B_YELLOW
-    out     (ULA_P_FE),a
+    BORDER  CI_B_YELLOW
 
     ; reset LoRes scroll registers
     NEXTREG_nn LORES_XOFFSET_NR_32, 0
@@ -149,55 +148,38 @@ Start:
 ScanlinesLoop:
     ei
     halt
-    ld      a,CI_WHITE
-    out     (ULA_P_FE),a
-    ;; SLU phase (first 32 scanlines)
+    BORDER  CI_WHITE
+    ;; SLU phase (scanlines 0..31)
     ; Set layers to: SLU, enable sprites (no over border), LoRes ON
     NEXTREG_nn SPRITE_CONTROL_NR_15, %10000001
     ; wait some fixed time after IM1 handler to get into scanlines 255+
     IDLE_WAIT   $0002
     ; wait until scanline MSB becomes 0 again (scanline 0)
-    ld      l,0
-    call    WaitForScanlineMSB
-    ; grey border for SLU area
-    ld      a,CI_T_WHITE
-    out     (ULA_P_FE),a
-    ; wait until scanline 32
-    ld      l,32
-    call    WaitForScanline
+    WAIT_FOR_SCANLINE_MSB 0
+    ; wait until scanline 32 (31 and well over half, flip rendering after half-line)
+    WAIT_HALF_SCANLINE_AFTER 31
     ;; LSU phase (scanlines 32..63) - white border
     NEXTREG_nn SPRITE_CONTROL_NR_15, %10000101
-    ld      a,CI_WHITE
-    out     (ULA_P_FE),a
-    ld      l,64
-    call    WaitForScanline
+    BORDER  CI_WHITE2
+    WAIT_HALF_SCANLINE_AFTER 63
     ;; SUL phase (scanlines 64..95) - grey border
     NEXTREG_nn SPRITE_CONTROL_NR_15, %10001001
-    ld      a,CI_T_WHITE
-    out     (ULA_P_FE),a
-    ld      l,96
-    call    WaitForScanline
+    BORDER  CI_WHITE
+    WAIT_HALF_SCANLINE_AFTER 95
     ;; LUS phase (scanlines 96..127) - white border
     NEXTREG_nn SPRITE_CONTROL_NR_15, %10001101
-    ld      a,CI_WHITE
-    out     (ULA_P_FE),a
-    ld      l,128
-    call    WaitForScanline
+    BORDER  CI_WHITE2
+    WAIT_HALF_SCANLINE_AFTER 127
     ;; USL phase (scanlines 128..159) - grey border
     NEXTREG_nn SPRITE_CONTROL_NR_15, %10010001
-    ld      a,CI_T_WHITE
-    out     (ULA_P_FE),a
-    ld      l,160
-    call    WaitForScanline
+    BORDER  CI_WHITE
+    WAIT_HALF_SCANLINE_AFTER 159
     ;; ULS phase (scanlines 160..191) - white border
     NEXTREG_nn SPRITE_CONTROL_NR_15, %10010101
-    ld      a,CI_WHITE
-    out     (ULA_P_FE),a
-    ld      l,192
-    call    WaitForScanline
-    ; grey border at bottom
-    ld      a,CI_T_WHITE
-    out     (ULA_P_FE),a
+    BORDER  CI_WHITE2
+    ; make bottom border white
+    WAIT_HALF_SCANLINE_AFTER 191
+    BORDER  CI_WHITE
     jr      ScanlinesLoop
 
     ;call    EndTest
@@ -625,99 +607,30 @@ PrepareSpriteGraphics:
 
 ;;;;;;;;;;;;;;;;; Draw letter-hints into Layer2 ;;;;;;;;;;;;;;;;;;;
 
+LayerOrderLabelsTxt:    ; array[X, Y, ASCIIZ], $FF
+    db      $34, $04, "S", 0, $68, $0C, "L", 0, $7C, $0C, "Lp", 0
+    db      $AC, $04, "U", 0, $9C, $14, "LoRes",0
+    db      $04, $03, "SLU", 0, $04, $23, "LSU", 0, $04, $43, "SUL", 0
+    db      $04, $63, "LUS", 0, $04, $83, "USL", 0, $04, $A3, "ULS", 0
+    db      $FF
+
 DrawCharLabels:
-    ; single-letter hints into the Separate-layer graphics
-    ld      de,$0400 + 8*(5+0*7+1)+4
-    ld      a,'S'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
-    ld      de,$0C00 + 8*(5+1*7+1)
-    ld      a,'L'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
-    ld      de,$0C00 + 8*(5+1*7+4)-4
-    ld      a,'L'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
-    ld      de,$0C00 + 8*(5+1*7+4)+4
-    ld      a,'p'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
-    ld      de,$0400 + 8*(5+2*7+3)-4
-    ld      a,'U'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
-    ld      de,$1400 + 8*(5+2*7+1)-4
-    ld      a,'L'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
-    ld      de,$1400 + 8*(5+2*7+2)-4
-    ld      a,'o'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
-    ld      de,$1400 + 8*(5+2*7+3)-4
-    ld      a,'R'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
-    ld      de,$1400 + 8*(5+2*7+4)-4
-    ld      a,'e'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
-    ld      de,$1400 + 8*(5+2*7+5)-4
-    ld      a,'s'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
+    ; single-letter hints into legend with the Separate-layer graphics
+    ; and Layers order scheme above expected results
+    ld      bc,CI_TEXT*256 + CI_D1_TEXT
+    ld      hl,LayerOrderLabelsTxt
+    call    OutL2StringsIn3Cols
 
-    ; Layers order scheme above expected results
-
-    ; SLU
-    ld      de,$0304    ; [4,3] pixel pos
-    ld      a,'S'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
-    ld      a,'L'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
-    ld      a,'U'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
-    ; LSU
-    ld      de,$2304
-    ld      a,'L'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
-    ld      a,'S'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
-    ld      a,'U'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
-    ; SUL
-    ld      de,$4304
-    ld      a,'S'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
-    ld      a,'U'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
-    ld      a,'L'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
-    ; LUS
-    ld      de,$6304
-    ld      a,'L'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
-    ld      a,'U'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
-    ld      a,'S'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
-    ; USL
-    ld      de,$8304
-    ld      a,'U'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
-    ld      a,'S'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
-    ld      a,'L'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
-    ; ULS
-    ld      de,$A304
-    ld      a,'U'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
-    ld      a,'L'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
-    ld      a,'S'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
-
+.drawMachineId:
     ; draw MachineID and core versions:
     ld      de,$2800 + 8*(5+2*7)
     ld      a,'m'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
+    call    OutL2CharIn3ColsAndAdvanceE
     NEXTREG2A MACHINE_ID_NR_00
     call    OutDecimalValueToL2
     ld      de,$3000 + 8*(5+2*7)
     ld      a,'c'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
+    call    OutL2CharIn3ColsAndAdvanceE
     NEXTREG2A NEXT_VERSION_NR_01
     push    af
     rrca
@@ -727,31 +640,31 @@ DrawCharLabels:
     and     $0F
     call    OutDecimalValueToL2
     ld      a,'.'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
+    call    OutL2CharIn3ColsAndAdvanceE
     pop     af
     and     $0F
     call    OutDecimalValueToL2
     ld      a,'.'
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
+    call    OutL2CharIn3ColsAndAdvanceE
     NEXTREG2A NEXT_VERSION_MINOR_NR_0E
     call    OutDecimalValueToL2
 
     ret
 
-;A: 0..99 value, modifies B,A
+;A: 0..99 value, modifies L,A
 OutDecimalValueToL2:
-    ld      b,-1
+    ld      l,-1
 .MidToDec:
-    inc     b
+    inc     l
     sub     10
     jr      nc,.MidToDec
     add     a,'0'+10    ; 10^0 amount to ASCII
     push    af
     ld      a,'0'
-    add     a,b         ; 10^1 amount to ASCII
-    call    OutL2WhiteOnBlackCharAndAdvanceDE
+    add     a,l         ; 10^1 amount to ASCII
+    call    OutL2CharIn3ColsAndAdvanceE
     pop     af
-    jr    OutL2WhiteOnBlackCharAndAdvanceDE
+    jp      OutL2CharIn3ColsAndAdvanceE
 
 ;;;;;;;;;;;;;;;;;;;;;;;; Helper functions ;;;;;;;;;;;;;;;;;;;
 
@@ -792,108 +705,6 @@ DrawDitherGfxInside16x16Box:
     pop     bc
     pop     hl
     pop     af
-    ret
-
-; A = ASCII char, DE = target VRAM address (modifies A, DE)
-OutL2WhiteOnBlackCharAndAdvanceDE:  ; whiteOnBlack has become "bright pink on black"
-    push    bc
-    ld      c,CI_D_TEXT
-    inc     e
-    call    OutL2Char
-    dec     e
-    inc     d
-    call    OutL2Char
-    ld      c,CI_BLACK
-    inc     e
-    call    OutL2Char
-    ld      c,CI_TEXT
-    dec     d
-    dec     e
-    call    OutL2Char
-    ; increment char position by one to right
-    ld      a,8
-    add     a,e
-    ld      e,a
-    pop     bc
-    ret
-
-; A = ASCII char, C = Layer2 colour, DE = target VRAM address
-OutL2Char:
-    push    af
-    push    hl
-    push    de
-    push    bc
-    ; calculate ROM data address of ASCII code in A into DE
-    ld      h,MEM_ROM_CHARS_3C00/(8*256)
-    add     a,$80
-    ld      l,a     ; hl = $780+A (for A=0..127) (for A=128..255 result is undefined)
-    add     hl,hl
-    add     hl,hl
-    add     hl,hl   ; hl *= 8
-    ex      de,hl   ; HL = VRAM target address, DE = ROM charmap with letter data
-    ; output char to the VRAM
-    ld      b,8
-.LinesLoop:
-    ld      a,(de)
-    push    hl
-.PixelLoop:
-    sla     a
-    jr      nc,.SkipDotFill
-    ld      (hl),c
-.SkipDotFill:
-    inc     hl      ; inc HL to keep ZF from `SLA A`
-    jr      nz,.PixelLoop
-    pop     hl
-    inc     h
-    inc     e
-    djnz    .LinesLoop
-    pop     bc
-    pop     de
-    pop     hl
-    pop     af
-    ret
-
-; this is not precisely robust routine, it waits while (scanline-low8-bits < L)
-; the code calling this should be partially aware where the scanline was prior
-; and call it only when it makes sense (i.e. high bit of scanline is known to it)
-WaitForScanline:    ; code is somewhat optimized to return ASAP when it happens
-    ld      bc, TBBLUE_REGISTER_SELECT_P_243B
-    ld      a, RASTER_LINE_LSB_NR_1F
-    out     (c),a
-    inc     b       ; bc = TBBLUE_REGISTER_ACCESS_P_253B
-.waitLoop:
-    in      a,(c)   ; read RASTER_LINE_LSB_NR_1F
-    cp      l
-    jr      c,.waitLoop
-    ret
-
-; this wait until MSB is equal to L (0/1)
-WaitForScanlineMSB: ; code is somewhat optimized to return ASAP when it happens
-    ld      bc, TBBLUE_REGISTER_SELECT_P_243B
-    ld      a, RASTER_LINE_MSB_NR_1E
-    out     (c),a
-    inc     b       ; bc = TBBLUE_REGISTER_ACCESS_P_253B
-    dec     l
-    ld      l,1
-    jr      z,.waitForMsbSet
-.waitForMsbReset:
-    in      a,(c)   ; read RASTER_LINE_MSB_NR_1E
-    and     l
-    jr      nz,.waitForMsbReset
-    ret
-.waitForMsbSet:
-    in      a,(c)   ; read RASTER_LINE_MSB_NR_1E
-    and     l
-    jr      z,.waitForMsbSet
-    ret
-
-; C = time to spend = (C-1)*(256x empty NOP loop), B = 1/256th of C extra wait
-WaitSomeIdleTime:
-.idleLoop:
-    nop
-    djnz    .idleLoop
-    dec     c
-    jr      nz,.idleLoop
     ret
 
     savesna "LmixLoRs.sna", Start
