@@ -43,3 +43,53 @@ FillArea:
         ld      bc,size
         call    FillArea
     ENDM
+
+; HL: coordinates, DE = colour pattern, B = width, C = height
+; width and height is in dither size (width|height.px = width|height * 2)
+; modifies flags and A=2
+FillL2BoxWithDither2x2:
+    ld      a,2
+    ; continue with FillL2Box code
+
+; HL: coordinates, DE = colour pattern, B = width, C = height, A = size of dither
+; width and height is in dither size (width|height.px = width|height * A)
+; modifies flags
+FillL2Box:
+    push    ix
+    push    de
+    push    hl
+    push    bc
+.RowsFill:
+    ld      ixl,a
+.RowsDitherFill:
+    push    hl
+    push    de
+    push    bc
+.PixelsFill:        ; write two pixels of desired pixel pattern
+    push    af
+.DitherAFill:
+    ld      (hl),d
+    inc     l
+    dec     a
+    jr      nz,.DitherAFill
+    ld      a,d     ; swap pattern to create dither
+    ld      d,e
+    ld      e,a
+    pop     af
+    djnz    .PixelsFill
+    pop     bc      ; restore HL+DE+BC
+    pop     de
+    pop     hl
+    inc     h       ; next row
+    dec     ixl
+    jr      nz,.RowsDitherFill
+    ld      ixl,d   ; swap pattern to create dither
+    ld      d,e
+    ld      e,ixl
+    dec     c
+    jr      nz,.RowsFill
+    pop     bc
+    pop     hl
+    pop     de
+    pop     ix
+    ret

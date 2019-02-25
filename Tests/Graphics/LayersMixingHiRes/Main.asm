@@ -473,7 +473,7 @@ DrawLayer2Part:
 .DrawExpectedResultTransparent:
     ld      bc,$0C08
     ld      de,CI_B_WHITE*256 + CI_T_WHITE
-    jr      FillL2BoxWithDither2x2
+    jp      FillL2BoxWithDither2x2
 
 .DrawExpectedResultUla:
     push    hl
@@ -484,7 +484,7 @@ DrawLayer2Part:
     ld      h,a
     call    FillL2BoxWithDither2x2
     pop     hl
-    jr      FillL2BoxWithDither2x2
+    jp      FillL2BoxWithDither2x2
 
 .DrawExpectedResultSprites:
     push    hl
@@ -504,7 +504,7 @@ DrawLayer2Part:
 .DrawExpectedResultLayer2:
     ld      de,CI_B_GREEN*256 + CI_B_GREEN
     ld      bc,$0604
-    jr      FillL2BoxWithDither2x2
+    jp      FillL2BoxWithDither2x2
 
 .DrawExpectedResultLayer2p:
     ;; Layer2 priority part
@@ -516,52 +516,6 @@ DrawLayer2Part:
     ld      l,a
     call    FillL2BoxWithDither2x2
     pop     hl
-    ret
-
-FillL2BoxWithDither2x2:
-    ld      a,2
-    ; continue with FillL2Box code
-
-; HL: coordinates, DE = colour pattern, B = width, C = height, A = size of dither
-; width and height is in dither size
-FillL2Box:
-    push    ix
-    push    de
-    push    hl
-    push    bc
-.RowsFill:
-    ld      ixl,a
-.RowsDitherFill:
-    push    hl
-    push    de
-    push    bc
-.PixelsFill:        ; write two pixels of desired pixel pattern
-    push    af
-.DitherAFill:
-    ld      (hl),d
-    inc     l
-    dec     a
-    jr      nz,.DitherAFill
-    ld      a,d     ; swap pattern to create dither
-    ld      d,e
-    ld      e,a
-    pop     af
-    djnz    .PixelsFill
-    pop     bc      ; restore HL+DE+BC
-    pop     de
-    pop     hl
-    inc     h       ; next row
-    dec     ixl
-    jr      nz,.RowsDitherFill
-    ld      ixl,d   ; swap pattern to create dither
-    ld      d,e
-    ld      e,ixl
-    dec     c
-    jr      nz,.RowsFill
-    pop     bc
-    pop     hl
-    pop     de
-    pop     ix
     ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;; Setup Sprites part ;;;;;;;;;;;;;;;;;;;
