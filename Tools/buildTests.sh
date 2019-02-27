@@ -1,4 +1,4 @@
-#/bin/bash
+#!/bin/bash
 # Script to rebuild all tests - it will try to assemble any "*.asm" file (except "*.i.asm")
 # in any folder Tests/*/  (not directly in Tests folder, like "Tests/x.asm" - ignored)
 
@@ -28,10 +28,13 @@ for f in Tests/*/**/*.asm; do
     last_result=$?
     popd
     if [[ $last_result -ne 0 ]]; then
-        echo -e "\e[31mError status $last_result returned, aborting...\e[0m"
-        exit
+        echo -e "\e[31mError status $last_result returned, aborting.\e[0m"
+        exit $last_result
     fi
 done
 # check if "last_result" is unset
-[[ -z ${last_result+x} ]] && echo "No ASM files found!" && exit
+[[ -z ${last_result+x} ]] && echo "No ASM files found!" && exit 0
 echo -e "\e[92mOK: all files assembled.\e[0m"
+
+# validate all snapshot filenames
+Tools/validateSnapNames.sh

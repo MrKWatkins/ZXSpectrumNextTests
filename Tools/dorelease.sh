@@ -1,4 +1,4 @@
-#/bin/bash
+#!/bin/bash
 # Script to search for new snapshot files in test directories, and refresh the "release"
 # folder with them.
 shopt -s globstar nullglob
@@ -7,7 +7,7 @@ mkdir -p release
 unset -v updatedSomeFile
 # for all snapshots in Tests
 for f in Tests/**/*.sna; do
-    echo -n Found snapshot: $f
+    echo -n -e "Found snapshot: \e[96m$f\e[0m"
     dirpath=`dirname $f`
     snapname=`basename $f`
     basename=`basename -s .sna $snapname`
@@ -18,7 +18,7 @@ for f in Tests/**/*.sna; do
     # check if "ReadMe.txt" exists and copy it under <snapshot-base-name>.txt into release
     for readme in $dirpath/{ReadMe,readme,README,Readme}.{txt,TXT} ; do
         [[ -e $readme ]] && cp $readme release/$basename.txt \
-            && echo -n , $basename.txt updated
+            && echo -n -e ", updated \e[96m$basename.txt\e[0m"
     done
     # check for most recent board**.png/jpg screenshot and copy it
     # under <snapshot-base-name>.png/jpg name into release folder
@@ -27,7 +27,7 @@ for f in Tests/**/*.sna; do
         [[ $bpicsearch -nt $boardpic ]] && boardpic=$bpicsearch
     done
     [[ -e $boardpic ]] && cp $boardpic release/$basename.${boardpic##*.} \
-        && echo -n , board pic updated
+        && echo -n -e ", updated board pic \e[96m$basename.${boardpic##*.}\e[0m"
     echo ""     # add newline after whole line of info was produced for particular snap
     updatedSomeFile=1
 done
@@ -36,4 +36,4 @@ done
 # copy the readme every time
 cp release-README.txt "release/!!README.txt"
 # check if some file got leftovers (there should be "3" files of same base name at most)
-for f in release/*;do fn=${f##*/}; echo ${fn%.*}; done | uniq -c | sort | tail -3
+source Tools/chkReleaseAbundance.sh
