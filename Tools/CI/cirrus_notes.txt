@@ -1,0 +1,52 @@
+My notes about experiments done:
+
+so I managed to create local docker image configured by Dockerfile, which is gcc:6
+image as base, cloning Next variant of sjasmplus from github, compiling + installing
+it inside the new image (gcc+sjasmplus docker image).
+
+Building local docker image:
+    docker build -t ped7g/gcc/sjasmplus Tools/CI/
+
+Running build-all shell script with the docker container:
+    docker run --rm -v ~/zx/ZXNextTests/fork-MrKW/:/zzz -w /zzz -t ped7g/gcc/sjasmplus:latest ./buildTests.sh
+
+It maps project directory into "/zzz" inside container instance and runs "buildTests.sh"
+with the compiled sjasmplus - the resulting SNA files are written into real FS, visible
+on host system too! (i.e. malicious/buggy script may damage host files, which are visible
+within the mapping)
+
+After the Dockerfile was ready, the Cirrus CI configuration was done, it's in ".cirrus.yml"
+file, in the project-root. The only task is to build all tests with that custom docker
+container.
+
+TODO:
+
+DONE:
+* Verify failure in build will show up in the commit on github
+  = WORKS
+* try to squeeze allocated resources for CI instance further (1 CPU + 600M RAM was first try and works)
+  = 300M did work but git clone took 3s instead of 1s (may have been also temporary hickup),
+  so I decided to go with 400M as current "final" setting (seems to work well)
+* Add verification of snapshot filenames (8.3 with .sna extension, no duplicity!)
+  = done
+* redirect sjasmplus repository to my own fork to have control about releases
+  = done, also only specific TAG is now cloned, to upgrade the assembler in controlled way
+* verify there is simple way to trigger docker image build when sjasmplus sources change (it's cached)
+  = done
+
+------------- initial resources --------------
+
+blog about "Introducing Container Builder for Cirrus CI"
+https://medium.com/cirruslabs/introducing-container-builder-for-cirrus-ci-80b9234f007
+
+Docker builder documentation:
+https://cirrus-ci.org/guide/docker-builder/
+
+blog about "C build environment in a docker container":
+https://ownyourbits.com/2017/06/20/c-build-environment-in-a-docker-container/ 
+
+https://cirrus-ci.org/examples/#c
+https://cirrus-ci.org/guide/writing-tasks/
+
+Real project example:
+https://github.com/GoogleChrome/puppeteer/blob/master/.cirrus.yml#L9
