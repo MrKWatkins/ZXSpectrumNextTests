@@ -71,6 +71,8 @@ Also use only 8 characters for SNA file base name, and make sure the filename is
 
 The "base" tests should have name starting with exclamation mark (to be at the beginning of the file list when sorted by file name).
 
+Use only characters: a..z 0..9 - _ ! $
+
 ### Do not edit/keep files directly in "release" folder
 
 All files required to build output and prepare "release" folder must exist outside of the "release" folder, the "release" folder content should be updated only by "dorelease.sh" script.
