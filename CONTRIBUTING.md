@@ -100,4 +100,6 @@ The Cirrus CI task is trying to validate these rules for every commit, see scrip
 
 All files required to build output and prepare "release" folder must exist outside of the "release" folder, the "release" folder content should be updated only by [Tools/dorelease.sh](Tools/dorelease.sh) script.
 
-Files in "release" folder are kept in git only for convenience of user who does want to run the tests, but is not developer to assemble the sources (but the whole "release" folder content should be reproducible from some "source" form stored elsewhere in the project.
+Files in "release" folder are kept in git only for convenience of user who does want to only run the tests.
+
+The whole "release" folder content should be generated from "source" form stored elsewhere in the project, i.e. do not put any data/source into "release" folder manually.
