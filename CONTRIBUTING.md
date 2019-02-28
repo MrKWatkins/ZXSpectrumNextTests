@@ -1,3 +1,12 @@
+# Possible ways to contribute
+
+* reporting issues with tests running at real HW board
+* emulator authors: reporting usability issues with the test suite (and ideas what changes would make the tests more usable for you)
+* core/emulator authors: suggesting ideas for new tests to cover area which you are working currently on
+* ZX Spectrum Next programming newcomers: reporting your experience with using tests as "examples" for learning about particular feature of ZXN and ideas how to improve it
+* coders: help with adding new tests or improving current tests (check the [test ideas](TestIdeas.txt) for inspiration), below are further detailed guidelines to be considered when writing tests.
+* and probably anything else you can think of :)
+
 # ZXSpectrumNextTests test-writing guidelines
 
 The mission is to provide set of very short, simple and single feature focused tests of ZX Spectrum Next machine.
@@ -8,6 +17,7 @@ The test will then, in many cases, work also as short example how to correctly a
 
 ## Following principles should be considered when designing new test:
 
+* test source code should be buildable with sjasmplus under linux
 * provide stable screen output suitable for photographing/screenshotting
 * focus on single particular feature
 * remaining parts of code should try to minimize usage of extra features
@@ -16,6 +26,17 @@ The test will then, in many cases, work also as short example how to correctly a
 * keep code style clean and well commented, consider the source being also an example
 * test source should be accompanied by ReadMe.txt and produce single self-contained SNA file
 * do not edit/keep files directly in "release" folder
+
+### Test source code should be buildable with sjasmplus under linux
+
+The current CI (continuous integration) setup does use [sjasmplus with Next extensions](https://github.com/ped7g/sjasmplus/tree/ped-master) running from [docker container](Tools/CI/Dockerfile) based on official GCC gcc:6 image, and all scripting is done in bash, expecting linux environment.
+
+The tests themselves (asm files) should still build also under Microsoft Windows OS, at least at the moment of writing this paragraph I'm not aware of any fatal issue in this regard.
+
+But when writing new test under windows, make sure you are using forward slash as directory separator in include paths (`include "some/path/to/file.i.asm"`), and name include assembly files with extension `.i.asm`, as the build script will try to assemble any `.asm` (except `.i.asm`) file in particular `Tests` sub-folders and include files on their own are
+rarely buildable.
+
+You may also try to build windows docker container and see if you can use that for building tests, let us know about your experience, thank you.
 
 ### Provide stable screen output suitable for photographing/screenshotting
 
@@ -73,8 +94,10 @@ The "base" tests should have name starting with exclamation mark (to be at the b
 
 Use only characters: a..z 0..9 - _ ! $
 
+The Cirrus CI task is trying to validate these rules for every commit, see scripts [Tools/validateSnapNames.sh](Tools/validateSnapNames.sh), [Tools/dorelease.sh](Tools/dorelease.sh) and [Tools/chkReleaseAbundance.sh](Tools/chkReleaseAbundance.sh).
+
 ### Do not edit/keep files directly in "release" folder
 
-All files required to build output and prepare "release" folder must exist outside of the "release" folder, the "release" folder content should be updated only by "dorelease.sh" script.
+All files required to build output and prepare "release" folder must exist outside of the "release" folder, the "release" folder content should be updated only by [Tools/dorelease.sh](Tools/dorelease.sh) script.
 
 Files in "release" folder are kept in git only for convenience of user who does want to run the tests, but is not developer to assemble the sources (but the whole "release" folder content should be reproducible from some "source" form stored elsewhere in the project.
