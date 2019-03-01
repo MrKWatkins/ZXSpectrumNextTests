@@ -24,7 +24,7 @@ for f in Tests/*/**/*.asm; do
     echo -e "\e[95mBuilding\e[0m file \e[96m${asmname}\e[0m ${whitespace:${#asmname}}in test \e[96m${dirpath:6}\e[0m"
     # switch to test directory and run assembler (break the FOR in case of error)
     pushd $dirpath
-    sjasmplus --fullpath --nologo $asmname
+    sjasmplus --nofakes --fullpath --nologo --zxnext $asmname
     last_result=$?
     popd
     if [[ $last_result -ne 0 ]]; then
