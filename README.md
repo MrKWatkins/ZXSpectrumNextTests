@@ -1,5 +1,5 @@
 # ZXSpectrumNextTests
-[![Build Status](https://api.cirrus-ci.com/github/MrKWatkins/ZXSpectrumNextTests.svg)](https://cirrus-ci.com/github/MrKWatkins/ZXSpectrumNextTests)
+[![Build Status](https://api.cirrus-ci.com/github/MrKWatkins/ZXSpectrumNextTests.svg?branch=develop)](https://cirrus-ci.com/github/MrKWatkins/ZXSpectrumNextTests)
 ![GitHub repo size in bytes](https://img.shields.io/github/repo-size/MrKWatkins/ZXSpectrumNextTests.svg)
 ![GitHub](https://img.shields.io/github/license/MrKWatkins/ZXSpectrumNextTests.svg)
 
