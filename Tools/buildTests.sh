@@ -14,10 +14,10 @@ unset -v last_result
 
 # for all *.asm in Tests/*/**
 for f in Tests/*/**/*.asm; do
+    ## ignore directories themselves (which have "*.asm" name)
+    [[ -d $f ]] && continue
     # ignore "include" files (must have ".i.asm" extension)
-    if [[ ".i.asm" == ${f:(-6)} ]]; then
-        continue
-    fi
+    [[ ".i.asm" == ${f:(-6)} ]] && continue
     # standalone .asm file was found, try to build it
     dirpath=`dirname $f`
     asmname=`basename $f`
