@@ -34,10 +34,10 @@ C_BLUE      equ     $0E
 C_YELLOW    equ     $F8
 
     ; does use A and B registers (A stays set to value)
-    MACRO   NEXTREG register, value
+    MACRO   NEXTREG register?, value?
         ; implemented by Z80 instructions only, and using I/O port (intentionally)
-        ld      b,register
-        ld      a,value
+        ld      b,register?
+        ld      a,value?
         call    WriteNextRegByIo
     ENDM
 

@@ -1,21 +1,21 @@
-    MACRO WAIT_FOR_SCANLINE scanline
-        ld      l, scanline
+    MACRO WAIT_FOR_SCANLINE scanline?
+        ld      l, scanline?
         call    WaitForScanline
     ENDM
 
-    MACRO WAIT_FOR_SCANLINE_MSB msb
-        ld      l, msb
+    MACRO WAIT_FOR_SCANLINE_MSB msb?
+        ld      l, msb?
         call    WaitForScanlineMSB
     ENDM
 
     ; delays for (C-1)x4363T + Bx17T + 16T + 27T, where r=0 is as r=256
-    MACRO IDLE_WAIT delay_counts
-        ld      bc,delay_counts
+    MACRO IDLE_WAIT delay_counts?
+        ld      bc,delay_counts?
         call    WaitForSomeCycles
     ENDM
 
-    MACRO WAIT_HALF_SCANLINE_AFTER scanline
-        ld      l, scanline
+    MACRO WAIT_HALF_SCANLINE_AFTER scanline?
+        ld      l, scanline?
         call    WaitForScanlineAndHalf
     ENDM
 

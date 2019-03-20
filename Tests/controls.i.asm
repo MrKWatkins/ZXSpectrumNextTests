@@ -1,6 +1,6 @@
-    MACRO REGISTER_KEY keyCode, handlerAddress
-        ld      a,keyCode
-        ld      de,handlerAddress
+    MACRO REGISTER_KEY keyCode?, handlerAddress?
+        ld      a,keyCode?
+        ld      de,handlerAddress?
         call    RegisterKeyhandler
     ENDM
 

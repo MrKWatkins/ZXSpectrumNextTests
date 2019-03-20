@@ -42,8 +42,8 @@ ReadNextReg:
 
 ; Read NextReg into A (does modify A, and NextReg selected on the I/O port)
 ; is not optimized for speed + restores BC
-    MACRO NEXTREG2A register
-        ld     a, register
+    MACRO NEXTREG2A register?
+        ld     a, register?
         call   ReadNextReg
     ENDM
 

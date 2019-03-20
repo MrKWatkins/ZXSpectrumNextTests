@@ -37,10 +37,10 @@ FillArea:
     pop     de
     ret
 
-    MACRO FILL_AREA adr, size, value
-        ld      a,value
-        ld      hl,adr
-        ld      bc,size
+    MACRO FILL_AREA adr?, size?, value?
+        ld      a,value?
+        ld      hl,adr?
+        ld      bc,size?
         call    FillArea
     ENDM
 

@@ -96,10 +96,10 @@ LogAllocateNewItem:
     cp      1
     ret
 
-    MACRO ALLOCATE_NEW_ITEM item_type
+    MACRO ALLOCATE_NEW_ITEM item_type?
         call    LogAllocateNewItem  ; IY = new log item address, A = log index
         ret     nz                  ; log is full
-        ld      (iy+LOG_ITEM_TYPE),item_type
+        ld      (iy+LOG_ITEM_TYPE),item_type?
     ENDM
 
 ; adds new log item with one 8b value in B
