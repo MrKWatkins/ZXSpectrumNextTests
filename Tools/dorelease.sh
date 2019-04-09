@@ -35,5 +35,7 @@ done
 [[ $updatedSomeFile ]] && date -u +"%F %T %Z" > "release/!!built"
 # copy the readme every time
 cp release-README.txt "release/!!README.txt"
+# copy the basic loader every time
+cp Tools/auto.bas release/auto.bas
 # check if some file got leftovers (there should be "3" files of same base name at most)
 source Tools/chkReleaseAbundance.sh

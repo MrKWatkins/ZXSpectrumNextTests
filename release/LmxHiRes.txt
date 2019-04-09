@@ -19,22 +19,21 @@ colour without bright bit. IMO this is bug in core, but seems as it will stay fo
 
 -------------------------------------------------------------------------------------
 
-Draws all three basic layers (Sprite, Layer2, ULA-HiRes) in all combinations affecting
-priority and transparency, and in all basic six layer-order modes.
+Draws all three basic layers (Sprite, Layer2, ULA-HiRes) in all combinations affecting priority
+and transparency, and in all basic six layer-order modes.
 
 There's 24 total combinations (of course many yield same result, but hidden layers are
 in different state), there's table at bottom of this txt showing all combinations.
 
-So the TEST-area for particular layer ordering is on the right end in 6x4 (24) characters
-area (one character = 8x8 pix). This output is composed from all the layers, and its
-result shows the actual emulator/board rendering result.
+At left side of screen (first column) there is label with layers-priority, and miniature
+of expected result (this is drawn as Layer2 graphics only, not using ULA/Sprites).
 
-At left side of screen there is label noting the layers-order, and scaled-down expected
-result (this is drawn as Layer2 graphics, i.e. not mixed from real layer data).
+The TEST-area for particular layer ordering is in the second column covering 6x4 (24)
+ULA characters (one character = 8x8 pix) area. This output is composed from all layers,
+and its result shows the actual emulator/board rendering result.
 
-In the middle there are three areas showing how each layer is set (Sprite, Layer2, ULA),
-these are again drawn in Layer2 graphics (not drawn by layer which they depict).
-(these middle areas are only shown once, as they remain identical for all layer orderings)
+On the right under "Legend" there are three areas showing how each layer is set (Sprite,
+Layer2, ULA), these are drawn in Layer2 graphics (not drawn by layer which they depict).
 
 The 2x2 chequered white/grey areas represent where transparent colour is in graphics.
 
@@ -56,6 +55,8 @@ in result as pink.
 
 Why/how 24 combinations
 =======================
+
+(this test was designed before the Tilemap mode was added, and it does not account for it)
 
 Sprite has three states: "sprite pixel" and "transparent pixel", "no pixel"
 
