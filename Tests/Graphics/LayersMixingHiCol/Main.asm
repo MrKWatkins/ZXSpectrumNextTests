@@ -50,6 +50,9 @@ colourDef:
     db      C_PINK, C_B_GREEN2, C_B_CYAN, C_PINK2, C_TEXT, C_D1_TEXT, C_D2_TEXT
 colourDefSz equ     $ - colourDef
 
+LegendText:
+    db      'Legend', 0
+
 Start:
     call    StartTest
 
@@ -209,36 +212,50 @@ SetTestPalette:
 DrawUlaHiColPart:
     ; set all attributes: black on white
     FILL_AREA   MEM_TIMEX_SCR1_6000, 32*192, CI_BLACK + (CI_WHITE<<4)
+    ; set dark white under certain areas to emphasise the separate sections
+    ld      hl,MEM_TIMEX_SCR1_6000+4*32
+    ld      e,3
+.DarkSectionsLoop:
+    ld      bc,$040F
+    ld      a,CI_BLACK + (CI_WHITE2<<4)
+    call    .DrawNxM_AttributeBox
+    ld      bc,4*32
+    add     hl,bc
+    dec     e
+    jr      nz,.DarkSectionsLoop
+
     ; draw MachineID and core versions:
-    ld      de,MEM_ZX_SCREEN_4000 + 5*32 + 18   ; AT [5,18] machineID
-    ld      bc,MEM_ZX_SCREEN_4000 + 6*32 + 18   ; AT [6,18] core
+    ld      de,MEM_ZX_SCREEN_4000 + 1*32 + 18   ; AT [1,18] machineID
+    ld      bc,MEM_ZX_SCREEN_4000 + 2*32 + 18   ; AT [2,18] core
     call    OutMachineIdAndCore_defLabels
+    ld      hl,LegendText
+    ld      de,MEM_ZX_SCREEN_4000 + 4*32 + 23
+    call    OutStringAtDe
     ; have some fun with machineID + core version attributes in HiCol mode
-    FILL_AREA MEM_TIMEX_SCR1_6000 + 5*32 + 17 + 0*256, 14, CI_B_WHITE + (CI_BLACK<<4)
-    FILL_AREA MEM_TIMEX_SCR1_6000 + 5*32 + 17 + 1*256, 14, CI_B_WHITE + (CI_BLACK<<4)
-    FILL_AREA MEM_TIMEX_SCR1_6000 + 5*32 + 17 + 2*256, 14, CI_TEXT + (CI_BLACK<<4)
-    FILL_AREA MEM_TIMEX_SCR1_6000 + 5*32 + 17 + 3*256, 14, CI_D1_TEXT + (CI_BLACK<<4)
-    FILL_AREA MEM_TIMEX_SCR1_6000 + 5*32 + 17 + 4*256, 14, CI_T_WHITE + (CI_BLACK<<4)
-    FILL_AREA MEM_TIMEX_SCR1_6000 + 5*32 + 17 + 5*256, 14, CI_WHITE + (CI_BLACK<<4)
-    FILL_AREA MEM_TIMEX_SCR1_6000 + 5*32 + 17 + 6*256, 14, CI_WHITE + (CI_BLACK<<4)
-    FILL_AREA MEM_TIMEX_SCR1_6000 + 5*32 + 17 + 7*256, 14, CI_WHITE + (CI_BLACK<<4)
+    FILL_AREA MEM_TIMEX_SCR1_6000 + 1*32 + 17 + 0*256, 14, CI_B_WHITE + (CI_BLACK<<4)
+    FILL_AREA MEM_TIMEX_SCR1_6000 + 1*32 + 17 + 1*256, 14, CI_B_WHITE + (CI_BLACK<<4)
+    FILL_AREA MEM_TIMEX_SCR1_6000 + 1*32 + 17 + 2*256, 14, CI_TEXT + (CI_BLACK<<4)
+    FILL_AREA MEM_TIMEX_SCR1_6000 + 1*32 + 17 + 3*256, 14, CI_D1_TEXT + (CI_BLACK<<4)
+    FILL_AREA MEM_TIMEX_SCR1_6000 + 1*32 + 17 + 4*256, 14, CI_T_WHITE + (CI_BLACK<<4)
+    FILL_AREA MEM_TIMEX_SCR1_6000 + 1*32 + 17 + 5*256, 14, CI_WHITE + (CI_BLACK<<4)
+    FILL_AREA MEM_TIMEX_SCR1_6000 + 1*32 + 17 + 6*256, 14, CI_WHITE + (CI_BLACK<<4)
+    FILL_AREA MEM_TIMEX_SCR1_6000 + 1*32 + 17 + 7*256, 14, CI_WHITE + (CI_BLACK<<4)
 
     ; make ULA transparent under other "legend" boxes
-    ld      hl,MEM_TIMEX_SCR1_6000 + 5
+    ld      hl,MEM_TIMEX_SCR1_6000 + 6*32 + 23  ; SPRITE leg. NEEDS even line, odd column!
     call    .Draw4x6TransparentBoxes
-    ld      hl,MEM_TIMEX_SCR1_6000 + 5 + 7
+    ld      hl,MEM_TIMEX_SCR1_6000 + 2048 + 3*32 + 23
     call    .Draw4x6TransparentBoxes
-    ld      hl,MEM_TIMEX_SCR1_6000 + 5 + 2*7
+    ld      hl,MEM_TIMEX_SCR1_6000 + 4096 + 0*32 + 23
     call    .Draw4x6TransparentBoxes
+
     ; make ULA transparent under legend-label area
     ld      hl,MEM_TIMEX_SCR1_6000 + 0
     ld      bc,$1804
     call    .DrawNxMTransparentBoxes
     ; set attributes of "result" 6x4 boxes
-    ld      hl,MEM_TIMEX_SCR1_6000 + 5 + 3*7
-    call    .Draw4x6TestData
-    ld      hl,MEM_TIMEX_SCR1_6000 + (4*32) + 4 + 1*7
-    ld      e,5
+    ld      hl,MEM_TIMEX_SCR1_6000 + 5
+    ld      e,6
 .DrawTestDataForOtherModes:
     call    .Draw4x6TestData
     dec     e
@@ -292,6 +309,18 @@ DrawLayer2Part:
     ld      bc,$0418
     ld      hl,0*256 + 0
     call    FillL2Box
+    ; set dark white under certain areas to emphasise the separate sections
+    ld      de,CI_WHITE2*256 + CI_WHITE2
+    ld      bc,$0404
+    ld      hl,4*8*256 + 0
+.DarkSectionsLoop:
+    ld      a,8
+    call    FillL2Box
+    ld      a,h
+    add     a,8*8
+    ld      h,a
+    cp      3*8*8
+    jr      c,.DarkSectionsLoop
 
     ; draw expected result area for orders: SLU, LSU, SUL, LUS, USL, ULS
     ld      hl,12*256 + 4
@@ -349,67 +378,57 @@ DrawLayer2Part:
 
     ; draw Sprite-legend
     ld      a,1
-    ld      hl,0*256 + 8*(5+0)
+    ld      hl,6*8*256 + 8*(23+0)
     ld      de,CI_BLACK*256 + CI_WHITE
     ld      bc,$0820
     call    FillL2Box
-    ld      hl,0*256 + 8*(5+5)
+    ld      l,8*(23+5)
     call    FillL2Box
     ld      de,CI_B_YELLOW*256 + CI_B_YELLOW
-    ld      hl,0*256 + 8*(5+1)
+    ld      l,8*(23+1)
     call    FillL2Box
-    ld      hl,0*256 + 8*(5+3)
+    ld      l,8*(23+3)
     call    FillL2Box
     ld      de,CI_B_WHITE*256 + CI_T_WHITE
     ld      bc,$0410
-    ld      hl,0*256 + 8*(5+2)
+    ld      l,8*(23+2)
     call    FillL2BoxWithDither2x2
-    ld      hl,0*256 + 8*(5+4)
+    ld      l,8*(23+4)
     call    FillL2BoxWithDither2x2
     ; draw the dithered 16x16 boxes to reveal full sprite size
     ld      de,SPR_DITHER_BOX_GFX
-    ld      hl,0*256 + 8*(5+1)
+    ld      hl,(6+0)*8*256 + 8*(23+1)
     call    DrawDitherGfxInside16x16Box
-    ld      hl,0*256 + 8*(5+3)
+    ld      hl,(6+0)*8*256 + 8*(23+3)
     call    DrawDitherGfxInside16x16Box
-    ld      hl,16*256 + 8*(5+1)
+    ld      hl,(6+2)*8*256 + 8*(23+1)
     call    DrawDitherGfxInside16x16Box
-    ld      hl,16*256 + 8*(5+3)
+    ld      hl,(6+2)*8*256 + 8*(23+3)
     call    DrawDitherGfxInside16x16Box
 
     ; draw Layer2-legend
     ld      bc,$0C08
     ld      de,CI_B_WHITE*256 + CI_T_WHITE
-    ld      hl,2*8*256 + 8*(5+7+0)
+    ld      hl,(11+2)*8*256 + 8*(23+0)
     call    FillL2BoxWithDither2x2
     ld      de,CI_B_WHITE*256 + CI_WHITE
-    ld      hl,2*8*256 + 8*(5+7+3)
+    ld      hl,(11+2)*8*256 + 8*(23+3)
     call    FillL2BoxWithDither2x2
     ld      de,CI_B_GREEN*256 + CI_B_GREEN
-    ld      hl,0*8*256 + 8*(5+7+0)
+    ld      hl,(11+0)*8*256 + 8*(23+0)
     call    FillL2BoxWithDither2x2
     ld      de,CI_B_GREEN2*256 + CI_B_GREEN2
-    ld      hl,0*8*256 + 8*(5+7+3)
+    ld      hl,(11+0)*8*256 + 8*(23+3)
     call    FillL2BoxWithDither2x2
 
-    ; draw also Layer2 TEST pixels (final area in last 6 characters)
-    ld      hl,0*8*256 + 8*(5+3*7+3)
-    call    FillL2BoxWithDither2x2
-    ld      de,CI_B_GREEN*256 + CI_B_GREEN
-    ld      hl,0*8*256 + 8*(5+3*7+0)
-    call    FillL2BoxWithDither2x2
-    ld      de,CI_PINK2*256 + CI_PINK2  ; overwrite also transparent half with priority
-    ld      hl,2*8*256 + 8*(5+3*7+3)
-    call    FillL2BoxWithDither2x2
-
-    ; draw Layer2 TEST pixels for other combining modes (TEST area under ~L2 legend)
-    ld      h,4*8
-    ld      ixl,5
+    ; draw Layer2 TEST pixels for all combining modes
+    ld      h,(0+0)*8
+    ld      ixl,6
 .OtherModesDrawLoop:
-    ld      l,8*(4+1*7+0)
+    ld      l,8*(5+0)
     ld      de,CI_B_GREEN*256 + CI_B_GREEN
     call    FillL2BoxWithDither2x2
-    ld      l,8*(4+1*7+3)
+    ld      l,8*(5+3)
     ld      de,CI_B_GREEN2*256 + CI_B_GREEN2
     call    FillL2BoxWithDither2x2
     ld      a,16
@@ -426,13 +445,13 @@ DrawLayer2Part:
     ; draw ULA-legend
     ld      de,CI_B_WHITE*256 + CI_T_WHITE
     ld      bc,$180C
-    ld      hl,1*8*256 + 8*(5+2*7+0)
+    ld      hl,(16+1)*8*256 + 8*(23+0)
     call    FillL2BoxWithDither2x2
     ld      de,CI_B_CYAN*256 + CI_B_CYAN
     ld      bc,$1804
-    ld      hl,0*8*256 + 8*(5+2*7+0)
+    ld      hl,(16+0)*8*256 + 8*(23+0)
     call    FillL2BoxWithDither2x2
-    ld      hl,2*8*256 + 8*(5+2*7+0)
+    ld      hl,(16+2)*8*256 + 8*(23+0)
     call    FillL2BoxWithDither2x2
     ret
 
@@ -511,20 +530,9 @@ PrepareSpriteGraphics:
     call    .UploadOnePatternFromL2
 
     ; set up sprites to be drawn (4 byte attribute set is enough for this test)
-    ; set four sprites over test area (pattern 0) (SLU mode)
-    ld      de,$2020 + 0*8*256 + 8*(5+3*7+1)    ; [x,y]
-    ld      hl,$8000                ; H: visible, 4Bset, pattern 0, L:palOfs 0, ..., X9 0
-    call    .UploadOneAttribSet
-    ld      d,$20 + 2*8
-    call    .UploadOneAttribSet
-    ld      e,$20 + 8*(5+3*7+3) - 256
-    inc     l                       ; X9 1
-    call    .UploadOneAttribSet
-    ld      d,$20 + 0*8
-    call    .UploadOneAttribSet
-    ; set four sprites for other 5 modes (+20 sprites)
-    ld      b,5
-    ld      de,$2020 + 4*8*256 + 8*(4+1*7+1)    ; [x,y]
+    ; set four sprites over test area for all 6 modes
+    ld      b,6
+    ld      de,$2020 + 0*8*256 + 8*(5+1)    ; [x,y]
     ld      hl,$8000                ; H: visible, 4Bset, pattern 0, L:palOfs 0, ..., X9 0
 .SetSpritesForOtherModes:
     call    .UploadOneAttribSet
@@ -578,8 +586,8 @@ PrepareSpriteGraphics:
 ;;;;;;;;;;;;;;;;; Draw letter-hints into Layer2 ;;;;;;;;;;;;;;;;;;;
 
 LayerOrderLabelsTxt:    ; array[X, Y, ASCIIZ], $FF
-    db      $34, $04, "S", 0, $68, $0C, "L", 0, $7C, $0C, "Lp", 0
-    db      $AC, $04, "U", 0, $9C, $14, "HiCol",0
+    db      $C4, $34, "S", 0, $C0, $64, "L", 0, $D4, $64, "Lp", 0
+    db      $CC, $84, "U", 0, $BC, $94, "HiCol",0
     db      $04, $03, "SLU", 0, $04, $23, "LSU", 0, $04, $43, "SUL", 0
     db      $04, $63, "LUS", 0, $04, $83, "USL", 0, $04, $A3, "ULS", 0
     db      $FF
