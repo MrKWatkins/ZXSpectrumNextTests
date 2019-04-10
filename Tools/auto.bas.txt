@@ -1,0 +1,20 @@
+    10 REM {PAPER 5}init DATA, load from file next test, set 14MHz turbo{PAPER 7}
+    20 OUT 9275,7 : OUT 9531,2 : RESTORE 500 : LOAD "NxtTstN.bin"CODE 32768
+    30 REM {PAPER 5}read number of next test from memory and find its name{PAPER 7}
+    40 LET a=1+PEEK 32768 : FOR x=1 TO a : READ a$ : NEXT x
+    50 REM {PAPER 5}if no more tests = reset value, store value{PAPER 7}
+    60 IF a$="" THEN LET a=0
+    70 POKE 32768,a: REM SAVE "NxtTstN.bin"CODE 32768,1
+    80 IF a$="" THEN STOP
+    90 REM {PAPER 5}run the test{PAPER 7}
+   100 PRINT "Testing ";a;": ";a$ : LOAD a$
+   499 REM {PAPER 5}filenames of all tests{PAPER 7}
+   500 DATA "!Copper.sna",  "!NextReg.sna", "!Z80N.sna",    "!Z80Nc2.sna"
+   510 DATA "CPalTrV2.sna", "CPalTrV3.sna", "CPalTran.sna", "Chg8kB_2.sna"
+   520 DATA "Chg8kBan.sna", "DIHalt.sna",   "DefTrans.sna", "L2Colour.sna"
+   530 DATA "L2Scroll.sna", "LmixLoRs.sna", "Lmix_LxU.sna", "LmxHiCol.sna"
+   540 DATA "LmxHiRes.sna", "SprBig4b.sna", "SpritBig.sna", "SpritRel.sna"
+   550 DATA "SpritTra.sna", "Ula_Pal.sna"
+   970 REM {PAPER 5}empty string = terminator{PAPER 7}
+   980 DATA "" : STOP
+   999 SAVE "auto.bas" LINE 1
