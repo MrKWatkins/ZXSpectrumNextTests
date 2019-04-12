@@ -4,7 +4,7 @@
   Z80 assembly syntax (trying to cover several assemblers: pasmo, sjasm, z80, snasm, ...)
 
   Created: Peter Helcmanovsky <ped@7gods.org>
-  Version: 0.5 19/01/2019
+  Version: 0.6 08/02/2019
 
 Changelog:
   // dd/mm/yyyy: version x.y (keep changelog in descending order)
