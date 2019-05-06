@@ -2,6 +2,6 @@ test_build_task:
   container:
     dockerfile: Tools/CI/Dockerfile
     cpu: 1
-    memory: 400M
+    memory: 500M
   build_script: Tools/buildTests.sh
   release_script: Tools/dorelease.sh
