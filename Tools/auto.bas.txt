@@ -4,10 +4,10 @@
     40 LET a=1+PEEK 32768 : FOR x=1 TO a : READ a$ : NEXT x
     50 REM {PAPER 5}if no more tests = reset value, store value{PAPER 7}
     60 IF a$="" THEN LET a=0
-    70 POKE 32768,a: REM SAVE "NxtTstN.bin"CODE 32768,1
+    70 POKE 32768,a: SAVE "NxtTstN.bin"CODE 32768,1
     80 IF a$="" THEN STOP
     90 REM {PAPER 5}run the test{PAPER 7}
-   100 PRINT "Testing ";a;": ";a$ : LOAD a$
+   100 PRINT "Testing ";a;": ";a$ : PAUSE PI : LOAD a$
    499 REM {PAPER 5}filenames of all tests{PAPER 7}
    500 DATA "!Copper.sna",  "!NextReg.sna", "!Z80N.sna",    "!Z80Nc2.sna"
    510 DATA "CPalTrV2.sna", "CPalTrV3.sna", "CPalTran.sna", "Chg8kB_2.sna"
