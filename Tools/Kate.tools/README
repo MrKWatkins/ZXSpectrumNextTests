@@ -1,3 +1,15 @@
+Update after few months:
+
+The auto-completion based on CTags doesn't work that well, didn't yet investigate what
+precisely doesn't work well, but the auto-complete is more often just getting into my way
+than actually helping with anything.
+
+The Kate syntax highlight has been "forked" and specialized for sjasmplus, where I am
+contributing directly to the development, and where the fresh syntax file can be found:
+https://github.com/z00m128/sjasmplus/blob/master/asm-z80-sj.xml
+
+-----------------------------------------------
+
 Some hints how to configure Kate editor (KDE5) to support Z80 assembly highlighting, ...
 (by Peter 'Ped' Helcmanovsky, 2018-12-31, under the project's MIT licensing terms)
 
