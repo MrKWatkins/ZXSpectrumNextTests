@@ -256,3 +256,17 @@ DMA_DISABLE				equ $83
 DMA_ENABLE				equ $87
 DMA_WRITE_REGISTER_COMMAND		equ $bb
 
+; About UART<->ESP baund rate from AA:
+;
+; It's very easy to compute the prescalar.
+; 1. Read nextreg 0x11 to find out the video timing the system is using 0-7
+; 2. Take the associated actual system clock from this table:define(__CLK_28_0', 28000000)
+; define(CLK_28_1', 28571429)
+; define(`CLK_28_2', 29464286)
+; define(__CLK_28_3', 30000000)
+; define(CLK_28_4', 31000000)
+; define(`CLK_28_5', 32000000)
+; define(__CLK_28_6', 33000000)
+; define(__CLK_28_7', 27000000)
+; 3. Divide the clock by the baud rate you want to find the 14-bit prescalar value.
+; That's it.
