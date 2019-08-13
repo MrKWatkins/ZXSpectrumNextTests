@@ -10,7 +10,7 @@ FROM gcc:6
 
 # clone sources of sjasmplus (from my fork of the Z80N extension by CatpainBlack),
 # build sjasmplus and install it as part of this container
-RUN git clone --depth=1 --branch v1.14.0-wip https://github.com/ped7g/sjasmplus.git \
+RUN git clone --depth=1 --branch v1.14.0-rc2 https://github.com/ped7g/sjasmplus.git \
     && cd sjasmplus \
     && make clean \
     && make \
