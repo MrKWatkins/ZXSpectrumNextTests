@@ -1,3 +1,5 @@
+TODO: zmakebas to build +3DOS bas file directly?
+
 Test ideas:
 
 base:
