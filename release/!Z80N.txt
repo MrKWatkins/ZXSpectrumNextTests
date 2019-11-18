@@ -5,17 +5,17 @@ Quick tests for new Z80N instructions - *NOT* checking full state of CPU after
 instruction execution, but mostly trying at least to use all possible values and
 check the main result of instruction.
 
-Press "2" to switch on 14MHz turbo mode (if your emulator already supports it,
-NextRegs 6 and 7 are required for turbo enabling+speed setting) (you may also
+Press "2" to switch on 28MHz turbo mode (if your emulator already supports it,
+NextReg 7 is required for turbo enabling+speed setting) (you may also
 want to apply your own emulator "run as fast as possible" setting maybe).
 
-Press "3" to select levels of "fullness" of tests, partial tests take about 12s
-to finish, full tests take about ~5 minutes (at 14MHz).
+Press "3" to select levels of "fullness" of tests, partial tests take about 6s
+to finish, full tests take about ~3 minutes (at 28MHz).
 
 To run particular test, hit the highlighted letter, or use "5" to run all tests.
 
 If the emulator/board was already in one of turbo modes (NextReg 7 bottom two bits are
-non zero), the test code will enforce 14MHz turbo mode, and auto-start "run all tests".
+non zero), the test code will set 28MHz turbo mode, and auto-start "run all tests".
 
 At the end of line there will be status of finished tests, "ERR" marks some error
 happened during test, "OK" means the instruction passed the test. "OK1" means the
@@ -29,7 +29,7 @@ no means supposed to provide full debug info, it's expected you will inspect the
 test code itself and investigate there (the log is just hint about detected issue).
 
 For more details about how instructions are supposed to work you may want to also check:
-http://devnext.referata.com/wiki/Extended_Z80_instruction_set
+https://wiki.specnext.dev/Extended_Z80_instruction_set
 
 Details of possible errors (explaining the error log) per instruction:
 
