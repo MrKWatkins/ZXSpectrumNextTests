@@ -15,31 +15,28 @@ DetectTurboMode:    ; if selected, it will be kept + autostart
     call    ReadNextReg
     and     $03
     ret     z       ; no turbo detected
-    ; turbo detected, make the option ON (it will set the turbo to 14MHz (also from 7MHz))
+    ; turbo detected, make the option ON (it will set the turbo to 28MHz (from 7/14/28MHz))
     ld      hl,TestOptions
     set     TEST_OPT_BIT_TURBO,(hl)
     set     TEST_OPT_BIT_ASTART,(hl)    ; and add auto-start of tests
     ret
 
-;;;;;;;;;;;;;;;;;; switch 14MHz turbo mode ON or OFF ;;;;;;;;;;
+;;;;;;;;;;;;;;;;;; switch 28MHz turbo mode ON or OFF ;;;;;;;;;;
 SetTurboModeByOption:
-    ; read current status of peripheral 2 NextReg
+    ; read current status of peripheral 2 NextReg, enable turbo and 50/60Hz keys (F3+F8)
     ld      b,PERIPHERAL_2_NR_06
     ld      a,b
     call    ReadNextReg
+    or      %1010'1000          ; F3 + F8 + Multiface enabled
+    call    WriteNextRegByIo
     ; check the selected option by user
     ld      hl,TestOptions
     bit     TEST_OPT_BIT_TURBO,(hl)
+    ld      a,%11               ; 28MHz
     jr      nz,.SetTurboON
-    ; turbo OFF (use only Z80 instructions in this part)
-    and     $7F     ; disable turbo mode
-    jp      WriteNextRegByIo    ; + ret
+    ld      a,%00               ; 3.5MHz
 .SetTurboON:
-    or      $80     ; enable turbo mode (actually seems like it enables just the F8 key)
-    call    WriteNextRegByIo
-    ; set turbo configuration to 14MHz
     ld      b,TURBO_CONTROL_NR_07
-    ld      a,%10
     jp      WriteNextRegByIo    ; + ret
 
 ;;;;;;; picks choosen levels test ;;;;;;;;;;;;

@@ -13,7 +13,7 @@ CHARPOS_STATUS      equ     29
 
 MachineInfoLabels:
     ;        0123456789A123456789A123456789A1
-    db      '1Hlp 2T14 3Ful 5Go m',0,'c',0
+    db      '1Hlp 2T28 3Ful 5Go m',0,'c',0
 
 InstructionMnemonics:
     db      'BRLC    DE,B',0
@@ -58,9 +58,9 @@ HelpTxt:
     db      ' ',0
     db      'Read "!Z80Nc2.txt" for details.',0
     db      ' ',0
-    db      'Press 2 to switch 14Mhz turbo.',0
-    db      'Press 5 to run all tests (~11s).',0
-    db      'Option 3 for full tests (~7min).',0
+    db      'Press 2 to switch 28Mhz turbo.',0
+    db      'Press 5 to run all tests (~6s).',0
+    db      'Option 3 for full tests (~4min).',0
     db      ' ',0
     db      'To run particular test or check',0
     db      'error log in case of "ERR" state',0
@@ -70,8 +70,8 @@ HelpTxt:
     db      ' ',0
     db      'For instruction details you can',0
     db      'check:',0
-    db      'http://devnext.referata.com/wiki',0
-    db      '/Extended_Z80_instruction_set',0
+    db      'https://wiki.specnext.dev/Extend',0
+    db      'ed_Z80_instruction_set',0
     db      ' ',0
     db      'Tests can be run only once.',0
     db      ' ',0
