@@ -31,6 +31,12 @@ When all layers sport transparent pixel for particular position, the resulting c
 should be "transparency fallback" colour, which is set to "pink $E3" - to be displayed
 in result as pink.
 
+When the image generation is finished, the "write-over-ROM" feature of Layer 2 is enabled
+and "shadow" mode is selected, while shadow Layer 2 is set to banks 0..2. This should
+NOT affect displaying of regular Layer 2 graphics in banks 9..11, the "shadow" bit does
+apply only to the write/read feature. If the emulator shows black rectangles and noise,
+it does use wrongly the shadow banks also for display.
+
 
 Why/how 24 combinations
 =======================

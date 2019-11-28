@@ -92,6 +92,10 @@ Start:
     NEXTREG_nn LAYER2_YOFFSET_NR_17, 0
     ; setup Layer2 bank to 9 (like NextZXOS does)
     NEXTREG_nn LAYER2_RAM_BANK_NR_12, 9
+    NEXTREG_nn LAYER2_RAM_SHADOW_BANK_NR_13, 0  ; set shadow layer 2 to 0
+        ; shadow NextReg 0x13 is not needed for this test, but it is set up to point
+        ; to bank 0, and shadow bit is set in the Layer 2 port, because
+        ; some emus get confused by that and they start displaying it instead (bug)
     ; make Layer2 visible
     ld      bc, LAYER2_ACCESS_P_123B
     ld      a, LAYER2_ACCESS_L2_ENABLED
@@ -129,6 +133,11 @@ Start:
     NEXTREG_nn MMU2_4000_NR_52, $0A
     NEXTREG_nn MMU3_6000_NR_53, $0B
     ; all drawing is now finished, the test will enter loop just changing layer-modes
+
+    ; set the write-over-rom + "shadow" to verify the LAYER2_RAM_BANK_NR_12 is displayed
+    ld      a,LAYER2_ACCESS_WRITE_OVER_ROM+LAYER2_ACCESS_L2_ENABLED+LAYER2_ACCESS_SHADOW_OVER_ROM
+    ld      bc,LAYER2_ACCESS_P_123B
+    out     (c),a
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ; loop infinitely and set correct layer ordering for various parts of screen
