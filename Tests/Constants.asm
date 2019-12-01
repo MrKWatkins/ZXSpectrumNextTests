@@ -1,13 +1,13 @@
 
 ; ----- Colour palette (ULA)
-BLACK 			equ 0
-BLUE 			equ 1
-RED 			equ 2
-MAGENTA 		equ 3
-GREEN 			equ 4
-CYAN 			equ 5
-YELLOW	 		equ 6
-WHITE	 		equ 7
+BLACK			equ 0
+BLUE			equ 1
+RED				equ 2
+MAGENTA			equ 3
+GREEN			equ 4
+CYAN			equ 5
+YELLOW			equ 6
+WHITE			equ 7
 P_BLACK			equ 0
 P_BLUE			equ 1<<3
 P_RED			equ 2<<3
@@ -18,7 +18,7 @@ P_YELLOW		equ 6<<3
 P_WHITE			equ 7<<3
 ; ----- Attribs
 A_FLASH			equ 128
-A_BRIGHT 		equ 64
+A_BRIGHT		equ 64
 ;----------------------------------------------
 BIT_UP			equ 4	; 16
 BIT_DOWN		equ 5	; 32
@@ -270,8 +270,8 @@ MEM_TIMEX_SCR1_6000             equ $6000
 ;-----------------------------------------------------------------------------
 ;-- Copper commands
 COPPER_NOOP                     equ %00000000
-COPPER_WAIT                     equ %10000000
-COPPER_HALT                     equ %11111111   ; wait for (511,63) = infinite wait
+COPPER_WAIT_H                   equ %1'000000'0
+COPPER_HALT_B                   equ $FF   ; 2x $FF = wait for (511,63) = infinite wait
 
 ;-----------------------------------------------------------------------------
 ; DMA (Register 6)

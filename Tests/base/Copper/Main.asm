@@ -110,7 +110,7 @@ Start:
     ld      de,$F85B    ; [248,91]
     call    UploadFlagAtDe
     ; do one flag over left border (skip DE coordinates calculation)
-    ld      h,COPPER_WAIT + ($34<<1)    ; x-compare 52 = 416px pos = somewhere in left border
+    ld      h,COPPER_WAIT_H + ($34<<1)    ; x-compare 52 = 416px pos = somewhere in left border
     ld      l,1         ; don't do NOOP after wait at all
     ld      e,$68       ; y: 104
     call    UploadFlag
@@ -119,7 +119,7 @@ Start:
     call    UploadFlagAtDe
 
     ; add HALT at the end of everything (will wait until the frame [0,0] restarts copper)
-    ld      a,COPPER_HALT
+    ld      a,COPPER_HALT_B
     out     (c),a
     out     (c),a
     inc     iy          ; count total instructions
@@ -173,7 +173,7 @@ UploadFlagAtDe:
     rrca
     rrca            ; put (x/8) into position for WAIT inst.
     and     $3E     ; keep only relevant bits
-    or      COPPER_WAIT ; convert it to WAIT instruction (high byte)
+    or      COPPER_WAIT_H ; convert it to WAIT instruction (high byte)
     ld      h,a
     ; continue with UploadFlag code
 
