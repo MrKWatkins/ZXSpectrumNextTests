@@ -17,16 +17,23 @@ NextReg $69.
 
 Finally it will display how many tests were done, and how many did match.
 
+There are also per-test indicators in second line, in the pixel graphics there
+is "ruler" at top (marking every 4th (bit 4) and 8th pixel (bit 0)), under
+ruler there is single empty line and then the expected and real value is
+displayed, so in case of failed test you can read which bits didn't match.
+
 After this it will prepare visual part of the test, setting Layer2, ULA screen
 and Timex modes VRAM to patterns producing green areas at particular scanlines
 and it will reprogram the Copper to switch the modes through $69 register for
-the particular region of screen.
+the particular region of screen. The copper is programmed to WAIT for the new
+scanline at horizontal coordinate 0, i.e. at the very edge where pixel area
+starts, then it sets $69 to the new value.
 
-There should be these items with green rectangle "###" next to them (rest of
-the screen should look as normal ULA classic mode after CLS, no artefacts!):
+There should be these items with green rectangle "###" next to them (the green
+part is provided by the particular mode gfx):
 
-Tests: 10       MachineID: 8
-Passed: 10      core:3.00.123
+Tests OK: 10/10   MachineID: 8
+rrrrrrrrrr        core:3.00.123
 
 Layer 2:     ###
 ULA shadow:  ###
@@ -36,3 +43,31 @@ Timex HiRes Black/White
 Timex Hires Blue/Yellow
 L2 + shadow: ###  ###
 L2 + T scr1: ###  ###
+
+("rrrr.." are the bit-values of each test and color to indicate result)
+
+The mode switch takes different amount of cycles, the visible artefacts from
+left edge measure how long the particular feature takes to settle down (ULA
+modes read two characters ahead in the last 8 cycles of current chunk, layer 2
+can switch on/off within 3-4 cycles).
+The artefacts coloring scheme:
+red = layer2, cyan = classic ULA, blue = shadow ULA, yellow = Timex $6000 area
+
+(it would be simple to avoid the artefacts by changing the copper to WAIT at
+previous scanline at horizontal value like 39, inside the h-blank period, but
+the test is intentionally waiting for pixel area edge to make the mode switch
+delay observable/measurable)
+
+On core 3.00.5 (latest at the time of writing this test), the board seems to
+return wrong info about ULA shadow when reading the NextReg $69 so only 7/10
+tests do pass and when the Layer 2 is switched ON from OFF state, there seems
+to be one red pixel artefact which seems to be connected to the way how FPGA
+does fetch pixel data for Layer 2, which may get refactoring in future cores,
+so the displayed artefacts and mode switch timing may differ in the future.
+
+If you are planning to release SW which depends on pixel-perfect timings of
+these changes, the results are deterministic per-core, so you can fine-tune
+the copper code until the visual result does match your desired outcome, but
+make sure you do document the precise core version number which was used to
+tune your SW, as the future cores may change the outcome slightly (and you
+may need to retune your copper code to match it).

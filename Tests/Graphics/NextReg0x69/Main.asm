@@ -18,6 +18,9 @@ Start:
     ld      sp,stack
     NEXTREG_nn  TURBO_CONTROL_NR_07,3       ; 28MHz
     call    StartTest
+    ; clear the Timex screen1 VRAM
+    FILL_AREA $6000, $1800, $0
+    FILL_AREA $7800, $0300, A_BRIGHT|P_YELLOW|YELLOW
     ld      de,MEM_ZX_SCREEN_4000+18
     ld      bc,MEM_ZX_SCREEN_4000+32+18
     call    OutMachineIdAndCore_defLabels
@@ -155,14 +158,6 @@ ReadFromNextReg0x69Test:
     ld      (hl),a
     inc     l
     djnz    .rulerLoop2
-    
-;     ld      de,MEM_ZX_SCREEN_4000+32
-;     ld      (OutCurrentAdr),de
-;     ld      b,(ix)
-; .HashingAllTests:
-;     ld      a,'#'
-;     call    OutChar
-;     djnz    .HashingAllTests
 
     ;; prepare visual test
     MACRO FILL_L2_BOX adr?,dither?,width?,height?,ditherSize?
@@ -187,6 +182,7 @@ PrepareVisualTest:
     NEXTREG_A   COPPER_DATA_NR_60
     djnz    .SetupCopperLoop
     NEXTREG_nn  COPPER_CONTROL_HI_NR_62,$C0 ; START copper, reset at Vblank
+
     ;; draw Layer 2 parts
     NEXTREG_nn  LAYER2_RAM_BANK_NR_12,9     ; banks 9,10,11 for Layer 2
     NEXTREG_nn  GLOBAL_TRANSPARENCY_NR_14,$E3       ; pink $E3 is transparent color
@@ -212,7 +208,8 @@ OutputLegendaryTextsFromData:
     ; setup first Bank 7 texts (first batch of inputs in data)
     NEXTREG_nn  MMU2_4000_NR_52,7*2
     ; clear the shadow VRAM first, can contain noise (from NextZXOS, etc)
-    FILL_AREA $4000, $1B00, $0  ; including attributes to black:black
+    FILL_AREA $4000, $1800, $0
+    FILL_AREA $5800, $0300, A_BRIGHT|P_BLUE|BLUE
     ld      hl,LabelsVisualData
     call    .LegendaryLoopEntry
     ; now setup the regular ULA texts (second batch of inputs)
@@ -311,6 +308,10 @@ LabelsVisualData:
     ; L2 + T scr1
     DW MEM_ZX_ATTRIB_5800+$2000+32*10       : DB 1, 32, P_WHITE|BLACK
     DW MEM_ZX_ATTRIB_5800+$2000+32*10+18    : DB 1, 3, P_GREEN|WHITE
+    ; make "bright cyan" the classic ULA rows which are not displayed
+    DW MEM_ZX_ATTRIB_5800+32*4              : DB 1, 32*2, A_BRIGHT|P_CYAN|CYAN
+    DW MEM_ZX_ATTRIB_5800+32*7              : DB 1, 32*1, A_BRIGHT|P_CYAN|CYAN ; also HiRes!
+    DW MEM_ZX_ATTRIB_5800+32*8              : DB 1, 32*3, A_BRIGHT|P_CYAN|CYAN
     DW 0, 0                                 : DB 0  ; attr batch terminator
 
 CopperCode:     ;; remember the copper instructions are big endian (bytes: WAIT/REGISTER, scanline/value)
