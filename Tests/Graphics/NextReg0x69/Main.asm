@@ -26,10 +26,10 @@ Start:
     call    OutMachineIdAndCore_defLabels
     ;; do the code-only test first and write result on screen after
     BORDER  YELLOW
-    ; enable timex port $FF read (disable floating bus)
+    ; enable timex port $FF read (disable floating bus), unlock the $7FFD port
     ld      a,PERIPHERAL_3_NR_08
     call    ReadNextReg
-    or      (1<<2)
+    or      (1<<2)|(1<<7)
     NEXTREG_A PERIPHERAL_3_NR_08
 
     ;; write different values to 0x69 and read them back from the mirrored ports
@@ -44,10 +44,8 @@ WriteToNextReg0x69Test:
         ld      (iy),value?
         inc     iyh
         NEXTREG_nn DISPLAY_CONTROL_NR_69,value?
-        ; read values back - wait short while to see if board needs time to apply write
-        ld      b,32
-        djnz    $
-        ; can't read shadow ULA reg, set it explicitly to correct value (but in top bit!)
+        ; read values back
+        ; can't read shadow ULA reg, set it explicitly to correct value (but in top bit of D!)
         ld      d,(value? & $40)<<1
         ; read Layer 2
         ld      bc,LAYER2_ACCESS_P_123B
@@ -94,15 +92,13 @@ ReadFromNextReg0x69Test:
         ENDIF
         out     (c),a
         ; write ula shadow bit
-        ld      a,(value?&$40)>>(6-3)   ; set other bits to 0, seems to be current value
+        ld      a,(value?&$40)>>(6-3) | (1<<4)   ; set shadow bit, and ROM=1 (ZX48 ROM for font data)
         ld      bc,$7FFD
         out     (c),a
         ; write timex bits
         ld      a,value? & $3F
         out     (255),a
-        ; read value back - wait short while to see if board needs time to apply writes
-        ld      b,32
-        djnz    $
+        ; read value back
         ld      a,DISPLAY_CONTROL_NR_69
         call    ReadNextReg
         ; compare with original value
@@ -315,7 +311,7 @@ LabelsVisualData:
     DW 0, 0                                 : DB 0  ; attr batch terminator
 
 CopperCode:     ;; remember the copper instructions are big endian (bytes: WAIT/REGISTER, scanline/value)
-    DW  $0069   ; at [0,0] switch all off, defaul ULA classic
+    DW  $0069   ; at [0,0] switch all off, default ULA classic
     DW  COPPER_WAIT_H|($18<<8), $8069  ; Layer 2 ON, shadow OFF, ULA classic (Timex scr0)
     DW  COPPER_WAIT_H|($20<<8), $4069  ; Layer 2 OFF, shadow ON, ULA classic (Timex scr0)
     DW  COPPER_WAIT_H|($28<<8), $0169  ; Layer 2 OFF, shadow OFF, Timex scr1

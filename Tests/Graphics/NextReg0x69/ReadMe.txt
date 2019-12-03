@@ -1,6 +1,8 @@
 The test will set bit 2 of NextReg $08 -> the `in a,(255)` should then read
 the Timex port, not the floating idle bus (for example CSpect doesn't has
 this feature, it keeps reading floating bus, thus almost all tests fail :/ ).
+Also it will unlock $7FFD port in NextReg $08 (being locked by NextZXOS while
+loading the 48k SNA file to better emulate ZX48 machine).
 
 Then it will write to NextReg $69 values:
   %00000000, %01000000, %10000000, %00010110, %11101000
@@ -30,7 +32,7 @@ scanline at horizontal coordinate 0, i.e. at the very edge where pixel area
 starts, then it sets $69 to the new value.
 
 There should be these items with green rectangle "###" next to them (the green
-part is provided by the particular mode gfx):
+part is provided by the particular mode gfx) (HiRes modes have just text):
 
 Tests OK: 10/10   MachineID: 8
 rrrrrrrrrr        core:3.00.123
@@ -49,7 +51,7 @@ L2 + T scr1: ###  ###
 The mode switch takes different amount of cycles, the visible artefacts from
 left edge measure how long the particular feature takes to settle down (ULA
 modes read two characters ahead in the last 8 cycles of current chunk, layer 2
-can switch on/off within 3-4 cycles).
+can switch on/off within 3-4 cycles, Hires picks new color in one character).
 The artefacts coloring scheme:
 red = layer2, cyan = classic ULA, blue = shadow ULA, yellow = Timex $6000 area
 
@@ -58,12 +60,11 @@ previous scanline at horizontal value like 39, inside the h-blank period, but
 the test is intentionally waiting for pixel area edge to make the mode switch
 delay observable/measurable)
 
-On core 3.00.5 (latest at the time of writing this test), the board seems to
-return wrong info about ULA shadow when reading the NextReg $69 so only 7/10
-tests do pass and when the Layer 2 is switched ON from OFF state, there seems
-to be one red pixel artefact which seems to be connected to the way how FPGA
-does fetch pixel data for Layer 2, which may get refactoring in future cores,
-so the displayed artefacts and mode switch timing may differ in the future.
+On core 3.00.5 (latest at the time of writing this test), the board seems,
+when the Layer 2 is switched ON from OFF state, to produce one red pixel
+artefact which seems to be connected to the way how FPGA does fetch pixel
+data for Layer 2, which may get rewritten in future cores, so the displayed
+artefacts and mode switch timing may differ in the future.
 
 If you are planning to release SW which depends on pixel-perfect timings of
 these changes, the results are deterministic per-core, so you can fine-tune
