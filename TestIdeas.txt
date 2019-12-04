@@ -12,23 +12,21 @@ base:
  - exercise ink masks / borders
 
 * Layer2:
- . RAM positioning quirks (and 128K shadow quirks) (quirk = switching off L2/wrong content)
+ . "hidden" SRAM access under Bank 5 and 1/2 Bank 7 (hidden by FPGA BRAM redirection)
 
 * LoRes:
  - scroll (vs ULA, half-pixel precision)
  - enable overrides ulanext on/off
+ - ULAplus Radastan original 4bpp mode (or what it is)
 
 * Timex 8x1 colour
 
 * Timex 512x192 hires
 
 * Sprites:
- - keep core1 vs core2 stuff separate, so emu authors have chance to proceed in smaller sets
- - exercise old stuff (core 1.xx)
  - NextReg mirrors
- - 4-bit graphics
+ - core3 limits (128 sprites, 64 patterns)
  - exhausting pixel throughput on single line
- - syncing with scanline while multiplexing
 
 * Copper:
  - writing code on fly, changing index while keeping mode, etc..
