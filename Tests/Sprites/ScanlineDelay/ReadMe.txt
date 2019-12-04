@@ -63,7 +63,7 @@ This copper code is auto-restarted every frame (the copper mode %11).
 The second test "RotMir / Xpos" does test two distinct things with single
 sprite. At the target scanline the ULA paper is changed to light yellow
 and sprite attributes are modified to have ROTATE+MIRROR_X, and move
-sprite by 9 pixels to right. The rotate+mirror will demonstate itself
+sprite by 9 pixels to right. The rotate+mirror will demonstrate itself
 as single line with color dots (instead of single-color line), the X-offset
 will demonstrate by the line of sprite being on the right side. These two
 effects will very likely happen at the same line (with most of the sprite
@@ -100,7 +100,10 @@ With Next and it's 128 HW sprites it is actually not that likely you
 would need multiplexing technique, but if you do, the info from this
 test is important for you to time the multiplexing changes (or even
 non-multiplexing-but-very-late changes) correctly to get the desired
-display output. With current core 3.0.5 it seems you need to modify
-sprite coordinates, visibility and pattern one scanlines ahead, but
-very early (the buffer is flipped at sprite X=320, i.e. already
-32px after the regular "paper" area).
+display output. With current core 3.0.5 you need to modify sprite
+coordinates, visibility and pattern "one scanlines ahead", but the decisive
+edge is at the sprite position X=320, i.e. it's more like "two scanlines"
+ahead.
+
+The point where the buffer flips may be adjusted in future cores, if it
+will be adjusted, I will hopefully update this text with new info.
