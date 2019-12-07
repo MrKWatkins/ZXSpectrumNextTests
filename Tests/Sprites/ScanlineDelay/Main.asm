@@ -113,6 +113,12 @@ Start:
     ld      de,MEM_ZX_SCREEN_4000+$20*7
     ld      hl,LegendaryText_T3
     call    OutStringAtDe
+    ;; 4/5 byte type check legend:
+    ld      hl,LegendaryText_AttribsHandling
+    ld      de,MEM_ZX_SCREEN_4000+$800+$20*1
+    call    OutStringAtDe
+    ld      de,MEM_ZX_SCREEN_4000+$800+$20*6
+    call    OutStringAtDe
     BORDER  CYAN
 
     ; setup sprite palette0 to default 8bit index=RGB
@@ -186,6 +192,52 @@ Start:
     NEXTREG_nn  SPRITE_ATTR3_NR_38,$80          ; visible, 4-byte system, pattern 0
     NEXTREG_nn  SPRITE_ATTR4_INC_NR_79,$00      ; just clear fifth byte to be sure
 
+    ;; 4/5 byte type check sprites
+    ; sprite 5: 4 byte type + explicit zero written to fifth
+    NEXTREG_nn  SPRITE_ATTR0_NR_35,32+16*0+6    ; X 8b LSB
+    NEXTREG_nn  SPRITE_ATTR1_NR_36,TYPES_SPR_Y  ; Y 8b LSB
+    NEXTREG_nn  SPRITE_ATTR2_NR_37,$00          ; X MSB = 0, no rotate/mirror/pal offset
+    NEXTREG_nn  SPRITE_ATTR3_NR_38,$80          ; visible, 4-byte system, pattern 0
+    NEXTREG_nn  SPRITE_ATTR4_INC_NR_79,$00      ; explicit zeroing of fifth byte
+    ; sprite 6: 4 byte type converted from 5 byte type (scaleY) (fifth byte non-zero ahead)
+    NEXTREG_nn  SPRITE_ATTR0_NR_35,32+16*1+6    ; X 8b LSB
+    NEXTREG_nn  SPRITE_ATTR1_NR_36,TYPES_SPR_Y  ; Y 8b LSB
+    NEXTREG_nn  SPRITE_ATTR2_NR_37,$00          ; X MSB = 0, no rotate/mirror/pal offset
+    NEXTREG_nn  SPRITE_ATTR3_NR_38,$C0          ; visible, 5-byte system, pattern 0
+    NEXTREG_nn  SPRITE_ATTR4_NR_39,$02          ; 2xY, 8bit gfx, composite anchor, Y8=0
+        ; convert it to to 4-byte type after 5-byte (not touching fifth byte)
+    NEXTREG_nn  SPRITE_ATTR3_INC_NR_78,$80      ; visible, 4-byte system, pattern 0
+    ; sprite 7: 4 byte type + explicit non-zero (scaleY) written to fifth after fourth
+    NEXTREG_nn  SPRITE_ATTR0_NR_35,32+16*2+6    ; X 8b LSB
+    NEXTREG_nn  SPRITE_ATTR1_NR_36,TYPES_SPR_Y  ; Y 8b LSB
+    NEXTREG_nn  SPRITE_ATTR2_NR_37,$00          ; X MSB = 0, no rotate/mirror/pal offset
+    NEXTREG_nn  SPRITE_ATTR3_NR_38,$80          ; visible, 4-byte system, pattern 0
+    NEXTREG_nn  SPRITE_ATTR4_INC_NR_79,$02      ; 2xY, but should not affect display
+    ; sprite 8: 5 byte type +scaleY
+    NEXTREG_nn  SPRITE_ATTR0_NR_35,32+16*3+6    ; X 8b LSB
+    NEXTREG_nn  SPRITE_ATTR1_NR_36,TYPES_SPR_Y  ; Y 8b LSB
+    NEXTREG_nn  SPRITE_ATTR2_NR_37,$00          ; X MSB = 0, no rotate/mirror/pal offset
+    NEXTREG_nn  SPRITE_ATTR3_NR_38,$C0          ; visible, 5-byte system, pattern 0
+    NEXTREG_nn  SPRITE_ATTR4_INC_NR_79,$02      ; 2xY, 8bit gfx, composite anchor, Y8=0
+    jr      .setupByPort
+
+    ; data for the setup
+.PortSpritesData:
+    DB      32+16*0+6, TYPES_SPR_Y+32, $00, $80 ; sprite 9: 4 byte type
+    DB      32+16*1+6, TYPES_SPR_Y+32, $00, $C0, $02    ; sprite 10: 5 byte type
+.PortSpriteSz   EQU     $-.PortSpritesData
+
+    ;; 4/5 byte type check sprites set by I/O port + check lockstep of PERIPHERAL_4_NR_09
+    ; the port should now point to the sprite id 9, same as next registers
+.setupByPort:
+    ; first set sprite 9 to be 5-byte with 2xY scale by nextregs
+    NEXTREG_nn  SPRITE_ATTR3_NR_38,$C0          ; visible, 5-byte system, pattern 0
+    NEXTREG_nn  SPRITE_ATTR4_NR_39,$02          ; 2xY, 8bit gfx, composite anchor, Y8=0
+    ; now overwrite sprite 9 through port and add sprite 10
+    ld      bc,.PortSpriteSz<<8 | SPRITE_ATTRIBUTE_P_57  ; BC = counter + port
+    ld      hl,.PortSpritesData
+    otir
+
     ; create copper to multiplex it over several lines and hide it above/below
     NEXTREG_nn  COPPER_CONTROL_HI_NR_62,0
     NEXTREG_nn  COPPER_CONTROL_LO_NR_61,0
@@ -215,6 +267,8 @@ TRANS_S_Y       EQU     TRANS_T_Y+32-2
 
 PAL_T_Y         EQU     TRANS_T_Y+16
 PAL_S_Y         EQU     PAL_T_Y+32-2
+
+TYPES_SPR_Y     EQU     32+8*11+6
 
 CopperCode:     ;; remember the copper instructions are big endian (bytes: WAIT/REGISTER, scanline/value)
     DW  SPRITE_ATTR_SLOT_SEL_NR_34|(1<<8)       ; select second sprite (first one to modify on fly)
@@ -271,6 +325,10 @@ LegendaryText_T2:
     DB  'Transp. index:',0
 LegendaryText_T3:
     DB  'Palette color:',0
+LegendaryText_AttribsHandling:
+    DB  '________________________________'
+    DB  'Setup by NextRegs, check 4B/5B:',0
+    DB  'Setup by I/O port:',0
 
     ASSERT  $ < $E000
     savesna "SprDelay.sna", Start

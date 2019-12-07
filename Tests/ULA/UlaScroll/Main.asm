@@ -26,6 +26,7 @@ Start:
     call    StartTest
     ; show red border while drawing and preparing...
     BORDER  RED
+    ;NEXTREG_nn DISPLAY_CONTROL_NR_69,$06   ; Timex 512x192
     ; reset ULA scroll registers
     NEXTREG_nn ULA_XOFFSET_NR_26, 0
     NEXTREG_nn ULA_YOFFSET_NR_27, 0
