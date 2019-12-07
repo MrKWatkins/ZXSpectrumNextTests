@@ -107,3 +107,23 @@ ahead.
 
 The point where the buffer flips may be adjusted in future cores, if it
 will be adjusted, I will hopefully update this text with new info.
+
+## Test extension to verify 4-byte/5-byte attribute sprites
+
+Sprites are set up through Next registers $34-$39,$75-$79 (not through port).
+From left to right:
+
+1) 4 byte type + explicit zero written to fifth
+2) 4 byte type converted from 5 byte type (scaleY) (fifth byte non-zero ahead)
+3) 4 byte type + explicit non-zero (scaleY) written to fifth after fourth
+4) 5 byte type +scaleY
+
+The first three sprites should look the same, ignoring the fifth byte either
+way because of the extended bit.
+
+Next rows contain sprites set through I/O port $57, left sprite is 4-byte type
+looking as the one above from NextReg setup, right sprite is 5-byte type with
+2x scaleY (same as the fourth sprite above).
+
+The left 4-byte sprite attributes are first tainted by 5-byte type + 2xY, then
+the final state is set through I/O port (to verify the fifth gets cleared).
