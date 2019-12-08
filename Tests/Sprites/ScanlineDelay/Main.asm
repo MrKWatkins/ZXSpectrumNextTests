@@ -117,7 +117,11 @@ Start:
     ld      hl,LegendaryText_AttribsHandling
     ld      de,MEM_ZX_SCREEN_4000+$800+$20*1
     call    OutStringAtDe
+    ld      de,MEM_ZX_SCREEN_4000+$800+$20*4+9
+    call    OutStringAtDe
     ld      de,MEM_ZX_SCREEN_4000+$800+$20*6
+    call    OutStringAtDe
+    ld      de,MEM_ZX_SCREEN_4000+$1000+$20*2
     call    OutStringAtDe
     BORDER  CYAN
 
@@ -130,8 +134,7 @@ Start:
     inc     a
     jr      nz,.setSpritePalLoop
     ; setup sprites control registers
-    ld      a,PERIPHERAL_4_NR_09
-    call    ReadNextReg
+    NEXTREG2A   PERIPHERAL_4_NR_09
     set     4,a
     NEXTREG_A   PERIPHERAL_4_NR_09  ; set "lockstep" for port $303B <-> nextreg $34
     NEXTREG_nn  SPRITE_CONTROL_NR_15,3  ; sprites visible + over border, everything else to 0 (SLU order, etc)
@@ -225,7 +228,11 @@ Start:
 .PortSpritesData:
     DB      32+16*0+6, TYPES_SPR_Y+32, $00, $80 ; sprite 9: 4 byte type
     DB      32+16*1+6, TYPES_SPR_Y+32, $00, $C0, $02    ; sprite 10: 5 byte type
+    ; lockstep exercise
+    DB      32+16*0+6, TYPES_SPR_Y+64, $00, $C0 ; sprite 11: unfinished 5 byte type
 .PortSpriteSz   EQU     $-.PortSpritesData
+    DB      32+16*1+6, TYPES_SPR_Y+64, $00, $80 ; sprite 12: 4 byte type
+.PortSpriteSz2  EQU     $-.PortSpritesData-.PortSpriteSz
 
     ;; 4/5 byte type check sprites set by I/O port + check lockstep of PERIPHERAL_4_NR_09
     ; the port should now point to the sprite id 9, same as next registers
@@ -237,6 +244,21 @@ Start:
     ld      bc,.PortSpriteSz<<8 | SPRITE_ATTRIBUTE_P_57  ; BC = counter + port
     ld      hl,.PortSpritesData
     otir
+
+    ;; verify id lockstep by finishing 5-byte type sprite 11 (and increment id to 12)
+    NEXTREG_nn  SPRITE_ATTR4_INC_NR_79,$02      ; 2xY, 8bit gfx, ...
+    ; disable lockstep
+    NEXTREG2A   PERIPHERAL_4_NR_09
+    res     4,a
+    NEXTREG_A   PERIPHERAL_4_NR_09  ; reset "lockstep" for port $303B <-> nextreg $34
+    NEXTREG_nn  SPRITE_ATTR_SLOT_SEL_NR_34,11   ; sprite id 11 in the nextreg (independent)
+    ; setup the sprite 12 by port (4-byte type) (after this the port will be at id 13)
+    ld      b,.PortSpriteSz2
+    otir
+    ; make the fifth byte of sprite 12 "2x Y"
+    NEXTREG_nn  SPRITE_ATTR2_INC_NR_77,$00      ; nextreg sprite id 11 -> 12
+    NEXTREG_nn  SPRITE_ATTR3_NR_38,$C0          ; 5-byte type
+    NEXTREG_nn  SPRITE_ATTR4_NR_39,$02          ; 2xY, 8bit gfx, ...
 
     ; create copper to multiplex it over several lines and hide it above/below
     NEXTREG_nn  COPPER_CONTROL_HI_NR_62,0
@@ -328,7 +350,10 @@ LegendaryText_T3:
 LegendaryText_AttribsHandling:
     DB  '________________________________'
     DB  'Setup by NextRegs, check 4B/5B:',0
-    DB  'Setup by I/O port:',0
+    DB  '"ooo1"',0
+    DB  'Setup by I/O port "o1":',0
+    DB  'Lockstep exercise "11":',0
+    DB 0
 
     ASSERT  $ < $E000
     savesna "SprDelay.sna", Start
