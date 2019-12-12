@@ -50,7 +50,7 @@ AY_REG_P_FFFD                   equ $FFFD
 AY_DATA_P_BFFD                  equ $BFFD
 
 Z80_DMA_PORT_DATAGEAR           equ $6B     ; on ZXN the zxnDMA handles this
-Z80_DMA_PORT_MB02               equ $0B     ; on ZXN the zxnDMA handles this
+Z80_DMA_PORT_MB02               equ $0B     ; only in Zilog DMA mode zxnDMA handles this
 
 DIVMMC_CONTROL_P_E3             equ $E3
 SPI_CS_P_E7                     equ $E7
