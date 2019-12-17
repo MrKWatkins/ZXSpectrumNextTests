@@ -64,7 +64,10 @@ AdvanceAttrHlToNextLine:
     ret
 
 ; A = ASCII char (0..127), will calculate into HL address of char data ($3D00 for space)
+; for A==7 ("bell") full-square data are used from this code (even without ROM mapped)
 GetRomAddressOfChar:
+    cp      7
+    jr      z,.returnFullSquareForBellCharacter
     ld      h,MEM_ROM_CHARS_3C00/(8*256)
     add     a,$80
     ld      l,a     ; hl = $780+A (for A=0..127) (for A=128..255 result is undefined)
@@ -72,6 +75,11 @@ GetRomAddressOfChar:
     add     hl,hl
     add     hl,hl   ; hl *= 8
     ret
+.returnFullSquareForBellCharacter:
+    ld      hl,.FakeFullSquare
+    ret
+.FakeFullSquare:
+    db      $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF
 
 ; A = ASCII char to output, output is done by XOR (!) mode, to "OutCurrentAdr" cell
 OutChar:

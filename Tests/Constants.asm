@@ -275,22 +275,22 @@ COPPER_HALT_B                   equ $FF   ; 2x $FF = wait for (511,63) = infinit
 
 ;-----------------------------------------------------------------------------
 ; DMA (Register 6)
-DMA_RESET				equ $c3
-DMA_RESET_PORT_A_TIMING			equ $c7
-DMA_RESET_PORT_B_TIMING			equ $cb
-DMA_LOAD				equ $cf
-DMA_CONTINUE				equ $d3
-DMA_DISABLE_INTERUPTS			equ $af
-DMA_ENABLE_INTERUPTS			equ $ab
-DMA_RESET_DISABLE_INTERUPTS		equ $a3
-DMA_ENABLE_AFTER_RETI			equ $b7
-DMA_READ_STATUS_BYTE			equ $bf
-DMA_REINIT_STATUS_BYTE			equ $8b
-DMA_START_READ_SEQUENCE			equ $a7
-DMA_FORCE_READY				equ $b3
-DMA_DISABLE				equ $83
-DMA_ENABLE				equ $87
-DMA_WRITE_REGISTER_COMMAND		equ $bb
+DMA_RESET					equ $C3
+DMA_RESET_PORT_A_TIMING		equ $C7
+DMA_RESET_PORT_B_TIMING		equ $CB
+DMA_LOAD					equ $CF
+DMA_CONTINUE				equ $D3
+DMA_DISABLE_INTERUPTS		equ $AF
+DMA_ENABLE_INTERUPTS		equ $AB
+DMA_RESET_DISABLE_INTERUPTS	equ $A3
+DMA_ENABLE_AFTER_RETI		equ $B7
+DMA_READ_STATUS_BYTE		equ $BF
+DMA_REINIT_STATUS_BYTE		equ $8B
+DMA_START_READ_SEQUENCE		equ $A7
+DMA_FORCE_READY				equ $B3
+DMA_DISABLE					equ $83
+DMA_ENABLE					equ $87
+DMA_READ_MASK_FOLLOWS		equ $BB
 
 ; About UART<->ESP baund rate from AA:
 ;
