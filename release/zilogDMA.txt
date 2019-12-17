@@ -60,14 +60,15 @@ bottom "short" 4+4 row). The 4+4+2 should finish as single 10B area, having
 the two bright at start, one bright at end, and 7x non-bright green in middle.
 
 ----------------------------------------------------------------------------
+-- UA858D DMA --
 
 The line full of hexadecimal values shows results of reading the DMA port.
 
 On UA858D chip it should read as (second value 3B may be 3A):
-003B000000000000000000001B03D408
+00'3B'00000000'00'00000000'00'1B03D408 (apostrophes are added to group digits)
 
 The meaning of values:
-00SSssccaabb00ssccaabb00ssccaabb
+00'SS'ssccaabb'00'ssccaabb'00'ssccaabb
 
 00 = reading DMA port without valid request (zxnDMA responds with status)
 SS = read-status-byte command response
@@ -86,8 +87,45 @@ addresses AadrS, BadrS (and assume both of "increment" type), the transfer
 will copy N+1 bytes from address AadrS to BadrS, and read of values from
 DMA will produce counter=N, A.adr=AadrS+N+1, B.adr=BadrS+N (not +1).
 
-And according to Zilog DMA docs the LOAD should not affect read sequence.
-(to be confirmed, if somebody with actual Zilog DMA will run this test)
+The timing of flashing blocks is 4T for both of them, setting WR1.D6=0 does
+not reset port timing.
+
+----------------------------------------------------------------------------
+-- Zilog DMA --
+
+And according to Zilog DMA docs the LOAD should not affect read sequence, but
+guess what, Zilog DMA will cancel the read sequence by LOAD command too, the
+actual line on Zilog DMA will read something like:
+32'3B'ABABABAB'AB'EBEBEBEB'EB'DB03D408
+00'SS'ssccaabb'00'ssccaabb'00'ssccaabb
+
+Where the UA responds with zero when read without request, Zilog DMA chip
+will return garbage, looks a bit like status, but the status byte should be:
+xxEMIxRD (E: end-of-block=0, M: match-found=0, I: interrupt-pending=0,
+R: read-line-active=1/inactive=0, D: DMA-operation has-occurred=1/has-not=0)
+
+In this regard the 0xAB and 0xEB reports match-found but block-didn't-end,
+that's both factually wrong! The requested status by start-read-seq. 0xDB
+is then "correct" (end-of-block reported and DMA-operation-occurred).
+
+The timing of flashing blocks is 4T for both of them, setting WR1.D6=0 does
+not reset port timing (although the docs are worded like it may).
+
+----------------------------------------------------------------------------
+-- TBBLue zxnDMA core 3.0.5 --
+
+The FPGA code respects the start-read-sequence command over LOAD, and the
+returned bytes should be like:
+3A'3A'1A00042A'1A'1A00D104'1A'1A00D508
+00'SS'ssccaabb'00'ssccaabb'00'ssccaabb
+
+The non-requested reads are clearly legitimate status byte, the read sequence
+differs from Zilo/UA chip by reporting after transfer counter=0, and address
+of destination port being adjusted by N+1 instead of N only. The status
+reports end-of-block correctly, but "any" DMA-operation is not reported.
+
+The timing of flashing blocks is 4T for both of them, setting WR1.D6=0 does
+not reset port timing.
 
 ----------------------------------------------------------------------------
 
@@ -105,6 +143,13 @@ The final part of test is "DMA" text in top border, timed on "Toastrack"
 ZX128 + UA858D chip in MB-02 disc system and two "flashing" border blocks
 below.
 
+The image of "DMA" is transfered as one large block with 4T timing from memory
+to ULA 254 port. The "fixed 254" address of port B is LOAD-ed while direction
+A->B is set (so the LOAD works on Zilog DMA), then the direction is flipped
+to final B->A and transfer is initiated. Some FPGA implementations seems to
+be sensitive to opposite direction during LOAD, causing the transfer to
+display "noise" instead of "DMA" letters.
+
 The first flashing block has explicit DMA setup using custom variable timing
 for both ports, using value 0x0E (2T cycles + 1/2 early signals /WR/RD), and
 if the transfer is truly 4T per byte, the block should be about 6.5 rows high
@@ -116,6 +161,7 @@ UA858D chip the 2T+2T timing remains even there, D6=0 leads just to shorter
 init sequence.
 
 ----------------------------------------------------------------------------
+-- TBBLue zxnDMA core 3.0.5 --
 
 ZX Spectrum Next has "zxnDMA" DMA implemented in FPGA core, the test contains
 extra setup of ZXN registers to switch zxnDMA into Zilog-compatibility mode
@@ -137,11 +183,12 @@ This behaviour and differences from legacy DMA chips may change in future
 versions of ZXN core, you can use this test to check current status then.
 
 ----------------------------------------------------------------------------
+-- other HW/emulators --
 
 Other HW/emulators status:
 
  - MB-03 current work-in-progress version will ignore CONTINUE type
-   of transfers (no transfer happens)
+   of transfers (no transfer happens) (and is probably sensitive to direction)
  - #CSpect 2.11.10 - autodetect of port fails (reads too many $FF)
    if forced with $6B port, it will do 64kiB transfer upon CONTINUE - crash
  - RealSpec did survive one of the earlier versions of test, but timing
