@@ -11,7 +11,7 @@
 ; From the initial tests it seems zxnDMA is accurate rendition of UA858D DMA chip
 ; (timing, transfer behaviour) except it will trigger transfer also on WR3.enable,
 ; just like Zilog DMA, and the LOAD must be done after correct direction is set.
-; Values read back from zxnDMA are different too.
+; Values read back from zxnDMA are different too, LOAD does not cancel read-sequence.
 ;
 ; Details (UA858D):
 ; * the "continue" command in 4+4+2 transfer will transfer 10B -> 10B
@@ -27,7 +27,16 @@
 ; ! the LOAD command will reset "START_READ_SEQUENCE" state and the reads done after
 ;   LOAD will simply return zero. This is *NOT* in sync with Zilog documentation.
 ;
-; Details Next core 3.0.5, in ZilogDMA compatibility mode:
+; Details (Zilog DMA):
+; * all the "*" points from UA858D work the same way with Zilog DMA chip
+; ! the LOAD command will reset "START_READ_SEQUENCE" state, and reads done after
+;   LOAD will return value which vaguely resembles status byte, but may report
+;   factually wrong state (like "not end of block" right after the finished transfer).
+; ! any unexpected read will return this vaguely "status" byte value.
+; * the "0x0E" custom variable timing will also produce 4T transfer to ULA port (like UA)
+;   (the UA chip was used with "toastrack" ZX128, the Zilog chip was used with "grey +2")
+;
+; Details Next core 3.0.5, zxnDMA in ZilogDMA compatibility mode:
 ; * the "continue" command 4+4+2 will transfer 10B -> 10B
 ; ! any unexpected read of DMA will read status byte, even when it was not requested
 ; * variable timing is preserved (even when WR1/2.D6=0 set later)
@@ -37,8 +46,7 @@
 ; ! the final LOAD must be done with correct transfer direction set, flipping direction
 ;   after LOAD will result in wrong addresses used for source/destination of transfer.
 ; * the "START_READ_SEQUENCE" will be preserved also across LOAD, in sync with Zilog docs.
-;
-; TODO: still in need of genuine Zilog DMA test results to compare for differences
+;   Although the Zilog DMA chip itself doesn't work like documented, zxnDMA is better. :)
 
 ;     DEFINE  BUILD_TAP
 
@@ -530,6 +538,8 @@ BorderPerformanceTest:
     ; restart the test completely
     jp      StartAfterPortChange
 
+;; DMA init + transfer sequences used to reset DMA and to init the flashing border blocks
+
 DmaFullInit:
     BLOCK 6, DMA_RESET      ; 6x DMA_RESET (to get out of any regular state, if 5B data are expected)
     DB  %0'0000'1'01        ; WR0 = A->B transfer (no extra bytes, yet)
@@ -593,6 +603,8 @@ LegendaryText:
     DB  "DMA port: $   Press P to change."
     DB  0
 
+;; DMA sequence to send the border letters "DMA" into top border area
+
 DmaBorderText:
     DB  DMA_DISABLE
     DB  %0'1111'0'01        ; WR0 = B->A transfer, port A address, length
@@ -652,7 +664,7 @@ BorderTextGfx:
     DB  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
     DB  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 BorderTextGfxSz EQU     $ - BorderTextGfx
-    DB  2   ; do red border afterward the block
+    DB  2   ; do red border afterward the block (this byte is part of the big transfer! (+1, remember))
 
     ALIGN   256, $CC            ; align to boundary
     BLOCK   256, ATTR_BAD       ; markers to signal extra/wrong bytes transfer
