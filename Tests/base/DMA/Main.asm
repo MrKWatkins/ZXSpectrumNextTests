@@ -14,6 +14,9 @@
 ;   = on Zilog DMA only source port is loaded if fixed-address is used (you must flip
 ;   the A->B / B->A direction before LOAD and back after, to load the target port
 ;   as source port, that one is loaded even when fixed-address is used)
+; - it's LOAD-ing port addresses only with correct direction of transfer
+;   (current core 3.0.5 is sensitive to this and will malfunction when direction is
+;   flipped after LOAD)
 
     device zxspectrum48
 
@@ -31,11 +34,45 @@ ATTR_DMA_B  EQU     A_BRIGHT|ATTR_DMA       ; bright variant (to mark start/end 
 ATTR_IO     EQU     A_BRIGHT|P_RED|YELLOW
 ATTR_BAD    EQU     P_RED|RED               ; red+red no bright (filler in source area)
 
+    MACRO FILL_DMA_CHAR_DOTS adr?, columns?, rows?
+        ld      hl,adr?
+        ld      bc,((columns?)<<8) | (rows?)
+        ld      d,$40
+        call    FillSomeUlaLines
+    ENDM
+
+ReadAndShowDmaByte:
+    in      a,(c)
+    call    OutHexaValue
+    ; every second value has bright paper (calculate by IX address)
+    ld      a,ixl
+    rrca
+    rrca
+    rrca
+    and     A_BRIGHT
+    or      P_CYAN|BLACK
+    ld      (ix+0),a
+    ld      (ix+1),a
+    inc     ix
+    inc     ix
+    ret
+
 Start:
     NEXTREG_nn  TURBO_CONTROL_NR_07,3       ; 28MHz
     call    StartTest
     ;; screen init
     BORDER  CYAN
+    ; create dots in all DMA squares to make counting easier
+    FILL_DMA_CHAR_DOTS MEM_ZX_SCREEN_4000+$100+$20*1+6, 4, 4
+    FILL_DMA_CHAR_DOTS MEM_ZX_SCREEN_4000+$100+$20*1+18, 4, 4
+    FILL_DMA_CHAR_DOTS MEM_ZX_SCREEN_4000+$100+$20*1+30, 1, 4
+    FILL_DMA_CHAR_DOTS MEM_ZX_SCREEN_4000+$900+$20*1+6, 4, 4
+    FILL_DMA_CHAR_DOTS MEM_ZX_SCREEN_4000+$900+$20*1+18, 4, 4
+    FILL_DMA_CHAR_DOTS MEM_ZX_SCREEN_4000+$900+$20*1+30, 1, 4
+    FILL_DMA_CHAR_DOTS MEM_ZX_SCREEN_4000+$100+$20*6+13, 4+4+1, 1
+    FILL_DMA_CHAR_DOTS MEM_ZX_SCREEN_4000+$900+$20*6+13, 4, 1
+    FILL_DMA_CHAR_DOTS MEM_ZX_SCREEN_4000+$900+$20*6+18, 4, 1
+    ; display all text in the layout
     ld      de,MEM_ZX_SCREEN_4000+$1000+$20*7+2
     ld      bc,MEM_ZX_SCREEN_4000+$1000+$20*7+16
     call    OutMachineIdAndCore_defLabels
@@ -75,7 +112,6 @@ line = line + 4
     NEXTREG2A   PERIPHERAL_2_NR_06
     and     ~%0100'0000         ; clear DMA mode (set it as zxnDMA)
     or      %1010'1000          ; enable F8, F3 and NMI buttons
-;     or      %0100'0000          ; set Zilog DMA ; DEBUG
     NEXTREG_A   PERIPHERAL_2_NR_06
 
     ; init NextReg selector to value which will be used for I/O port tests
@@ -88,16 +124,35 @@ line = line + 4
     ld      bc,(DmaFullInitSz<<8)|ZXN_DMA_P_6B
     otir
 
+    ; do the read of DMA port while nothing was requested yet
+    ld      hl,MEM_ZX_SCREEN_4000+$20*7+0
+    ld      (OutCurrentAdr),hl
+    ld      ix,MEM_ZX_ATTRIB_5800+$20*7+0
+    call    ReadAndShowDmaByte
+    ; request status of DMA after full init
+    ld      a,DMA_READ_STATUS_BYTE
+    out     (c),a
+    call    ReadAndShowDmaByte
+    ; set read-status bytes to only status + LSB bytes
+    ld      hl,(DMA_READ_MASK_FOLLOWS<<8) | %0'01'01'01'1   ; status + lsb counter + lsb adrA + lsb adrB
+    out     (c),h
+    out     (c),l
+    ; start the read sequence already, try to read status (should be ignored b/c sequence)
+    ld      hl,(DMA_START_READ_SEQUENCE<<8) | DMA_READ_STATUS_BYTE
+    out     (c),h
+    out     (c),l
+    ; the sequence will be read and shown after first transfer
+
     ;; do the basic tests (full inits), A -> B direction
     ; outer loop init values
 AtoB_WR0    EQU     %0'1111'1'01
     DEFARRAY SRC_ADR        DmaSrcData4B, DmaSrcData4B+3, DmaSrcData1B, TBBLUE_REGISTER_SELECT_P_243B
     DEFARRAY DST_ADR_BASE   MEM_ZX_ATTRIB_5800+$20*1, MEM_ZX_ATTRIB_5800+$20*2, MEM_ZX_ATTRIB_5800+$20*3, MEM_ZX_ATTRIB_5800+$20*4
     DEFARRAY DATA_SZ        4, 4, 4, 4
-    DEFARRAY SRC_MODE       %0'0'01'0'100, %0'0'00'0'100, %0'0'10'0'100, %0'0'10'1'100 ; m+, m-, m0, IO(+0) (port A)
+    DEFARRAY SRC_MODE       %0'1'01'0'100, %0'1'00'0'100, %0'1'10'0'100, %0'1'10'1'100 ; m+, m-, m0, IO(+0) (port A)
     ; inner loop init values
     DEFARRAY DST_ADR_OFS    6, 18+3, 30
-    DEFARRAY DST_MODE       %0'0'01'0'000, %0'0'00'0'000, %0'0'10'0'000 ; m+, m-, m0 (port B)
+    DEFARRAY DST_MODE       %0'1'01'0'000, %0'1'00'0'000, %0'1'10'0'000 ; m+, m-, m0 (port B)
     ; setup all A -> B 4x3 tests
 outer_loop_i = 0
     REPT    4
@@ -113,12 +168,14 @@ inner_loop_i = 0
             out     (c),h
             out     (c),e           ; block length (real length, because zxnDMA mode)
             out     (c),d
-            ; WR1 = port A mode
-            ld      a,SRC_MODE[outer_loop_i]
-            out     (c),a
-            ; WR2 = port B mode
-            ld      a,DST_MODE[inner_loop_i]
-            out     (c),a
+            ; WR1 = port A mode + timing 2
+            ld      de,SRC_MODE[outer_loop_i] | $0200
+            out     (c),e
+            out     (c),d
+            ; WR2 = port B mode + timing 2
+            ld      de,DST_MODE[inner_loop_i] | $0200
+            out     (c),e
+            out     (c),d
             ; WR4 = continuous mode, start address port B
             ld      a,%1'01'0'11'01
             ld      hl,DST_ADR_BASE[outer_loop_i] + DST_ADR_OFS[inner_loop_i]
@@ -132,6 +189,15 @@ inner_loop_i = 0
             ld      a,DMA_DISABLE   ; after block transfer, disable DMA from "inactive" state
             out     (c),a
             nop
+            IF 0 == inner_loop_i && 0 == outer_loop_i
+                ; after very first test, show the read-sequence values + one more
+                ld      b,5
+                call    ReadAndShowDmaByte
+                djnz    $-3
+                ; and make new read sequence pending
+                ld      a,DMA_START_READ_SEQUENCE
+                out     (c),a
+            ENDIF
 inner_loop_i = inner_loop_i + 1
         ENDR
 outer_loop_i = outer_loop_i + 1
@@ -230,6 +296,8 @@ outer_loop_i = outer_loop_i + 1
     ld      a,DMA_DISABLE   ; after block transfer, disable DMA from "inactive" state
     out     (c),a
 
+    ;; short init 4+4+1 block using CONTINUE command
+
     ; set MSB DST_ADR $58CD, MSB SRC_ADR DmaSrcData9B (has same LSB as DmaSrcData4B), load + enable
     nop : ; DW $01DD    ; break
     ; WR0 = B->A transfer, MSB start addres port A
@@ -245,6 +313,13 @@ outer_loop_i = outer_loop_i + 1
     ld      a,DMA_ENABLE    ; start the transfer
     out     (c),a
     ld      a,DMA_DISABLE   ; after block transfer, disable DMA from "inactive" state
+    out     (c),a
+    ; show the read-sequence values + one more after first transfer
+    ld      b,5
+    call    ReadAndShowDmaByte
+    djnz    $-3
+    ; and make new read sequence pending
+    ld      a,DMA_START_READ_SEQUENCE
     out     (c),a
 
 ;    jr      .CSpectDiesSkip
@@ -271,6 +346,10 @@ outer_loop_i = outer_loop_i + 1
     out     (c),a
     ld      a,DMA_DISABLE   ; after block transfer, disable DMA from "inactive" state
     out     (c),a
+    ; show the read-sequence values after first "continue" transfer
+    ld      b,4
+    call    ReadAndShowDmaByte
+    djnz    $-3
 
     ; set LSB length (does set also port A+B addresses to "error sport"), continue w/o load
     nop : ; DW $01DD    ; break
@@ -437,3 +516,25 @@ Im2Handler:
     ret
 
     savesna "!dma.sna", Start
+
+/*
+Allen info about prescalar:
+
+case turbo_i is
+	when "00"   => DMA_timer_s <= DMA_timer_s + "00000000001000";
+	when "01"   => DMA_timer_s <= DMA_timer_s + "00000000000100";
+	when "10"   => DMA_timer_s <= DMA_timer_s + "00000000000010";
+	when others => DMA_timer_s <= DMA_timer_s + "00000000000001";
+end case;
+
+The top 9 bits are what are compared with the prescalar value to know when the time has expired.
+
+This timer is zeroed when the dma read cycle starts and a check is made if the prescalar time has been satisfied at the end of the write cycle:
+
+if (R2_portB_preescaler_s > 0) and (('0' & R2_portB_preescaler_s) > DMA_timer_s(13 downto 5)) then
+
+If not satisfied, the dma waits for the time to be satisfied.  If the burst mode is active, the dma gives up the bus as well.
+Once satisfied, if continuous mode, the dma can go back to the dma read cycle for the first byte.
+But if the bus was given up, it must go to an earlier stage that re-acquires the bus.
+This wait occurs before a check is made to see if the transfer is complete.
+*/

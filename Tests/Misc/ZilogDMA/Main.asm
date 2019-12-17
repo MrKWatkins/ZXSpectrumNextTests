@@ -173,7 +173,7 @@ line = line + 4
     ;; do the full init of DMA chip and helper settings in NextRegs and I/O ports
     BORDER  YELLOW
 
-    ; switch DMA to zxnDMA mode (and enable all keys: turbo, 50/60Hz, NMI)
+    ; switch DMA to Zilog mode (and enable all keys: turbo, 50/60Hz, NMI)
     ; use only regular Z80 instructions, so it can survive even on ZX48/ZX128
     ld      bc,TBBLUE_REGISTER_SELECT_P_243B
     ld      a,PERIPHERAL_2_NR_06
