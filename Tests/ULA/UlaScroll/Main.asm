@@ -18,14 +18,22 @@ LegendTxts:
     DB      'NextRegs:',0
     DB      '$26, $27',0
     DB      ' ',0
-    DB      'After green',0
-    DB      'border: OPQA',0
+    DB      ' ',0
+    DB      ' Green',0
+    DB      'border:',0
+    DB      ' OPQA R',0
+    DB      ' ',0
+    DB      ' ',0
+    DB      'ULA clip:',0
+    DB      '[8,8] ->',0
+    DB      '[239,175]',0
     DB      0
 
 Start:
     call    StartTest
     ; show red border while drawing and preparing...
     BORDER  RED
+    NEXTREG_nn TRANSPARENCY_FALLBACK_COL_NR_4A,%101'000'00  ; red border extension
     ;NEXTREG_nn DISPLAY_CONTROL_NR_69,$06   ; Timex 512x192
     ; reset ULA scroll registers
     NEXTREG_nn ULA_XOFFSET_NR_26, 0
@@ -38,14 +46,20 @@ Start:
     NEXTREG_nn LAYER2_YOFFSET_NR_17, 0
     ; Set layers to: SLU, no sprites, no LoRes
     NEXTREG_nn SPRITE_CONTROL_NR_15, %00000000
+    ; set ULA clipping window to [8,8] -> [239,175]
+    NEXTREG_nn CLIP_WINDOW_CONTROL_NR_1C,$0F    ; reset clip indices
+    NEXTREG_nn CLIP_ULA_LORES_NR_1A,8
+    NEXTREG_nn CLIP_ULA_LORES_NR_1A,239
+    NEXTREG_nn CLIP_ULA_LORES_NR_1A,8
+    NEXTREG_nn CLIP_ULA_LORES_NR_1A,175
     ; ULA will be used classic one, original colours and attributes
     ; draw ULA screen0
-    ld      de,MEM_ZX_SCREEN_4000+$1000+$20*5+17
-    ld      bc,MEM_ZX_SCREEN_4000+$1000+$20*6+17
+    ld      de,MEM_ZX_SCREEN_4000+$1000+$20*3+15
+    ld      bc,MEM_ZX_SCREEN_4000+$1000+$20*4+15
     call    OutMachineIdAndCore_defLabels
     call    Draw16x16GridWithHexaLabels
     ld      hl,LegendTxts
-    ld      de,MEM_ZX_SCREEN_4000+$20*0+19
+    ld      de,MEM_ZX_SCREEN_4000+$20*1+19
 .OutputFullLegend:
     ex      de,hl
     call    AdvanceVramHlToNextLine
@@ -56,7 +70,11 @@ Start:
     xor     a
     or      (hl)
     jr      nz,.OutputFullLegend
-    ld      hl,MEM_ZX_SCREEN_4000+31
+    ; OPQA highlight
+    FILL_AREA   MEM_ZX_ATTRIB_5800+$20*7+19, 7, P_GREEN|BLACK
+    FILL_AREA   MEM_ZX_ATTRIB_5800+$20*8+19, 7, P_GREEN|BLACK
+    FILL_AREA   MEM_ZX_ATTRIB_5800+$20*9+19, 7, A_BRIGHT|P_CYAN|BLACK
+    ld      hl,MEM_ZX_SCREEN_4000+29
     ld      a,$01
     ld      de,32
     ld      b,192
@@ -64,20 +82,43 @@ Start:
     ld      (hl),a
     add     hl,de
     djnz    .DrawRightEdge
-    FILL_AREA   MEM_ZX_ATTRIB_5800-32, 32, $FF  ; bottom edge line
-    FILL_AREA   MEM_ZX_ATTRIB_5800, 32, A_BRIGHT|P_YELLOW|BLACK ; top edge with attr
+    FILL_AREA   MEM_ZX_ATTRIB_5800-32*3, 32, $FF  ; bottom edge line
+    ld      de,$0F08
+    ld      hl,MEM_ZX_SCREEN_4000+30
+.DrawRighHiddenStripes:
+    ld      bc,$0216
+    push    hl
+    call    FillSomeUlaLines
+    pop     hl
+    inc     h
+    rlc     d
+    dec     e
+    jr      nz,.DrawRighHiddenStripes
+    ld      de,$0F08
+    ld      hl,MEM_ZX_SCREEN_4000+$1000+$20*6
+.DrawBottomHiddenStripes:
+    ld      bc,$2002
+    push    hl
+    call    FillSomeUlaLines
+    pop     hl
+    inc     h
+    rlc     d
+    dec     e
+    jr      nz,.DrawBottomHiddenStripes
+    FILL_AREA   MEM_ZX_ATTRIB_5800, 30, A_BRIGHT|P_YELLOW|BLACK ; top edge with attr
     ld      hl,MEM_ZX_ATTRIB_5800
     ld      a,A_BRIGHT|P_YELLOW|BLACK
     ld      de,32
-    ld      b,24
+    ld      b,22
 .DrawLeftAttrEdge:
     ld      (hl),a
     add     hl,de
     djnz    .DrawLeftAttrEdge
     ; blue border to signal next phase of test
     BORDER  BLUE
+    NEXTREG_nn TRANSPARENCY_FALLBACK_COL_NR_4A,%000'000'10  ; blue border extension
     ; setup empty interrupt handler
-    ld      a,high Im2Table
+    ld      a,IVT2
     ld      i,a
     im      2
     ei
@@ -114,6 +155,7 @@ Start:
     jr      nz,.ScrollLoop
     ; signal end of test, read keyboard OPQA to modify scroll
     BORDER  GREEN
+    NEXTREG_nn TRANSPARENCY_FALLBACK_COL_NR_4A,%000'101'00  ; green border extension
 .InteractiveLoop:
     ; set croll registers
     ld      a,ixh
@@ -134,6 +176,7 @@ Start:
 .notO:
     ld      a,%1111'1011    ; Q (bit 0) row
     in      a,(ULA_P_FE)
+    push    af
     rra
     jr      c,.notQ
     xor     a
@@ -154,16 +197,22 @@ Start:
 .YofsOk2:
     inc     iyh
 .notA:
+    pop     af              ; R is in the same row as Q (already read)
+    and     %000'01000
+    jr      nz,.notR
+    ld      ixh,0           ; reset scroll coordinates
+    ld      iyh,0
+.notR:
     jr      .InteractiveLoop
     
     call EndTest
 
-    ASSERT $ < $C400
-    ORG $C400
-Im2Table:
-    BLOCK   257,$C5
-    ORG $C5C5
-Im2Handler:
+    ALIGN   256
+IVT2        equ     high $
+Im2Handler  equ     ((IVT2+1)<<8) + IVT2+1
+    BLOCK   257,IVT2+1
+
+    ORG Im2Handler
     ei
     ret
 
