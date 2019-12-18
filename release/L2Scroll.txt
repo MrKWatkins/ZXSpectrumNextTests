@@ -16,3 +16,6 @@ The point is, those lines connect correctly thanks to the X/Y scroll set to [196
 Without X/Y HW scroll implemented the Layer2 lines are all over place.
 
 update: there is now animation going from [0,0] to final [196,133] in 128 steps (~2.5s).
+
+update2: the clip windows (ULA+L2) are set to [8,8] -> [239,175]
+There are stripes in Layer2 which should be fully clipped when scroll is at [196,133]
