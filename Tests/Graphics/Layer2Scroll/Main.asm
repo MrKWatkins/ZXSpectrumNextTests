@@ -16,8 +16,8 @@ YOFS        equ     133             ; intentionally over 128 to finish in 3rd th
 Start:
     call    StartTest
     ; show red border while drawing and preparing...
-    ld      a,RED
-    out     (ULA_P_FE),a
+    BORDER  RED
+    NEXTREG_nn TRANSPARENCY_FALLBACK_COL_NR_4A,%101'000'00  ; red border extension
     ; reset LoRes scroll registers (does affect ULA screen since core 2.00.25+)
     NEXTREG_nn LORES_XOFFSET_NR_32, 0
     NEXTREG_nn LORES_YOFFSET_NR_33, 0
@@ -40,10 +40,24 @@ Start:
     ; palette[L2][0][3] = $0001     ; blue-ish black
     NEXTREG_nn PALETTE_VALUE_9BIT_NR_44, $00
     NEXTREG_nn PALETTE_VALUE_9BIT_NR_44, $01
+    NEXTREG_nn PALETTE_VALUE_NR_41, %101'000'00 ; [L2][0][4] = red
+    NEXTREG_nn PALETTE_VALUE_NR_41, %101'101'00 ; [L2][0][5] = yellow
+    NEXTREG_nn PALETTE_VALUE_NR_41, %101'000'01 ; [L2][0][6] = blueish red
+    NEXTREG_nn PALETTE_VALUE_NR_41, %101'101'01 ; [L2][0][7] = blueish yellow
     ; setup global transparency features
     NEXTREG_nn GLOBAL_TRANSPARENCY_NR_14, $FC       ; global transparency colour
     ; setup Layer2 bank to 9 (like NextZXOS does)
     NEXTREG_nn LAYER2_RAM_BANK_NR_12, 9
+    ; set Layer2 and ULA clipping window to [8,8] -> [239,175]
+    NEXTREG_nn CLIP_WINDOW_CONTROL_NR_1C,$0F    ; reset clip indices
+    NEXTREG_nn CLIP_LAYER2_NR_18,8
+    NEXTREG_nn CLIP_LAYER2_NR_18,239
+    NEXTREG_nn CLIP_LAYER2_NR_18,8
+    NEXTREG_nn CLIP_LAYER2_NR_18,175
+    NEXTREG_nn CLIP_ULA_LORES_NR_1A,8
+    NEXTREG_nn CLIP_ULA_LORES_NR_1A,239
+    NEXTREG_nn CLIP_ULA_LORES_NR_1A,8
+    NEXTREG_nn CLIP_ULA_LORES_NR_1A,175
     ; draw ULA screen0
     FILL_AREA   MEM_ZX_ATTRIB_5800, 32*24, P_WHITE|BLUE ; change attributes
     call    DrawUlaPart             ; draw lines
@@ -67,8 +81,18 @@ Start:
     NEXTREG_nn MMU2_4000_NR_52, $0A
     NEXTREG_nn MMU3_6000_NR_53, $0B
     ; blue border to signal next phase of test
-    ld      a,BLUE
-    out     (ULA_P_FE),a
+    BORDER  BLUE
+    NEXTREG_nn TRANSPARENCY_FALLBACK_COL_NR_4A,%000'000'10  ; blue border extension
+    ; setup empty interrupt handler
+    ld      a,IVT2
+    ld      i,a
+    im      2
+    ei
+    ; wait a short while before scroll starts
+    ld      b,25
+.WaitBefore:
+    halt
+    djnz    .WaitBefore
     ; and finally set the Layer2 scroll registers ; do it in "animated" way
     ld      ix,0
     ld      iy,0
@@ -76,7 +100,6 @@ Start:
     ld      de,YOFS*2       ; will be [XOFS,YOFS] in top 8 bits of [ix, iy]
     ld      b,128
 .ScrollLoop:
-    ei
     halt
     ; advance the 8.8 coordinates in [ix,iy]
     add     iy,de
@@ -90,9 +113,87 @@ Start:
     NEXTREG_A LAYER2_YOFFSET_NR_17
     djnz    .ScrollLoop
     ; and finish test
+
+    ; signal end of test, read keyboard OPQA to modify scroll
+    BORDER  GREEN
+    NEXTREG_nn TRANSPARENCY_FALLBACK_COL_NR_4A,%000'101'00  ; green border extension
+InteractiveLoop:
+    ; set croll registers
+    ld      a,ixh
+    NEXTREG_A LAYER2_XOFFSET_NR_16
+    ld      a,iyh
+    NEXTREG_A LAYER2_YOFFSET_NR_17
+    halt
+    ; read keys, adjust regs
+    ld      a,%1101'1111    ; O (bit 1) and P (bit 0) row
+    in      a,(ULA_P_FE)
+    rra
+    jr      c,.notP
+    inc     ixh
+.notP:
+    rra
+    jr      c,.notO
+    dec     ixh
+.notO:
+    ld      a,%1111'1011    ; Q (bit 0) row
+    in      a,(ULA_P_FE)
+    push    af
+    rra
+    jr      c,.notQ
+    xor     a
+    cp      iyh
+    jr      nz,.YofsOk1
+    ld      iyh,192
+.YofsOk1:
+    dec     iyh
+.notQ:
+    ld      a,%1111'1101    ; A (bit 0) row
+    in      a,(ULA_P_FE)
+    rra
+    jr      c,.notA
+    ld      a,191
+    cp      iyh
+    jr      nz,.YofsOk2
+    ld      iyh,-1
+.YofsOk2:
+    inc     iyh
+.notA:
+    pop     af              ; R is in the same row as Q (already read)
+    and     %000'01000
+    jr      nz,.notR
+    ld      ixh,196         ; reset scroll coordinates to [196,133]
+    ld      iyh,133
+.notR:
+    jr      InteractiveLoop
     call EndTest
 
+LegendTxts:
+    DB      ' Green',0
+    DB      'border:',0
+    DB      ' OPQA R',0
+    DB      0
+
 DrawUlaPart:
+    ld      de,MEM_ZX_SCREEN_4000+$1000+$20*3+15
+    ld      bc,MEM_ZX_SCREEN_4000+$1000+$20*4+15
+    call    OutMachineIdAndCore_defLabels
+    ld      hl,LegendTxts
+    ld      de,MEM_ZX_SCREEN_4000+$20*1+19
+.OutputFullLegend:
+    ex      de,hl
+    call    AdvanceVramHlToNextLine
+    ex      de,hl
+    push    de
+    call    OutStringAtDe
+    pop     de
+    xor     a
+    or      (hl)
+    jr      nz,.OutputFullLegend
+    ; OPQA highlight
+    FILL_AREA   MEM_ZX_ATTRIB_5800+$20*2+19, 7, P_GREEN|BLACK
+    FILL_AREA   MEM_ZX_ATTRIB_5800+$20*3+19, 7, P_GREEN|BLACK
+    FILL_AREA   MEM_ZX_ATTRIB_5800+$20*4+19, 7, A_BRIGHT|P_CYAN|BLACK
+
     ; draw vertical lines
     ld      hl,MEM_ZX_SCREEN_4000 + 5*32 + 5        ; [5, 5] char pos
     ld      de,$8008        ; D = $80 (pixel to draw), E = 8 counter
@@ -175,6 +276,62 @@ DrawLayer2Part:
     ld      l,$FF&(38+176+XOFS)     ; start 2px over ULA line (overdraw)
     ld      ix,$0801        ; +8 down, +1 right between lines
     call    DoLinesLoop
+    ;; draw the part under clipped window
+    ld      hl,ClipPatternTopLeft
+    ld      de,+(133<<8)
+    call    DrawL2StripesFullLine
+    ld      hl,ClipPatternBottomRight
+    ld      de,+(133-8<<8)
+    call    DrawL2StripesFullLine
+    ld      hl,ClipPatternBottomRight
+    ld      de,+(133-16<<8)
+    call    DrawL2StripesFullLine
+    ld      h,133
+    ld      d,133+8
+    ld      b,51
+    call    DrawL2StripesSideEdge
+    ld      h,133-16+3
+    ld      d,0
+    ld      b,8
+    call    DrawL2StripesSideEdge
+    ld      h,0
+    ld      d,8
+    ld      b,133-24
+    call    DrawL2StripesSideEdge
+    ret
+
+ClipPatternTopLeft:
+    DB      4, 4, 4, 4, 5, 5, 5, 5, 4, 4, 4, 4, 5, 5, 5, 5
+ClipPatternBottomRight:
+    DB      6, 6, 6, 6, 7, 7, 7, 7, 6, 6, 6, 6, 7, 7, 7, 7
+
+DrawL2StripesSideEdge:
+    push    bc
+    ld      l,196-16
+    ld      e,196-16
+    ld      bc,24
+    ldir
+    inc     h
+    inc     d
+    pop     bc
+    djnz    DrawL2StripesSideEdge
+    ret
+
+DrawL2StripesFullLine:
+    ld      b,8
+.DrawHorizontalStripesTop:
+    push    hl
+    push    bc
+    push    de
+    ld      bc,8
+    ldir
+    pop     hl
+    ld      c,256-8
+    ldir
+    pop     bc
+    pop     hl
+    inc     hl
+    djnz    .DrawHorizontalStripesTop
     ret
 
 ; HL = starting coordinates, DE = line vector, B = pixels to draw, C = colour
@@ -222,6 +379,15 @@ DrawL2Line:
     ld      h,a
     ; draw all pixels
     djnz    DrawL2Line
+    ret
+
+    ALIGN   256
+IVT2        equ     high $
+Im2Handler  equ     ((IVT2+1)<<8) + IVT2+1
+    BLOCK   257,IVT2+1
+
+    ORG Im2Handler
+    ei
     ret
 
     savesna "L2Scroll.sna", Start
