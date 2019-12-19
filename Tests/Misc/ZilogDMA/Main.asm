@@ -77,7 +77,9 @@ ATTR_BAD    EQU     P_RED|RED               ; red+red no bright (filler in sourc
 
 ReadAndShowDmaByte:
     in      a,(c)
+.valueInA:
     call    OutHexaValue
+.updateAttribute:
     ; every second value has bright paper (calculate by IX address)
     ld      a,ixl
     rrca
@@ -525,6 +527,9 @@ BorderPerformanceTest:
     ld      b,16
     djnz    $
     BORDER  BLUE
+
+    call    FigureOutRealStateOfDmaChip
+
     ; check for press of "P" to restart the whole test with the other port
     ld      a,%11011111
     in      a,(ULA_P_FE)
@@ -537,6 +542,43 @@ BorderPerformanceTest:
     ld      (DmaPortData),a
     ; restart the test completely
     jp      StartAfterPortChange
+
+FigureOutRealStateOfDmaChip:
+    ; allow "ret z" (needs "xor a") to have 17+4+11 = 32T (after the routine is disabled)
+    xor     a
+    ld      a,0xC8                              ; "ret z" after "xor a"
+    ld      (FigureOutRealStateOfDmaChip+1),a   ; disable routine for second call
+    ; read anything from port (nothing requested) (start new line at +6 to previous reads)
+    ld      hl,MEM_ZX_SCREEN_4000+$800+$20*5+0
+    ld      (OutCurrentAdr),hl
+    ld      ix,MEM_ZX_ATTRIB_5800+$20*13+0
+    call    ReadAndShowDmaByte
+    ; read full 7 bytes after init sequence (7 may be valid if read mask is reset) (8B total)
+    ld      a,DMA_START_READ_SEQUENCE
+    out     (c),a
+    ld      b,4
+    call    ReadAndShowDmaByte
+    djnz    $-3
+    ld      a,' '
+    call    OutChar
+    call    OutChar
+    call    ReadAndShowDmaByte.updateAttribute
+    call    ReadAndShowDmaByte      ; read one unexpected byte extra
+    ld      a,' '
+    call    OutChar
+    call    OutChar
+    call    ReadAndShowDmaByte.updateAttribute
+    ld      hl,DMA_READ_MASK_FOLLOWS | $7F00
+    out     (c),l
+    out     (c),h
+    ld      a,DMA_START_READ_SEQUENCE
+    out     (c),a
+    ld      b,7
+    call    ReadAndShowDmaByte
+    djnz    $-3
+    ; adjust total T-states
+    xor     (hl)
+    ret
 
 ;; DMA init + transfer sequences used to reset DMA and to init the flashing border blocks
 
@@ -554,7 +596,7 @@ DmaBorderTimingPerformance_2T:
     DB  DMA_DISABLE
     DB  %0'1111'0'01        ; WR0 = B->A transfer, port A address, length
     DW  DmaSrcData1B        ; source data address
-    DW  2918                ; block length (cca. 14590T => 64 scanlines if 228T per line)
+    DW  2917                ; block length (2918*5 = 14590T => 64 scanlines if 228T per line)
     DB  %0'1'10'0'100, 0x0E ; WR1 = A memory, +0, timing 2T
     DB  %0'1'10'1'000, 0x0E ; WR2 = B I/O, +0, timing 2T
     DB  %1'01'0'11'01       ; WR4 = continuous mode, port B address

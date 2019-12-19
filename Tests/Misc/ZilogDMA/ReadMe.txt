@@ -62,7 +62,7 @@ the two bright at start, one bright at end, and 7x non-bright green in middle.
 ----------------------------------------------------------------------------
 -- UA858D DMA --
 
-The line full of hexadecimal values shows results of reading the DMA port.
+The first line of hexadecimal values shows results of reading the DMA port.
 
 On UA858D chip it should read as (second value 3B may be 3A):
 00'3B'00000000'00'00000000'00'1B03D408 (apostrophes are added to group digits)
@@ -90,6 +90,11 @@ DMA will produce counter=N, A.adr=AadrS+N+1, B.adr=BadrS+N (not +1).
 The timing of flashing blocks is 4T for both of them, setting WR1.D6=0 does
 not reset port timing.
 
+Second line of hexadecimal values is a read of DMA chip done after the 2nd
+flashing block in border transfer is finished. The values are:
+00'1B'65'00'FE 00 1B'650B'009B'FE00  (apostrophes are added to group digits)
+00'ss'cc'aa'bb 00 ss'cccc'aaaa'bbbb  read mask is set to $7F for second group
+
 ----------------------------------------------------------------------------
 -- Zilog DMA --
 
@@ -110,6 +115,14 @@ is then "correct" (end-of-block reported and DMA-operation-occurred).
 
 The timing of flashing blocks is 4T for both of them, setting WR1.D6=0 does
 not reset port timing (although the docs are worded like it may).
+
+The second line of hexadecimal values is:
+FD'DF'65'00'FE FD DF'650B'009B'FE00  (apostrophes are added to group digits)
+
+The last PortB.address seems to be unstable, reading in some experiments as
+$FFFF, but sometimes it reads correctly (between experiments the exact DMA
+code did change, so it's difficult to be sure if the reading is randomly
+unstable or only certain sequence of commands makes the read wrong).
 
 ----------------------------------------------------------------------------
 -- TBBLue zxnDMA core 3.0.5 --
