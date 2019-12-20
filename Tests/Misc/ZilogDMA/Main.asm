@@ -96,18 +96,37 @@ ReadAndShowDmaByte:
 AutoDetectDmaPort:
     ld      a,(DmaPortData)
     ld      c,a
-    ld      b,250
-    ld      l,0
-.listenToPort:
-    in      a,(c)
-    inc     a
-    jr      nz,.notFF
-    inc     l
-.notFF:
-    djnz    .listenToPort
-    ld      a,l
-    cp      20      ; less than 20 $FF values read => port alive => CF=1
-    ret
+    ld      hl,AutoDetectDmaData
+    ld      b,AutoDetectDmaDataSz
+    otir
+    ld      b,AutoDetectDmaInSz
+    inir
+    ld      hl,AutoDetectDmaInAadrLSB
+    ld      a,(hl)
+    inc     hl
+    sub     $FF
+    ret     nc      ; $FF => not a DMA port, return with CF=0
+    add     a,(hl)
+    cp      $34-$FF+$12
+    scf
+    ret     z       ; CF=1 - port detected
+    xor     a
+    ret             ; CF=0 not a DMA port
+AutoDetectDmaData:
+    BLOCK 6, DMA_RESET      ; 6x DMA_RESET (to get out of any regular state, if 5B data are expected)
+    DB      DMA_READ_MASK_FOLLOWS, $7F
+    DB      %0'0011'0'01    ; WR0 = B->A transfer, PortA address
+    DW      $1234           ; set
+    DB      %0'0'10'0'100   ; WR1 = A memory, fixed
+    DB      DMA_LOAD
+    DB      DMA_START_READ_SEQUENCE
+AutoDetectDmaDataSz     EQU     $ - AutoDetectDmaData
+AutoDetectDmaIn:            ; buffer to read current state
+    DB      0               ; status byte
+    DW      0               ; counter
+AutoDetectDmaInAadrLSB:
+    DW      0, 0            ; portA address, Port B address
+AutoDetectDmaInSz       EQU     $ - AutoDetectDmaIn
 
 Start:
     ; auto-detect DMA port heuristic
