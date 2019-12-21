@@ -147,8 +147,8 @@ to destination port by flipping directions, and not doing WR3=$C0 (unfortunate
 mistake of many MB-02/UA858D examples, gets ignored on UA, but triggers the
 transfer prematurely on Zilog chip).
 
-The DMA port will be guessed ($0B or $6B) at beginning of test, you can press
-"P" on keyboard to switch between the two manually.
+The test will auto-detect TBBlue board and switch default DMA port from $0B
+to $6B, but you can change it manually by pressing the "P".
 
 ----------------------------------------------------------------------------
 
@@ -159,9 +159,27 @@ below.
 The image of "DMA" is transfered as one large block with 4T timing from memory
 to ULA 254 port. The "fixed 254" address of port B is LOAD-ed while direction
 A->B is set (so the LOAD works on Zilog DMA), then the direction is flipped
-to final B->A and transfer is initiated. Some FPGA implementations seems to
-be sensitive to opposite direction during LOAD, causing the transfer to
-display "noise" instead of "DMA" letters.
+to final B->A and transfer is initiated (without second LOAD!).
+
+The real HW seems at first sight to work correctly even with this minimal
+sequence, but after some time LMN128 (thanks) did notice the output is subtly
+different from HW emulated DMA on MB-03. After few tests we revealed that
+the change of transfer direction on HW ZilogDMA (and also UA858D) will damage
+the transfer. It will still do "length+1" bytes, and from memory to port 254,
+but very first byte written to port 254 is "some" value from internals of DMA
+chip (maybe $FF on Zilog or something producing "white" border), and the last
+byte from memory is not transferred (lost).
+
+In the test this will demonstrate by "white" first part of DMA text which is
+not part of the "graphics" data, and the transfer will end with "yellow" 6
+instead of "red" 2. On simple emulations of DMA chip doing "correct" transfer
+the whole graphics is shifted to left by one char and the last value sent to
+ULA port will be "red" 2, so the cca. two scanlines below the "graphics" part
+will be yellow/red depending whether the damaged-transfer quirk is emulated.
+
+Some FPGA implementations seems to be sensitive to opposite direction during
+LOAD even more, causing the transfer to display "noise" instead of "DMA"
+letters.
 
 The first flashing block has explicit DMA setup using custom variable timing
 for both ports, using value 0x0E (2T cycles + 1/2 early signals /WR/RD), and
@@ -170,7 +188,7 @@ if the transfer is truly 4T per byte, the block should be about 6.5 rows high
 
 The second block does set WR1/2 registers with D6=0, which I did expect to
 reset port timing due to wording of Zilog docs, but from the test with real
-UA858D chip the 2T+2T timing remains even there, D6=0 leads just to shorter
+HW chips the 2T+2T timing remains even there, D6=0 leads just to shorter
 init sequence.
 
 ----------------------------------------------------------------------------
@@ -200,11 +218,14 @@ versions of ZXN core, you can use this test to check current status then.
 
 Other HW/emulators status:
 
- - MB-03 current work-in-progress version will ignore CONTINUE type
-   of transfers (no transfer happens) (and is probably sensitive to direction)
- - #CSpect 2.11.10 - autodetect of port fails (reads too many $FF)
-   if forced with $6B port, it will do 64kiB transfer upon CONTINUE - crash
+ - MB-03 is under active development to produce reasonable results with this
+   test (already working ok, with "correct" transfer of "DMA" including red).
+ - #CSpect 2.11.10 - will crash due to wrong "DMA_CONTINUE" emulation.
  - RealSpec did survive one of the earlier versions of test, but timing
    of blocks is always 3T+3T (didn't try with latest version of test)
  - Fuse does produce mostly incorrect results for almost all transfer variants
  - ZEsarUX 8.1 beta2 in TBBlue mode has only zxnDMA-like implementation
+ - my fork of ZEsarUX "ZESERUse" does emulate now both zxnDMA and Zilog mode,
+   even more correctly than the board, which is sort of wrong, so overall it's
+   work in progress, talking also with Allen A. about future core changes,
+   then I will probably limit emulation to what TBBlue does.
