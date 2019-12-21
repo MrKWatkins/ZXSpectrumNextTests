@@ -533,13 +533,16 @@ BorderPerformanceTest:
     ld      a,(DmaPortData)
     xor     Z80_DMA_PORT_DATAGEAR^Z80_DMA_PORT_MB02
     ld      (DmaPortData),a
+    ; revert FigureOutRealStateOfDmaChip to working state (it did self-disable)
+    ld      a,$3E       ; "LD a,$nn"
+    ld      (FigureOutRealStateOfDmaChip+1),a
     ; restart the test completely
     jp      StartAfterPortChange
 
 FigureOutRealStateOfDmaChip:
     ; allow "ret z" (needs "xor a") to have 17+4+11 = 32T (after the routine is disabled)
     xor     a
-    ld      a,0xC8                              ; "ret z" after "xor a"
+    ld      a,$C8                               ; "ret z" after "xor a"
     ld      (FigureOutRealStateOfDmaChip+1),a   ; disable routine for second call
     ; read anything from port (nothing requested) (start new line at +6 to previous reads)
     ld      hl,MEM_ZX_SCREEN_4000+$800+$20*5+0
