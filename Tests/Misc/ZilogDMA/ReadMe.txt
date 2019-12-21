@@ -92,7 +92,7 @@ not reset port timing.
 
 Second line of hexadecimal values is a read of DMA chip done after the 2nd
 flashing block in border transfer is finished. The values are:
-00'1B'65'00'FE 00 1B'650B'009B'FE00  (apostrophes are added to group digits)
+00'1B'65'00'FE 00 1B'650B'0097'FE00  (apostrophes are added to group digits)
 00'ss'cc'aa'bb 00 ss'cccc'aaaa'bbbb  read mask is set to $7F for second group
 
 ----------------------------------------------------------------------------
@@ -117,7 +117,7 @@ The timing of flashing blocks is 4T for both of them, setting WR1.D6=0 does
 not reset port timing (although the docs are worded like it may).
 
 The second line of hexadecimal values is:
-FD'DF'65'00'FE FD DF'650B'009B'FE00  (apostrophes are added to group digits)
+FD'DF'65'00'FE FD DF'650B'0097'FE00  (apostrophes are added to group digits)
 
 The last PortB.address seems to be unstable, reading in some experiments as
 $FFFF, but sometimes it reads correctly (between experiments the exact DMA
