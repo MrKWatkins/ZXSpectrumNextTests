@@ -1,4 +1,4 @@
-ped's version tag: core3.0.5 20191202
+ped's version tag: core3.0.6 20191219
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 The ZX Next stores configuration state in a field of registers.
@@ -60,10 +60,11 @@ Generally a set bit indicates the property is asserted
   A write to this register disables the bootrom in config mode
   bit 7 = 1 to allow changes to bits 6:4
   bits 6:4 = Selects display timing (VGA/RGB only)
-    000 or 001 = ZX 48K display timing
+    000 = Internal Use
+    001 = ZX 48K display timing
     010 = ZX 128K/+2 display timing
     011 = ZX +2A/+2B/+3 display timing
-    100 = Pentagon display timing
+    100 = Pentagon display timing 50 Hz only
   bit 3 = 1 to apply user lock on display timing (hard reset = 0)
   bits 2:0 = Selects machine type (config mode only)
     may affect port decoding and enabling of some hardware
@@ -83,7 +84,7 @@ Generally a set bit indicates the property is asserted
   bits 7:6 = Joystick 1 mode (LSB)
   bits 5:4 = Joystick 2 mode (LSB)
   bit 3 = Joystick 1 mode (MSB)
-  bit 2 = 50/60 Hz mode (0 = 50Hz, 1 = 60Hz)
+  bit 2 = 50/60 Hz mode (0 = 50Hz, 1 = 60Hz, Pentagon is always 50Hz)
   bit 1 = Joystick 2 mode (MSB)
   bit 0 = Enable scandoubler (1 = enabled)
 Joystick modes:
@@ -206,7 +207,7 @@ Joystick modes:
   bit 1 = Enable sprites over border (soft reset = 0)
   bit 0 = Enable sprites (soft reset = 0)
 
-0x16 (22) => Layer2 X Scroll
+0x16 (22) => Layer2 X Scroll LSB
 (R/W)
   bits 7:0 = X Offset (0-255) (soft reset = 0)
 
@@ -465,7 +466,7 @@ Joystick modes:
 
 0x4A (74) => Fallback Colour
 (R/W)
-  bits 7:0 = 8-bit colour used if all layers are transparent (soft reset = 0)
+  bits 7:0 = 8-bit colour used if all layers are transparent (soft reset = 0xe3)
 
 0x4B (75) => Sprite Transparency Index
 (R/W)
@@ -540,6 +541,7 @@ Joystick modes:
          when the raster reaches position (0,0)
   bits 2:0 = Copper instruction memory address MSB (soft reset = 0)
   (Copper addresses range over 0 - 0x7FF = 2K)
+  Writing the same start control value does not reset the copper
 
 0x63 (99) => Copper Data 16-bit Write
 (W)
@@ -572,7 +574,7 @@ Joystick modes:
   bits 7-6 = Reserved, must be 0
   bit 5 = LoRes is Radastan mode (128x96x4, 6144 bytes) (soft reset = 0)
   bit 4 = LoRes Radastan timex display file xor (soft reset = 0)
-  bits 3:0 = LoRes Radastan palette offset (bits 1:0 apply in ula+ mode) (soft reset = 0)
+  bits 3:0 = LoRes palette offset (bits 1:0 apply in ula+ mode) (soft reset = 0)
 
 0x6B (107) => Tilemap Control
 (R/W)
@@ -612,6 +614,20 @@ Joystick modes:
   at any multiple of 256 bytes.
   Writing a physical MSB address in 0x40-0x7f or 0xc0-0xff range is permitted.
   The value read back should be treated as having a fully significant 8-bit value.
+
+0x70 (112) => Layer 2 Control
+(R/W)
+  bits 7:6 = Reserved, must be 0
+  bits 5:4 = Layer 2 resolution (soft reset = 0)
+    00 = 256x192x8
+	 01 = 320x256x8
+	 10 = 640x256x4
+  bits 3:0 = Palette offset (soft reset = 0)
+
+0x71 (113) => Layer 2 X Scroll MSB
+(R/W)
+	bits 7:1 = Reserved, must be 0
+	bit 0 = MSB of scroll amount
 
 0x75 (117) => Sprite Attribute 0 with automatic post increment of Sprite Number
 (W) see nextreg 0x35
@@ -705,13 +721,18 @@ bits 1-0 = max cpu speed when the expansion bus is on (currently fixed at 00 = 3
 0x8C (140) => Alternate ROM 
 (R/W) (hard reset = 0)
 IMMEDIATE
-bit 7 = 1 to enable alt rom
-bit 6 = 1 to make alt rom visible only during writes, otherwise replaces rom during reads
-bit 4 = 1 to lock 48k rom
+  bit 7 = 1 to enable alt rom
+  bit 6 = 1 to make alt rom visible only during writes, otherwise replaces rom during reads
+  bit 5 = 1 to lock ROM1 (48K rom)
+  bit 4 = 1 to lock ROM0 (128K rom)
 AFTER SOFT RESET (copied into bits 7-4)
-bit 3 = 1 to enable alt rom
-bit 2 = 1 to make alt rom visible only during writes, otherwise replaces rom during reads
-bit 0 = 1 to lock 48k rom
+  bit 3 = 1 to enable alt rom
+  bit 2 = 1 to make alt rom visible only during writes, otherwise replaces rom during reads
+  bit 1 = 1 to lock ROM1 (48K rom)
+  bit 0 = 1 to lock ROM0 (128K rom)
+The locking mechanism also applies if the alt rom is not enabled. For the +3 and zx next, if the two lock bits are not
+zero, then the corresponding rom page is locked in place. Other models use the bits to preferentially lock the corresponding
+48K rom or the 128K rom.
 
 0x93,0x92,0x91,0x90 (147-144) => PI GPIO Output Enable (0x93 is MSB)
 (R/W)

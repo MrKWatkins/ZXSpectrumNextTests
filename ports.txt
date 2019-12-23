@@ -79,14 +79,14 @@ bit 7 = timex horizontal mmu bank select (not implemented)
 bit 6 = 1 to disable the ULA frame interrupt
 bits 5:3 sets the screen colour in hi-res mode
   the ink colour is given and the paper is the contrasting colour
-  000 = black on white
-  001 = blue on yellow
-  010 = red on cyan
-  011 = magenta on green
-  100 = green on magenta
-  101 = cyan on red
-  110 = yellow on blue
-  111 = white on black
+  000 = bright black on white
+  001 = bright blue on yellow
+  010 = bright red on cyan
+  011 = bright magenta on green
+  100 = bright green on magenta
+  101 = bright cyan on red
+  110 = bright yellow on blue
+  111 = bright white on black
 bits 2:0 selects ula screen mode
   000 = screen 0, standard spectrum screen at 0x4000, 256x192 pix 32x24 attr
   001 = screen 1, standard spectrum screen at 0x6000, 256x192 pix 32x24 attr
@@ -145,6 +145,31 @@ Selects a register.
 0x253B NEXTREG data
 (R/W)
 Reads or writes data to the selected register.
+
+=============
+== LAYER 2 ==
+=============
+
+0x123B Layer 2 control
+(R/W) If bit 4 = 0:
+  bits 7:6 = layer 2 memory map type
+    00 = first 16K of layer 2 in the bottom 16K
+    01 = second 16K of layer 2 in the bottom 16K
+    10 = third 16K of layer 2 in the bottom 16K
+    11 = first 48K of layer 2 in the bottom 48K
+  bit 5 = Reserved, must be 0
+  bit 4 = 0
+  bit 3 = 0 to map active layer 2 (nextreg 0x12), 1 to map shadow layer 2 (nextreg 0x13)
+  bit 2 = 1 to enable mapping for memory reads
+  bit 1 = 1 to enable layer 2 display
+  bit 0 = 1 to enable mapping for memory writes
+(W) If bit 4 = 1:
+  bits 7:5 = Reserved, must be 0
+  bit 4 = 1
+  bit 3 = Reserved, must be 0
+  bits 2:0 = 16K bank offset applied to layer 2 memory mapping
+
+Memory pointed at by nextreg 0x12 or nextreg 0x13 can be mapped into the lower 16K or 48K if layer 2 memory mapping is enabled in bit 2 and/or bit 0.  This mechanism is separate from MMU and will overlay the paging state set by MMU but only if the memory access type matches the enable condition (read-only, write-only). The particular 16K bank(s) mapped in begin at the pointed bank plus an optional offset written when bit 4 = 1.  For out of range banks, writes do not have an effect and reads return unspecified data.
 
 ===========
 == AUDIO ==
@@ -292,6 +317,8 @@ if the mode group is selected, bits 5:0 of port 0xFF is returned
 (W)
 if the palette group is selected, a palette value is written to the current ula+ palette index
 if the mode group is selected, bit 0 = 1 to enable ULA+, 0 to disable ULA+
+
+For ULA+ i/o ports, all colours are read and written in 8-bit format GGGRRRBB.  The 9th blue bit is automatically generated as the logical OR of the two other blue bits.
 
 =============
 == SPRITES ==
