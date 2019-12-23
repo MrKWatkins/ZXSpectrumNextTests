@@ -89,6 +89,7 @@ OutChar:
     push    bc
     ; calculate ROM data address of ASCII code in A into DE
     call    GetRomAddressOfChar
+.withCustomGfxData:
     ex      de,hl   ; de = Address of character in ROM (8*($780+A)) = $3D00 for <space>
     ; output char to the VRAM
     ld      hl,(OutCurrentAdr)      ; hl = VRAM address to output next char
