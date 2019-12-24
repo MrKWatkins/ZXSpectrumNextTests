@@ -46,7 +46,7 @@ p       test area attributes/pixels (will require addresses re-LOAD!)
 ⌥q      redraw screen, reset source+destination area
 ⌥3      WR3     ; WR3=$80 (disable interrupt and all) (for other use custom byte)
 ⌥5      WR5     ; WR5=$82 (stop on end, /CE, ready active low) (for other use custom byte)
-⌥r      RST     ; reset
+⌥r      RST     ; DMA reset
 ⌥d      DIS     ; disable
 ⌥e      ENA     ; enable
 ⌥l      LOAD    ; load
