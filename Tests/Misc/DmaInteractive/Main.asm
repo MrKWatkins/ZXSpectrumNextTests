@@ -36,21 +36,23 @@ CUSTOM_CHAR_DIRL    EQU     11  ; <-
 CUSTOM_CHAR_STD     EQU     12  ; standard value "S"
 CUSTOM_CHAR_ENTER   EQU     13
 
+ATTR_UNCOMMITED     EQU     A_BRIGHT|P_BLUE|WHITE
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; global state data
 
     STRUCT StateData_Port
 adjust              BYTE    2       ; 0="--", 1="++", 2="+0"
-timing              BYTE    0xFF    ; 0xFF is special value (standard timing)
+timing              BYTE    $FF     ; 0xFF is special value (standard timing)
 adr                 WORD    0
     ENDS
 
     STRUCT StateData_Partial
-a                   StateData_Port
-b                   StateData_Port  { 1 }
+a                   StateData_Port  { 2, $0E, $3344 }
+b                   StateData_Port  { 1, $FF, $5566 }
 mode                BYTE    %01     ; %00 = byte, %01 = continuous, %10 = burst
 direction           BYTE    $0A     ; $0A=A->B $0B=A<-B
-length              WORD    0
+length              WORD    $1122
     ENDS
 
 
@@ -59,7 +61,8 @@ isCByteStandard     BYTE    1       ; 1=custom byte is "standard" (dynamic per p
 customByte          BYTE    $00     ; specific custom byte entered (not standard)
 isPixelTransfer     BYTE    1       ; source/destination data are 1=pixels/0=attributes
 edit                StateData_Partial   ; currently edited values by user (not uploaded)
-wr                  StateData_Partial   ; currently uploaded values by user
+wr                  StateData_Partial { {0, $FF, 0}, {0, $FF, 0}, 0, $0B, 0 }  ; currently uploaded values by user
+diff                WORD    0       ; bits from 8: mode, dir, length, B.tim, B.adj, B.adr, A.tim, A.adj, A.adr
 portAtype           BYTE    0       ; $00/$08 = mem/IO
 portBtype           BYTE    0       ; $00/$08 = mem/IO
 rrStatus            BYTE    0
@@ -128,10 +131,10 @@ RedrawAttributeData:
     BLOCK   32, P_CYAN      ; L3
     ; commands/values block
     ; 38 = white, 28 = cyan, 78 = bright white (regular key) 70 = bright yellow (shift), 58 = bright magenta (caps shift)
-    HEX     38 38 70 58 38 78 38 38 38 38 38 01 01 01 01 78 38 38 70 01 78 01 38 70 01 01 38 78 01 01 01 01
-    HEX     38 38 58 38 38 38 58 38 38 38 38 38 38 78 78 78 78 38 70 01 78 01 38 70 01 01 38 78 01 01 01 01
-    HEX     58 38 38 38 38 58 38 38 38 38 38 58 38 38 38 38 38 38 38 58 38 38 38 38 38 58 38 78 01 01 01 01
-    HEX     58 38 38 38 38 58 38 38 38 58 38 38 38 38 38 38 38 58 38 38 38 38 38 58 38 78 01 78 01 01 01 01
+    HEX     38 38 70 58 38 78 38 38 38 38 38 38 38 38 38 78 38 38 70 38 78 38 38 70 38 38 38 78 38 38 38 38
+    HEX     38 38 58 38 38 38 58 38 38 38 38 38 38 78 78 78 78 38 70 38 78 38 38 70 38 38 38 78 38 38 38 38
+    HEX     58 38 38 38 38 58 38 38 38 38 38 58 38 38 38 38 38 38 38 58 38 38 38 38 38 58 38 78 38 38 38 38
+    HEX     58 38 38 38 38 58 38 38 38 58 38 38 38 38 38 38 38 58 38 38 38 38 38 58 38 78 38 78 38 38 38 38
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; redraw transfer areas (resetting the values in source and destination)
@@ -145,7 +148,7 @@ RedrawTransferAreas:
     call    .fillAttributesArea
     ; clear pixels in both source and destination area
     ; fill with: in pixel mode char "pixel data" / in attributes using "src/dst DMA" char
-    ld      a,(ix + StateData.isPixelTransfer)
+    ld      a,(s.isPixelTransfer)
     inc     a       ; A = %10 for pixel=1, %01 for pixel=0
     and     (ix + StateData.wr.direction)   ; $0A A->B, $0B A<-B
     ; A = %00 for A->B attr, %01 for B->A attr  %10 for pixel=1
@@ -169,12 +172,12 @@ RedrawTransferAreas:
     ld      hl,MEM_ZX_SCREEN_4000+$20*3
     call    .ClearPixelArea
     ; setup source area
-    ld      a,(ix + StateData.isPixelTransfer)
+    ld      a,(s.isPixelTransfer)
     add     a,low SrcDataAdr
     ld      l,a
     ld      h,high SrcDataAdr
     ld      d,(hl)
-    ld      a,(ix + StateData.wr.direction)
+    ld      a,(s.wr.direction)
     and     1
     rrca
     rrca
@@ -225,12 +228,12 @@ RedrawTransferAreas:
 
 .DrawSourceData:
     ld      b,30
-    ld      a,(ix + StateData.isCByteStandard)
+    ld      a,(s.isCByteStandard)
     or      a
     jr      z,.fillWithCustomByte
     ; standard byte for pixels %1000'0010 += 2
     ; standard byte for attributes %01'100'000 += 1
-    ld      a,(ix + StateData.isPixelTransfer)
+    ld      a,(s.isPixelTransfer)
     inc     a
     ld      (.fillWithStandardPattern_IncBy),a
     inc     l
@@ -244,7 +247,7 @@ RedrawTransferAreas:
     djnz    .fillWithStandardPattern_Loop
     ret
 .fillWithCustomByte:
-    ld      a,(ix + StateData.customByte)
+    ld      a,(s.customByte)
 .fillWithCustomByte_Loop:
     ld      (de),a
     inc     e
@@ -275,7 +278,7 @@ RedrawValues:
     ld      hl,MEM_ZX_SCREEN_4000+$20*0
 
     ; redraw PortA symbols at new positions
-    ld      a,(ix + StateData.wr.a.adjust)
+    ld      a,(s.wr.a.adjust)
     ld      b,a     ; B = 0/1/2(3)
     cp      1
     sbc     a,a     ; [0, 1, 2, 3] -> [-1, 0, 0, 0]
@@ -304,7 +307,7 @@ RedrawValues:
     ld      hl,MEM_ZX_SCREEN_4000+$20*2
 
     ; redraw PortB symbols at new positions
-    ld      a,(ix + StateData.wr.b.adjust)
+    ld      a,(s.wr.b.adjust)
     ld      b,a     ; B = 0/1/2(3)
     cp      1
     sbc     a,a     ; [0, 1, 2, 3] -> [-1, 0, 0, 0]
@@ -325,10 +328,143 @@ RedrawValues:
     ld      c,(ix + StateData.portBtype)    ; $00/$08 mem/IO
     call    DrawPortInfo
 
-;FIXME all remaining
+    ; redraw custom byte content
+    ld      hl,MEM_ZX_SCREEN_4000+$20*4+0
+    ld      (OutCurrentAdr),hl
+    xor     a
+    call    Clear2Char
+    ld      a,(s.isCByteStandard)
+    dec     a
+    jr      z,.showStandardByte
+    ld      a,(s.customByte)
+    call    OutHexaValue
+    jr      .customByteDrawn
+.showStandardByte:
+    ld      a,CUSTOM_CHAR_STD
+    call    OutCharWithCustomGfx
+    call    OutCharWithCustomGfx
+.customByteDrawn:
+
+    ; port data (adjust, timing)
+    ld      hl,MEM_ZX_SCREEN_4000+$20*4+19
+    ld      iy,s.edit.a
+    call    DrawPortData
+    ld      hl,MEM_ZX_SCREEN_4000+$20*5+19
+    ld      iy,s.edit.b
+    call    DrawPortData
+
+    ; draw transfer direction
+    ld      hl,MEM_ZX_SCREEN_4000+$20*7+26
+    xor     a
+    call    Clear1Char
+    ld      b,(ix + StateData.edit.direction)
+    xor     a
+    call    OutBCharAtA
+
+    ; draw mode
+    ld      hl,MEM_ZX_SCREEN_4000+$20*4+28
+    ld      (OutCurrentAdr),hl
+    xor     a
+    ld      b,a
+    call    Clear4Char
+    ld      a,(s.edit.mode)
+    add     a,a
+    add     a,a
+    add     a,a
+    ld      c,a
+    ld      hl,ModeStringsPer8B
+    add     hl,bc
+    call    OutString
+
+    ; draw length, addressA, addressB words
+    ld      hl,MEM_ZX_SCREEN_4000+$20*5+28
+    ld      de,s.edit.length+1
+    call    DrawWordValue
+
+    ld      hl,MEM_ZX_SCREEN_4000+$20*6+28
+    ld      de,s.edit.a.adr+1
+    call    DrawWordValue
+
+    ld      hl,MEM_ZX_SCREEN_4000+$20*7+28
+    ld      de,s.edit.b.adr+1
+    call    DrawWordValue
+
+    ; colorize the values which are not commited
+    ; diff WORD => from 8: mode, dir, length, B.tim, B.adj, B.adr, A.tim, A.adj, A.adr
+    call    RefreshDiffBits
+    ; WR0: %01 in D1D0 ("transfer") - this test does not support/show other options!
+    ; direction D2: 0 = A<-B, 1 = A->B, port A adr: D4D3, length: D6D5
+    ld      hl,MEM_ZX_ATTRIB_5800+$20*4+11
+    ld      bc,(1<<8) | %1'1'000'001    ; WR0: dir, length, A.adr
+    call    MarkUncommitedDifference
+    ; WR1: D3: A-type (not in diff), A-adjust D5D4, A-timing D6+byte
+    ld      l,low (MEM_ZX_ATTRIB_5800+$20*4+12)
+    ld      bc,(1<<8) | %0'0'000'110    ; WR1: A.tim, A.adj
+    call    MarkUncommitedDifference
+    ; WR2: D3: B-type (not in diff), B-adjust D5D4, B-timing D6+byte
+    ld      l,low (MEM_ZX_ATTRIB_5800+$20*4+13)
+    ld      bc,(1<<8) | %0'0'110'000    ; WR1: B.tim, B.adj
+    call    MarkUncommitedDifference
+    ; WR4: mode D6D5, port B adr: D3D2
+    ld      l,low (MEM_ZX_ATTRIB_5800+$20*4+14)
+    ld      a,(s.diff + 1)
+    rra
+    ld      a,(s.diff)
+    rla     ; shift diff + add mode bit
+    ld      bc,(1<<8) | %0'001'000'1    ; WR4: B.adr (shifted), mode
+    call    MarkUncommitedDifference.customDiffVal
+    ; port A adjustement
+    ld      l,low (MEM_ZX_ATTRIB_5800+$20*4+19)
+    ld      bc,(1<<8) | %0'0'000'010
+    call    MarkUncommitedDifference
+    ; port A timing
+    ld      l,low (MEM_ZX_ATTRIB_5800+$20*4+21)
+    ld      bc,(1<<8) | %0'0'000'100
+    call    MarkUncommitedDifference
+    ld      l,low (MEM_ZX_ATTRIB_5800+$20*4+24)
+    ld      b,2
+    call    MarkUncommitedDifference
+    ; port B adjustement
+    ld      l,low (MEM_ZX_ATTRIB_5800+$20*5+19)
+    ld      bc,(1<<8) | %0'0'000'010
+    call    MarkUncommitedDifference
+    ; port B timing
+    ld      l,low (MEM_ZX_ATTRIB_5800+$20*5+21)
+    ld      bc,(1<<8) | %0'0'000'100
+    call    MarkUncommitedDifference
+    ld      l,low (MEM_ZX_ATTRIB_5800+$20*5+24)
+    ld      b,2
+    call    MarkUncommitedDifference
+    ; transfer mode
+    ld      l,low (MEM_ZX_ATTRIB_5800+$20*5-4)
+    ld      bc,(4<<8) | %0'0'000'001
+    ld      a,(s.diff + 1)
+    call    MarkUncommitedDifference.customDiffVal
+    ; length
+    ld      l,low (MEM_ZX_ATTRIB_5800+$20*6-4)
+    ld      bc,(4<<8) | %0'1'000'000
+    call    MarkUncommitedDifference
+    ; A.adr
+    ld      l,low (MEM_ZX_ATTRIB_5800+$20*7-4)
+    ld      bc,(4<<8) | %0'0'000'001
+    call    MarkUncommitedDifference
+    ; B.adr
+    ld      l,low (MEM_ZX_ATTRIB_5800+$20*8-4)
+    ld      bc,(4<<8) | %0'0'001'000
+    call    MarkUncommitedDifference
+    ; direction
+    ld      l,low (MEM_ZX_ATTRIB_5800+$20*8-6)
+    ld      bc,(1<<8) | %1'0'000'000
+    call    MarkUncommitedDifference
 
     pop     bc
     ret
+
+ModeStringsPer8B:
+    DB      'byte',0,0,0,0
+    DB      'cont',0,0,0,0
+    DB      'burs',0,0,0,0
+    DB      'inva',0,0,0,0
 
 TestAdrToXPos:
     ld      a,3     ;FIXME DEBUG
@@ -336,6 +472,110 @@ TestAdrToXPos:
     ld      (TestAdrToXPos+1),a
     ;FIXME all
     ret
+
+MarkUncommitedDifference:   ; HL = target address start, B = length to mark, C = mask
+    ld      a,(s.diff)
+.customDiffVal:
+    and     c
+    ret     z
+.markLoop:
+    ld      (hl),ATTR_UNCOMMITED
+    inc     l
+    djnz    .markLoop
+    ret
+
+RefreshDiffBits:
+    ; diff WORD => bits from 8: mode, dir, length, B.tim, B.adj, B.adr, A.tim, A.adj, A.adr
+    xor     a
+    ld      hl,(s.edit.mode)
+    ld      de,(s.wr.mode)
+    call    .testByte
+    ld      (s.diff + 1),a
+    xor     a
+    ld      hl,(s.edit.direction)
+    ld      de,(s.wr.direction)
+    call    .testByte
+    ld      hl,(s.edit.length)
+    ld      de,(s.wr.length)
+    call    .testWord
+    ld      hl,(s.edit.b.timing)
+    ld      de,(s.wr.b.timing)
+    call    .testByte
+    ld      hl,(s.edit.b.adjust)
+    ld      de,(s.wr.b.adjust)
+    call    .testByte
+    ld      hl,(s.edit.b.adr)
+    ld      de,(s.wr.b.adr)
+    call    .testWord
+    ld      hl,(s.edit.a.timing)
+    ld      de,(s.wr.a.timing)
+    call    .testByte
+    ld      hl,(s.edit.a.adjust)
+    ld      de,(s.wr.a.adjust)
+    call    .testByte
+    ld      hl,(s.edit.a.adr)
+    ld      de,(s.wr.a.adr)
+    call    .testWord
+    ld      (s.diff),a
+    ret
+
+.testByte:  ; L vs E
+    ld      d,h     ; make D/H irrelevant to the comparison
+    ;
+    ; fallthrough into .testWord
+    ;
+.testWord:  ; HL vs DE
+    rlca    ; make space for new diff-bit and set CF=0
+    sbc     hl,de
+    ret     z
+    inc     a
+    ret
+
+DrawWordValue:
+    ld      (OutCurrentAdr),hl
+    xor     a
+    call    Clear4Char
+    ld      a,(de)
+    call    OutHexaValue
+    dec     de
+    ld      a,(de)
+    jp      OutHexaValue
+
+DrawPortData:
+    xor     a
+    call    Clear1Char
+    ld      a,2
+    call    Clear1Char
+    ld      a,5
+    call    Clear2Char
+    ld      a,(iy + StateData_Port.adjust)
+    add     a,CUSTOM_CHAR_AMM
+    ld      b,a
+    xor     a
+    call    OutBCharAtA
+    inc     l
+    inc     l
+    ld      (OutCurrentAdr),hl
+    ld      a,(iy + StateData_Port.timing)
+    xor     $FF
+    jr      z,.standardTiming
+    and     3
+    inc     a
+    call    OutHexaDigit
+    inc     l
+    inc     l
+    inc     l
+    ld      (OutCurrentAdr),hl
+    ld      a,(iy + StateData_Port.timing)
+    jp      OutHexaValue
+.standardTiming:
+    ld      a,'3'
+    call    OutChar
+    ld      b,CUSTOM_CHAR_STD
+    ld      a,3
+    call    OutBCharAtA
+    ld      a,4
+    jp      OutBCharAtA
 
 DrawPortInfo:    ; HL = $4000, DE = $5800, B = 'A'/'B', C = $00/$08 mem/IO
     ; check if left or right side are free to draw at (check attributes for white+white)
@@ -487,6 +727,34 @@ OutBCharAtA:
     ld      (OutCurrentAdr),hl
     ld      a,b
     call    OutCharWithCustomGfx
+    pop     hl
+    ret
+
+Clear1Char:     ; HL = base address (VRAM), A will be added (must not CF=1)
+    push    hl
+    add     a,l
+    ld      l,a
+    xor     a
+    ld      (hl),a
+    inc     h
+    ld      (hl),a
+    inc     h
+    ld      (hl),a
+    inc     h
+    ld      (hl),a
+    inc     h
+    ld      (hl),a
+    inc     h
+    ld      (hl),a
+    inc     h
+    ld      (hl),a
+    inc     h
+    ld      (hl),a
+    ld      a,h
+    add     a,$11
+    ld      h,a
+    ld      a,P_WHITE
+    ld      (hl),a
     pop     hl
     ret
 
@@ -644,14 +912,14 @@ OutCharWithCustomGfx:
     ALIGN   256
 CustomCharsGfx:
     ; zero char
-    DG      # # # # # # # #
-    DG      # # . . . . # #
+    DG      . . # # # # . .
+    DG      . # . . . . # .
     DG      # . # # # . . #
     DG      # . # # . # . #
     DG      # . # . # # . #
     DG      # . . # # # . #
-    DG      # # . . . . # #
-    DG      # # # # # # # #
+    DG      . # . . . . # .
+    DG      . . # # # # . .
     ; 1: current RR pointer
     DG      . . . . . . . .
     DG      . . . . . . . .
@@ -755,14 +1023,14 @@ Char_PixelData:
     DG      . . . # . . . .
     DG      . . . . # . . .
     ; 12: "standard" value (differs for different purposes)
-    DG      # # # # # # # #
-    DG      # # . . . . # #
-    DG      # . # # # # # #
-    DG      # # . . . . # #
-    DG      # # # # # # . #
-    DG      # . # # # # . #
-    DG      # # . . . . # #
-    DG      # # # # # # # #
+    DG      . . . . . . . .
+    DG      . . . . . . . .
+    DG      . . # # . # # #
+    DG      . # . . . . # .
+    DG      . . # . . . # .
+    DG      . . . # . . # .
+    DG      . # # . . . # .
+    DG      . . . . . . . .
     ; 13: enter
     DG      . . . . # # # .
     DG      . . . . # # # .
