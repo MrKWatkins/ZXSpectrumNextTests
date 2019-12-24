@@ -2,8 +2,8 @@
 # Run some snapshot file in ZEsarUX emulator, which requires to be run from it's home dir.
 # The directories are of my local installation, if there will be more linux users of this
 # script, it should me moved into some environment variables like $ZXN_TESTS_ZESARUX_DIR
-RUN_SNA_FILE=`readlink -f $1` && \
-SNA_PATH=${RUN_SNA_FILE%${RUN_SNA_FILE##*/}} && \
+RUN_SNA_FILE=`readlink -f "$1"` && \
+SNA_PATH="${RUN_SNA_FILE%${RUN_SNA_FILE##*/}}" && \
 cd ~/zx/ZEsarUX/ZEsarUX-current/ && \
 ./zesarux --noconfigfile --vo sdl --ao sdl --machine tbblue --realvideo --zoom 1 --enabletimexvideo --tbblue-fast-boot-mode --sna-no-change-machine --enable-esxdos-handler --nosplash --disablefooter --nowelcomemessage --quickexit --disabletooltips --forcevisiblehotkeys --disablemultitaskmenu --esxdos-root-dir "$SNA_PATH" "$RUN_SNA_FILE"
 # the "readlink" will produce full path of provided argument, so the emulator will find it
