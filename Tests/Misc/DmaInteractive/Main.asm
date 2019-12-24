@@ -6,6 +6,16 @@
 ; each step, as the Misc/ZilogDMA did show there are some quirks in real
 ; Zilog DMA chip, and testing them out without interactive tool turned out
 ; to be quite cumbersome and slow.
+;
+; This may be also useful to experiment with init sequences of DMA transfers
+; for your own code.
+;
+; When using custom-byte values, or asking the test to do transfers outside
+; of test areas, you risk the damage of the test itself. Generally don't enable
+; transfers outside of test areas, or double check the values. The test itself
+; resides in memory from address $8000 to $A800 (FIXME refresh after final).
+; While the test will try to parse custom bytes sent to DMA and interpret them
+; to keep the current state fresh, it will not try to protect itself.
 
 ;     DEFINE  BUILD_TAP
 
@@ -42,27 +52,27 @@ ATTR_UNCOMMITED     EQU     A_BRIGHT|P_BLUE|WHITE
 ;; global state data
 
     STRUCT StateData_Port
-adjust              BYTE    2       ; 0="--", 1="++", 2="+0"
+adjust              BYTE    1       ; 0="--", 1="++", 2="+0"
 timing              BYTE    $FF     ; 0xFF is special value (standard timing)
-adr                 WORD    0
+adr                 WORD
     ENDS
 
     STRUCT StateData_Partial
-a                   StateData_Port  { 2, $0E, $3344 }
-b                   StateData_Port  { 1, $FF, $5566 }
+a                   StateData_Port  {,,MEM_ZX_ATTRIB_5800+$20*1+13}
+b                   StateData_Port  {,,MEM_ZX_ATTRIB_5800+$20*3+13}
 mode                BYTE    %01     ; %00 = byte, %01 = continuous, %10 = burst
 direction           BYTE    $0A     ; $0A=A->B $0B=A<-B
-length              WORD    $1122
+length              WORD    $0002   ; 3-bytes transfers for test purposes
     ENDS
 
 
     STRUCT StateData
 isCByteStandard     BYTE    1       ; 1=custom byte is "standard" (dynamic per purpose)
 customByte          BYTE    $00     ; specific custom byte entered (not standard)
-isPixelTransfer     BYTE    1       ; source/destination data are 1=pixels/0=attributes
-edit                StateData_Partial   ; currently edited values by user (not uploaded)
-wr                  StateData_Partial { {0, $FF, 0}, {0, $FF, 0}, 0, $0B, 0 }  ; currently uploaded values by user
-diff                WORD    0       ; bits from 8: mode, dir, length, B.tim, B.adj, B.adr, A.tim, A.adj, A.adr
+isPixelTransfer     BYTE    0       ; source/destination data are 1=pixels/0=attributes
+edit                StateData_Partial   ; currently edited values by user (not committed)
+wr                  StateData_Partial   ; WR values (known to the test) (committed values)
+diff                WORD    -1      ; bits from 8: mode, dir, length, B.tim, B.adj, B.adr, A.tim, A.adj, A.adr
 portAtype           BYTE    0       ; $00/$08 = mem/IO
 portBtype           BYTE    0       ; $00/$08 = mem/IO
 rrStatus            BYTE    0
@@ -466,11 +476,33 @@ ModeStringsPer8B:
     DB      'burs',0,0,0,0
     DB      'inva',0,0,0,0
 
-TestAdrToXPos:
-    ld      a,3     ;FIXME DEBUG
-    xor     4
-    ld      (TestAdrToXPos+1),a
-    ;FIXME all
+TestAdrToXPos:      ; DE = memory address (or I/O port, treated as memory address :) )
+    ; returns A 1..30 (column) for addresses within testing range, 128 for other
+    ; Port A attributes: 5821 .. 583E
+    ; Port B attributes: 5861 .. 587E
+    ; Port A pixels: 4021 .. 403E
+    ; Port B pixels: 4061 .. 407E
+    ld      a,$40
+    cp      d
+    jr      z,.HighAddressInTestRange
+    ld      a,$58
+    cp      d
+    jr      z,.HighAddressInTestRange
+.addressOutsideOfTestRange:
+    ld      a,128
+    ret
+.HighAddressInTestRange:
+    ld      a,e
+    cp      $21
+    jr      c,.addressOutsideOfTestRange
+    cp      $7E+1
+    jr      nc,.addressOutsideOfTestRange
+    cp      $3E+1
+    jr      c,.LowAddressInTestRange
+    cp      $61
+    jr      c,.addressOutsideOfTestRange
+.LowAddressInTestRange:
+    and     $1F
     ret
 
 MarkUncommitedDifference:   ; HL = target address start, B = length to mark, C = mask
@@ -1111,6 +1143,8 @@ Start:
     ; auto-detect DMA port heuristic
     di
     call    AutoDetectTBBlue
+    ; reset SP pointer
+    ;FIXME do the custom stack near the test (to give transfers safe playground in memory)
 StartAfterPortChange:
     call    StartTest
     ; restore DmaSrcData1B data if this is restarted by "P" key
