@@ -4,6 +4,14 @@
         call    RegisterKeyhandler
     ENDM
 
+    MACRO IGNORE_KEY keyCode?
+        ; does modify A register
+        ASSERT (keyCode?) < TOTAL_KEYS
+        ld      a,(ignoreKeysBitMap + (keyCode?)/5)
+        or      1 << ((keyCode?) % 5)
+        ld      (ignoreKeysBitMap + (keyCode?)/5),a
+    ENDM
+
 KEY_NONE    equ     $FF
 KEY_CAPS    equ     0
 KEY_Z       equ     1
@@ -53,6 +61,11 @@ debounceState:
 registeredHandlers:
     ds      2*TOTAL_KEYS, 0
 
+ignoreKeysBitMap:
+; set particular bit to "1" to make RefreshKeyboardState ignore the key
+; bits are same as raw reading of keyboard, first byte Caps..V, second A..G, etc..
+    ds      8, 0
+
 ; A = key-code (KEY_xx defines), DE = address of key handler
 ; handler will receive keycode in DE (and HL = handler addres)
 RegisterKeyhandler:
@@ -79,22 +92,22 @@ RefreshKeyboardState:   ; modifies everything
     ld      a,(debounceState)
     sub     1
     adc     a,0
-    ld      d,a         ; D is current debounce
-    ld      hl,(KEY_NONE<<8) + 0    ; H = no key, L = first key (counter)
+    ld      (debounceState),a
+    ld      hl,ignoreKeysBitMap
+    ld      de,KEY_NONE         ; E = no key, D = first key (counter)
     ld      bc,ULA_P_FE + ($FE<<8)
 .testEightRows:
     in      a,(c)
+    or      (hl)        ; remove presses of ignored keys
+    inc     hl
     call    .testFiveKeysInA
     rlc     b           ; next keyboard row
     jr      c,.testEightRows
-    ld      a,d
-    ld      (debounceState),a
     ; process pressed key (single-key only)
-    ld      a,h
+    ld      a,e
     cp      KEY_NONE
     ret     z
-    ld      e,a         ; DE = keycode (KEY_xxx defines)
-    ld      d,0
+    ld      d,0         ; DE = keycode (KEY_xxx defines)
     ; look if some handler is hooked for this key
     ld      hl,registeredHandlers
     add     hl,de
@@ -118,15 +131,16 @@ RefreshKeyboardState:   ; modifies everything
     push    af
     call    nc,.keyPressed
     pop     af
-    inc     l
+    inc     d
     ret
 
 .keyPressed:
-    ld      a,d
-    ld      d,50        ; on key press reset debounce to some short while
+    ld      a,(debounceState)
     or      a
-    ret     nz
-    ld      h,l         ; remember the pressed key
+    ld      a,50        ; key press will reset debounce (50 is for non-halt type of loop)
+    ld      (debounceState),a
+    ret     nz          ; debounce was not zero yet, ignore the keypress
+    ld      e,d         ; remember the pressed key
     ret
 
 ; waits for any key
