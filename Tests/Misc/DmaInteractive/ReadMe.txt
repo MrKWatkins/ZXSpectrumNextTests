@@ -17,7 +17,7 @@
                                                 ;3
                                                 ;4
     c RESET     C3 ss cccc aaaa bbbb            ;5
-    c RESET A t C7 ss cccc aaaa bbbb            ;6 (must be at +256)
+    c RESET A t C7 ss cccc aaaa bbbb            ;6
     WR0 7D8B927B0D ss cccc aaaa bbbb            ;7
     WR1 540E       ss cccc aaaa bbbb            ;0
     WR2 680E       ss cccc aaaa bbbb            ;1

@@ -13,7 +13,7 @@
 ; When using custom-byte values, or asking the test to do transfers outside
 ; of test areas, you risk the damage of the test itself. Generally don't enable
 ; transfers outside of test areas, or double check the values. The test itself
-; resides in memory from address $8000 to $8FFF (FIXME refresh after final).
+; resides in memory from address $8000 to $9FFF (FIXME refresh after final).
 ; While the test will try to parse custom bytes sent to DMA and interpret them
 ; to keep the current state fresh, it will not try to protect itself.
 
@@ -32,6 +32,8 @@ BinStart:
     INCLUDE "../../OutputFunctions.asm"
 
 DMA_END_SEQUENCE    EQU     $FF ; will match as WR6 command, but doesn't exist (invalid)
+
+LAST_CMD_BUF_SZ     EQU     7
 
 CUSTOM_CHAR_0       EQU     0
 CUSTOM_CHAR_RRPTR   EQU     1
@@ -81,10 +83,375 @@ rrStatus            BYTE    0
 rrCnt               WORD    0
 rrAadr              WORD    0
 rrBadr              WORD    0
+awaitingWriteBytes  BYTE    0
+writeScrAdr         WORD    0
+lastCmdBuffer       BLOCK   LAST_CMD_BUF_SZ, $FF
     ENDS
 
 s                   StateData       ; working state of the test
 stateInitSet        StateData       ; read-only init-data for test restarts (⌥p)
+
+playSequence        DW      DmaEmptySequence
+
+    STRUCT WR6_CMD_DATA
+name                WORD            ; name of command (string to display)
+length              BYTE    1       ; how many bytes the command has
+                    ALIGN   4
+    ENDS
+
+cmd_name_invalid    DZ      '!INVALID!'
+cmd_name_83         DZ      'DISABLE'   ; DMA_DISABLE
+cmd_name_87         DZ      'ENABLE'    ; DMA_ENABLE
+cmd_name_8B         DZ      'CL.STATUS' ; DMA_REINIT_STATUS_BYTE
+cmd_name_A3         DZ      'RST D.INT' ; DMA_RESET_DISABLE_INTERUPTS
+cmd_name_A7         DZ      'ST.RD.SEQ' ; DMA_START_READ_SEQUENCE
+cmd_name_AB         DZ      'INT ENABL' ; DMA_ENABLE_INTERUPTS
+cmd_name_AF         DZ      'INT DISAB' ; DMA_DISABLE_INTERUPTS
+cmd_name_B3         DZ      'FORCE RDY' ; DMA_FORCE_READY
+cmd_name_B7         DZ      'EN.A.RETI' ; DMA_ENABLE_AFTER_RETI
+cmd_name_BB         DZ      'RD MASK='  ; DMA_READ_MASK_FOLLOWS
+cmd_name_BF         DZ      'RD STATUS' ; DMA_READ_STATUS_BYTE
+cmd_name_C3         DZ      'RESET'     ; DMA_RESET
+cmd_name_C7         DZ      'RESET A t' ; DMA_RESET_PORT_A_TIMING
+cmd_name_CB         DZ      'RESET B t' ; DMA_RESET_PORT_B_TIMING
+cmd_name_CF         DZ      'LOAD'      ; DMA_LOAD
+cmd_name_D3         DZ      'CONTINUE'  ; DMA_CONTINUE
+
+WR6_cmd_data_table:
+    WR6_CMD_DATA    { cmd_name_83 }
+    WR6_CMD_DATA    { cmd_name_87 }
+    WR6_CMD_DATA    { cmd_name_8B }
+    WR6_CMD_DATA    { cmd_name_invalid }
+    WR6_CMD_DATA    { cmd_name_invalid }
+    WR6_CMD_DATA    { cmd_name_invalid }
+    WR6_CMD_DATA    { cmd_name_invalid }
+    WR6_CMD_DATA    { cmd_name_invalid }
+    WR6_CMD_DATA    { cmd_name_A3 }
+    WR6_CMD_DATA    { cmd_name_A7 }
+    WR6_CMD_DATA    { cmd_name_AB }
+    WR6_CMD_DATA    { cmd_name_AF }
+    WR6_CMD_DATA    { cmd_name_B3 }
+    WR6_CMD_DATA    { cmd_name_B7 }
+    WR6_CMD_DATA    { cmd_name_BB, 2 }
+    WR6_CMD_DATA    { cmd_name_BF }
+    WR6_CMD_DATA    { cmd_name_C3 }
+    WR6_CMD_DATA    { cmd_name_C7 }
+    WR6_CMD_DATA    { cmd_name_CB }
+    WR6_CMD_DATA    { cmd_name_CF }
+    WR6_CMD_DATA    { cmd_name_D3 }
+    WR6_CMD_DATA    { cmd_name_invalid }
+    WR6_CMD_DATA    { cmd_name_invalid }
+    WR6_CMD_DATA    { cmd_name_invalid }
+    WR6_CMD_DATA    { cmd_name_invalid }
+    WR6_CMD_DATA    { cmd_name_invalid }
+    WR6_CMD_DATA    { cmd_name_invalid }
+    WR6_CMD_DATA    { cmd_name_invalid }
+    WR6_CMD_DATA    { cmd_name_invalid }
+    WR6_CMD_DATA    { cmd_name_invalid }
+    WR6_CMD_DATA    { cmd_name_invalid }
+    WR6_CMD_DATA    { cmd_name_invalid }
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; DMA logic utility functions
+
+SendDmaByte:
+    ;; TODO: this doesn't recognize some of the possible extra bytes (interrupt control byte)
+    ; store the byte in the lastCmdBuffer
+    ld      hl,(s.lastCmdBuffer+1)
+    ld      (s.lastCmdBuffer),hl
+    ld      hl,(s.lastCmdBuffer+3)
+    ld      (s.lastCmdBuffer+2),hl
+    ld      hl,(s.lastCmdBuffer+5)
+    ld      (s.lastCmdBuffer+4),hl
+    ld      (s.lastCmdBuffer+6),a
+    ; check if this is first byte of new command/write
+    ; if yes, scroll, init the new command/write, identify length, display, ...
+    ld      b,a
+    ld      a,(s.awaitingWriteBytes)
+    or      a
+    jp      nz,.nextGroupByte
+    ; new command
+    call    ScrollUpBottomTwoThirdsByRow
+    ld      hl,MEM_ZX_SCREEN_4000+$1000+$20*7
+    ld      (OutCurrentAdr),hl
+    ; identify the command and print it's basic name, and get the count of bytes expected
+    ld      a,b
+    xor     %1000'0011
+    and     %1000'0011
+    jr      nz,.notWR6
+    ; WR6 (command) detected - print name, setup expected bytes, set OutCurrentAdr
+    ld      a,'c'
+    call    OutChar
+    ld      a,' '
+    call    OutChar
+    ld      a,b
+    cp      DMA_RESET
+    jr      c,.notResetCommand
+    cp      DMA_RESET_PORT_B_TIMING+1
+    jr      nc,.notResetCommand
+    cp      DMA_RESET_PORT_A_TIMING
+    jr      z,.skipPortBreset
+    ld      (ix + StateData.wr.b.timing),$FF
+.skipPortBreset:
+    cp      DMA_RESET_PORT_B_TIMING
+    jr      z,.notResetCommand
+    ld      (ix + StateData.wr.a.timing),$FF
+.notResetCommand:
+    and     %0111'1100
+    add     a,low WR6_cmd_data_table
+    ld      l,a
+    ld      h,high WR6_cmd_data_table
+    ld      e,(hl)
+    inc     hl
+    ld      d,(hl)
+    inc     hl
+    ex      de,hl
+    call    OutString
+    ld      a,(de)
+    rlca
+    neg
+    add     a,$20*7+14
+    ld      (OutCurrentAdr),a
+    ld      a,(de)
+    jp      .finishNewCommand
+.notWR6:
+    ld      a,'W'
+    call    OutChar
+    ld      a,'R'
+    call    OutChar
+    ld      a,b
+    and     %1000'0011
+    jr      nz,.notWR1or2
+    ; WR1 or WR2
+    ld      a,b
+    rrca
+    rrca
+    rra                 ; A = %00006aaI ; CF=1 WR1, CF=0 WR2, 6 = D6 (+1B), aa=adjust, I=mem/IO
+    jr      nc,.isWR2
+    ; WR1
+    push    af
+    ld      a,1
+    ld      (s.lastCmdBuffer+5),a   ; create bytes 01 WR1 in buffer
+    ld      a,b
+    and     8
+    ld      (s.portAtype),a
+    ld      a,'1'
+    call    OutChar
+    pop     af
+    rra
+    and     3
+    ld      (s.wr.a.adjust),a
+    jr      .finishWR1and2
+.isWR2:
+    push    af
+    ld      a,2
+    ld      (s.lastCmdBuffer+5),a   ; create bytes 02 WR2 in buffer
+    ld      a,b
+    and     8
+    ld      (s.portBtype),a
+    ld      a,'2'
+    call    OutChar
+    pop     af
+    rra
+    and     3
+    ld      (s.wr.b.adjust),a
+.finishWR1and2:
+    ld      a,' '
+    call    OutChar
+    ld      a,b
+    rlca
+    rlca
+    and     1
+    inc     a
+    jr      .finishNewCommand
+.notWR1or2:
+    bit     7,b
+    jr      nz,.notWR0
+    ; WR0
+    xor     a
+    ld      (s.lastCmdBuffer+5),a   ; create bytes 00 WR0 in buffer
+    ld      a,'0'
+    call    OutChar
+    ld      a,' '
+    call    OutChar
+    ld      a,CUSTOM_CHAR_DIRR
+    bit     2,b
+    jr      nz,.dirAtoB
+    inc     a
+.dirAtoB:
+    ld      (s.wr.direction),a
+    ld      l,b
+    ld      a,1
+    rl      l
+    rl      l
+    adc     a,0
+    rl      l
+    adc     a,0
+    rl      l
+    adc     a,0
+    rl      l
+    adc     a,0
+    jr      .finishNewCommand
+.notWR0:
+    ; WR3, WR4, WR5     ; A = %1000'00xx (xx = 0,1,2)
+    add     a,'3'+$80   ; -> '3', '4', '5'
+    call    OutChar
+    ld      a,' '
+    call    OutChar
+    ld      a,1         ; awaiting only this one byte
+    bit     0,b
+    jr      z,.finishNewCommand     ; WR3 and WR5 are done like this (no parsing)
+    ; WR4
+    ld      a,3
+    ld      (s.lastCmdBuffer+5),a   ; create bytes 03 WR4 in buffer
+    ld      a,b
+    rlca
+    rlca
+    rlca
+    and     3
+    ld      (s.wr.mode),a
+    ld      a,1
+    bit     2,b
+    jr      z,.noPortBadrLSB
+    inc     a
+.noPortBadrLSB:
+    bit     3,b
+    jr      z,.finishNewCommand
+    inc     a
+.finishNewCommand:
+    ld      hl,(OutCurrentAdr)
+    ld      (s.writeScrAdr),hl
+.nextGroupByte:
+    dec     a
+    push    af
+    ld      (s.awaitingWriteBytes),a
+    ld      hl,(s.writeScrAdr)
+    ld      (OutCurrentAdr),hl
+    ld      a,b
+    call    OutHexaValue
+    ld      hl,(OutCurrentAdr)
+    ld      (s.writeScrAdr),hl
+    ; send it to DMA port (immediately)
+    out     (c),a
+    pop     af
+    ret     nz
+    ;; this was the last byte of the command sequence - do the aftermath stuff
+        ; if command was DMA_READ_STATUS_BYTE ... only status byte should be read. Ignored now
+    ; FIXME write values into internal state based on where they belong
+    ; scan the command sequence and if WR0124, refresh internal state accordingly
+    ld      hl,s.lastCmdBuffer-1
+    ld      a,$FF
+.searchCmdByteLoop:
+    inc     hl
+    cp      (hl)
+    jr      z,.searchCmdByteLoop
+    and     (hl)                ; $FF&value = value && ZF=1 when 0
+    inc     hl
+    ld      b,(hl)              ; WRx itself
+    jr      z,.updateWR0State
+    ld      de,s.wr.a.timing
+    dec     a
+    jr      z,.updateWR12State
+    ld      de,s.wr.b.timing
+    dec     a
+    jr      z,.updateWR12State
+    dec     a
+    jr      nz,.WRstateUpdated
+    ; updateWR4State
+    bit     2,b
+    jr      z,.updateWR4_adrMSB
+    inc     hl
+    ld      a,(hl)              ; portB address LSB
+    ld      (s.wr.b.adr),a
+.updateWR4_adrMSB:
+    bit     3,b
+    jr      z,.WRstateUpdated
+    inc     hl
+    ld      a,(hl)              ; portB address MSB
+    ld      (s.wr.b.adr+1),a
+    jr      .WRstateUpdated
+.updateWR0State:
+    bit     3,b
+    jr      z,.updateWR0_adrMSB
+    inc     hl
+    ld      a,(hl)              ; portA address LSB
+    ld      (s.wr.a.adr),a
+.updateWR0_adrMSB:
+    bit     4,b
+    jr      z,.updateWR0_lenLSB
+    inc     hl
+    ld      a,(hl)              ; portA address MSB
+    ld      (s.wr.a.adr+1),a
+.updateWR0_lenLSB:
+    bit     5,b
+    jr      z,.updateWR0_lenMSB
+    inc     hl
+    ld      a,(hl)              ; Length LSB
+    ld      (s.wr.length),a
+.updateWR0_lenMSB:
+    bit     6,b
+    jr      z,.WRstateUpdated
+    inc     hl
+    ld      a,(hl)              ; Length MSB
+    ld      (s.wr.length+1),a
+    jr      .WRstateUpdated
+.updateWR12State
+    bit     6,b
+    jr      z,.WRstateUpdated
+    inc     hl
+    ld      a,(hl)              ; Timing byte
+    ld      (de),a
+.WRstateUpdated:
+    ; clear the last command buffer
+    ld      hl,$FFFF
+    ld      (s.lastCmdBuffer),hl
+    ld      (s.lastCmdBuffer+2),hl
+    ld      (s.lastCmdBuffer+4),hl
+    ld      (s.lastCmdBuffer+5),hl
+    ; read the DMA internal state
+    ld      a,DMA_START_READ_SEQUENCE
+    out     (c),a
+    ld      hl,MEM_ZX_SCREEN_4000+$1000+$20*7+15
+    ld      (OutCurrentAdr),hl
+    in      a,(c)
+    ld      (s.rrStatus),a
+    call    OutHexaValue
+    ld      l,$20*7+18
+    ld      (OutCurrentAdr),hl
+    in      e,(c)
+    in      d,(c)
+    ld      (s.rrCnt),de
+    ld      a,d
+    call    OutHexaValue
+    ld      a,e
+    call    OutHexaValue
+    ld      l,$20*7+23
+    ld      (OutCurrentAdr),hl
+    in      e,(c)
+    in      d,(c)
+    ld      (s.rrAadr),de
+    ld      a,d
+    call    OutHexaValue
+    ld      a,e
+    call    OutHexaValue
+    ld      l,$20*7+28
+    ld      (OutCurrentAdr),hl
+    in      e,(c)
+    in      d,(c)
+    ld      (s.rrBadr),de
+    ld      a,d
+    call    OutHexaValue
+    ld      a,e
+    call    OutHexaValue
+    ; modify attributes of read values to use blue ink
+    ld      hl,MEM_ZX_ATTRIB_5800+$20*23+15
+    ld      b,32-15
+.SetBlueInkLoop:
+    inc     (hl)            ; assumes black ink! :)
+    inc     l
+    djnz    .SetBlueInkLoop
+    ; refresh the display with values in upper third of screen
+    jp      RedrawValues
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; redraw whole screen (full init of top third)
@@ -114,6 +481,13 @@ RedrawScreen:
     ld      bc,66*31    ; = 2046 + LDI above = 2047
     call    ScrollUpBottomTwoThirdsByRow.unrolled31LDI
     jp      pe,$-3
+    ; create small line between top third and rest
+    ld      hl,MEM_ZX_SCREEN_4000+$700+$20*7+0
+    ld      b,32-7
+.solidLineLoop:
+    ld      (hl),%11111111
+    inc     l
+    djnz    .solidLineLoop
     ; print all default texts
     ld      hl,MEM_ZX_SCREEN_4000+$20*4
     ld      (OutCurrentAdr),hl      ; also set address for OutChar
@@ -127,8 +501,7 @@ RedrawScreen:
     pop     bc
     ; reset source/destination areas
     call    RedrawTransferAreas
-    call    RedrawValues
-    ret
+    jp      RedrawValues
 
 RedrawTextData:
     DB  '  ',13,13,' pix WR0124',13,'  A t Tt   m    '
@@ -206,7 +579,7 @@ RedrawTransferAreas:
 .fillAttributesArea:
     ld      (hl),P_CYAN
     inc     l
-    ld      de,A_BRIGHT|P_YELLOW | (P_YELLOW<<8)
+    ld      de,A_BRIGHT|P_BLUE | (P_BLUE<<8)
     ld      b,15
 .fillAttributesArea_loop:
     ld      (hl),e
@@ -439,11 +812,11 @@ RedrawValues:
     call    MarkUncommitedDifference
     ; port B adjustement
     ld      l,low (MEM_ZX_ATTRIB_5800+$20*5+19)
-    ld      bc,(1<<8) | %0'0'000'010
+    ld      bc,(1<<8) | %0'0'010'000
     call    MarkUncommitedDifference
     ; port B timing
     ld      l,low (MEM_ZX_ATTRIB_5800+$20*5+21)
-    ld      bc,(1<<8) | %0'0'000'100
+    ld      bc,(1<<8) | %0'0'100'000
     call    MarkUncommitedDifference
     ld      l,low (MEM_ZX_ATTRIB_5800+$20*5+24)
     ld      b,2
@@ -1197,6 +1570,9 @@ StartAfterPortChange:
     ld      bc,StateData
     ldir
     ld      ix,s
+    ; make the "visible" init sequence play from start
+    ld      hl,DmaVisibleInit
+    ld      (playSequence),hl
     ; FIXME check if anything else needs reinit... keybaord/etc?
 
     ;; do the full init of DMA chip and helper settings in NextRegs and I/O ports
@@ -1278,8 +1654,6 @@ DmaPortData EQU $+1         ; self-modify storage of port number
     ld      a,(DmaPortData)
     call    OutHexaValue
 
-    jp      EndTest
-
     ; do the read of DMA port while nothing was requested yet
 ;     ld      hl,MEM_ZX_SCREEN_4000+$20*7+0
 ;     ld      (OutCurrentAdr),hl
@@ -1292,39 +1666,30 @@ DmaPortData EQU $+1         ; self-modify storage of port number
 
     BORDER  BLUE
 
-BorderPerformanceTest:
+MainLoop:
     halt
 
-    ;;;;;; NEW CODE
-    ;; FIXME DEBUG
-    ld      b,50
-.waitFrames:
-    halt
-    djnz    .waitFrames
-
-    call    ScrollUpBottomTwoThirdsByRow
-
-    ; FIXME DEBUG random text output
-    ld      hl,MEM_ZX_SCREEN_4000+$1000+$20*7
-    ld      (OutCurrentAdr),hl
-.DEBUG_randomOut    EQU $ + 1
-    ld      hl,0
-    ld      b,31
-1:
+    ; check if some sequence is being played -> do the "send byte to DMA" every loop
+    ld      hl,(playSequence)
     ld      a,(hl)
+    cp      DMA_END_SEQUENCE
+    jr      z,.noSequenceIsPlaying
     inc     hl
-    call    OutCharWithCustomGfx
-    djnz    1B
-    ld      (.DEBUG_randomOut),hl
+    ld      (playSequence),hl
 
-    call    RedrawScreen
-    ;;;;;; END OF NEW CODE
+    call    SendDmaByte
+    jr      MainLoop
 
+.noSequenceIsPlaying:
+;     call    ScrollUpBottomTwoThirdsByRow
+;     call    RedrawScreen
+
+    ;; FIXME switch to full keyboard handler
     ; check for press of "P" to restart the whole test with the other port
     ld      a,%11011111
     in      a,(ULA_P_FE)
     rra
-    jp      c,BorderPerformanceTest
+    jp      c,MainLoop
     ; flip the port to the other one (between $6B and $0B)
     di
     ld      a,(DmaPortData)
@@ -1342,6 +1707,9 @@ DmaHiddenInit:
     BLOCK 5, DMA_RESET
 DmaHiddenInitSz EQU $ - DmaHiddenInit
 
+DmaEmptySequence:
+    DB  DMA_END_SEQUENCE
+
 DmaVisibleInit:
 ; FIXME write the "player" to run this
     DB  DMA_RESET           ; (resets also port timings)
@@ -1356,6 +1724,7 @@ DmaVisibleInit:
     DB  %10'0'0'0010        ; WR5 = stop after block, /CE only
     DB  DMA_LOAD            ; LOAD (to set up RR registers)
     DB  DMA_FORCE_READY     ; FORCE_READY (ready to "enable" first transfer)
+    DB  DMA_ENABLE  ; FIXME DEBUG
     DB  DMA_END_SEQUENCE
 
 ;; DMA sequence to send the border letters "DMA" into top border area
