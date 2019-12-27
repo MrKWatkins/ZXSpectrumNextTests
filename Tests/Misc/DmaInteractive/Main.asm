@@ -28,8 +28,8 @@ BinStart:
     INCLUDE "../../Constants.asm"
     INCLUDE "../../Macros.asm"
     INCLUDE "../../TestFunctions.asm"
-    INCLUDE "../../TestData.asm"
     INCLUDE "../../OutputFunctions.asm"
+    INCLUDE "../../controls.i.asm"
 
 DMA_END_SEQUENCE    EQU     $FF ; will match as WR6 command, but doesn't exist (invalid)
 
@@ -86,6 +86,8 @@ rrBadr              WORD    0
 awaitingWriteBytes  BYTE    0
 writeScrAdr         WORD    0
 lastCmdBuffer       BLOCK   LAST_CMD_BUF_SZ, $FF
+caps                BYTE    $FF     ; $FF = regular key, $00 = caps shift
+symbol              BYTE    $FF     ; $FF = regular key, $00 = symbol shift
     ENDS
 
 s                   StateData       ; working state of the test
@@ -117,6 +119,7 @@ cmd_name_CB         DZ      'RESET B t' ; DMA_RESET_PORT_B_TIMING
 cmd_name_CF         DZ      'LOAD'      ; DMA_LOAD
 cmd_name_D3         DZ      'CONTINUE'  ; DMA_CONTINUE
 
+    ALIGN           128
 WR6_cmd_data_table:
     WR6_CMD_DATA    { cmd_name_83 }
     WR6_CMD_DATA    { cmd_name_87 }
@@ -186,17 +189,20 @@ SendDmaByte:
     call    OutChar
     ld      a,b
     cp      DMA_RESET
-    jr      c,.notResetCommand
-    cp      DMA_RESET_PORT_B_TIMING+1
-    jr      nc,.notResetCommand
-    cp      DMA_RESET_PORT_A_TIMING
-    jr      z,.skipPortBreset
-    ld      (ix + StateData.wr.b.timing),$FF
-.skipPortBreset:
-    cp      DMA_RESET_PORT_B_TIMING
-    jr      z,.notResetCommand
+    jr      nz,.notResetCommand
     ld      (ix + StateData.wr.a.timing),$FF
+    ld      (ix + StateData.wr.b.timing),$FF
+    jr      .stateUpdated
 .notResetCommand:
+    cp      DMA_RESET_PORT_A_TIMING
+    jr      nz,.notResetPortACommand
+    ld      (ix + StateData.wr.a.timing),$FF
+    jr      .stateUpdated
+.notResetPortACommand:
+    cp      DMA_RESET_PORT_B_TIMING
+    jr      nz,.stateUpdated
+    ld      (ix + StateData.wr.b.timing),$FF
+.stateUpdated:
     and     %0111'1100
     add     a,low WR6_cmd_data_table
     ld      l,a
@@ -280,6 +286,7 @@ SendDmaByte:
     inc     a
 .dirAtoB:
     ld      (s.wr.direction),a
+    ; calculate how many extra bytes are expected
     ld      l,b
     ld      a,1
     rl      l
@@ -337,7 +344,6 @@ SendDmaByte:
     ret     nz
     ;; this was the last byte of the command sequence - do the aftermath stuff
         ; if command was DMA_READ_STATUS_BYTE ... only status byte should be read. Ignored now
-    ; FIXME write values into internal state based on where they belong
     ; scan the command sequence and if WR0124, refresh internal state accordingly
     ld      hl,s.lastCmdBuffer-1
     ld      a,$FF
@@ -522,12 +528,25 @@ RedrawAttributeData:
     HEX     58 38 38 38 38 58 38 38 38 38 38 58 38 38 38 38 38 38 38 58 38 38 38 38 38 58 38 78 38 38 38 38
     HEX     58 38 38 38 38 58 38 38 38 58 38 38 38 38 38 38 38 58 38 38 38 38 38 58 38 78 38 78 38 38 38 38
 
+    ALIGN   2
+RedrawAttributeBg:
+    DB      P_BLUE      ; base filler for attribute transfers
+    DB      P_YELLOW    ; base filler for pixel transfers
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; redraw transfer areas (resetting the values in source and destination)
 
 RedrawTransferAreas:
     push    bc
     ; clear attributes in both source and destination area
+    ld      a,(s.isPixelTransfer)
+    add     a,low RedrawAttributeBg
+    ld      l,a
+    ld      h,high RedrawAttributeBg
+    ld      a,(hl)
+    ld      d,a
+    or      A_BRIGHT
+    ld      e,a     ; DE = attribute values for filler
     ld      hl,MEM_ZX_ATTRIB_5800+$20*1
     call    .fillAttributesArea
     ld      hl,MEM_ZX_ATTRIB_5800+$20*3
@@ -579,7 +598,6 @@ RedrawTransferAreas:
 .fillAttributesArea:
     ld      (hl),P_CYAN
     inc     l
-    ld      de,A_BRIGHT|P_BLUE | (P_BLUE<<8)
     ld      b,15
 .fillAttributesArea_loop:
     ld      (hl),e
@@ -651,6 +669,40 @@ SrcDataInitValue:
     DB      %01'100'000, %1000'0010
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; swap transfer areas (keeping the values, but flips source/destination area)
+
+SwapTransferAreas:
+    ld      hl,$5821
+    ld      de,$5861
+    ld      c,1
+    call    .swap30bytes
+    ld      hl,$4021
+    ld      de,$4061
+    ld      c,8
+.swap30bytes:
+    push    hl
+    push    de
+    push    bc
+    ld      b,30
+.swapByte:
+    ld      c,(hl)
+    ld      a,(de)
+    ld      (hl),a
+    ld      a,c
+    ld      (de),a
+    inc     l
+    inc     e
+    djnz    .swapByte
+    pop     bc
+    pop     de
+    pop     hl
+    inc     h
+    inc     d
+    dec     c
+    jr      nz,.swap30bytes
+    ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; redraw variable values, with correct colour-state-encoding
 
 RedrawValues:
@@ -685,6 +737,11 @@ RedrawValues:
     ld      c,(ix + StateData.portAtype)    ; $00/$08 mem/IO
     call    DrawPortInfo
 
+    ; highlight also "edit" address of port A by brightness in attribute
+    ld      hl,MEM_ZX_ATTRIB_5800+$20*0
+    ld      de,(s.edit.a.adr)
+    call    DrawEditAdrPointer
+
     ; "erase" old PortB positions by using white on white attribute color
     ld      hl,MEM_ZX_ATTRIB_5800+$20*2
     ld      de,MEM_ZX_ATTRIB_5800+$20*2+1
@@ -713,6 +770,11 @@ RedrawValues:
     ld      b,'B'
     ld      c,(ix + StateData.portBtype)    ; $00/$08 mem/IO
     call    DrawPortInfo
+
+    ; highlight also "edit" address of port B by brightness in attribute
+    ld      hl,MEM_ZX_ATTRIB_5800+$20*2
+    ld      de,(s.edit.b.adr)
+    call    DrawEditAdrPointer
 
     ; redraw custom byte content
     ld      hl,MEM_ZX_SCREEN_4000+$20*4+0
@@ -778,6 +840,10 @@ RedrawValues:
     ; colorize the values which are not commited
     ; diff WORD => from 8: mode, dir, length, B.tim, B.adj, B.adr, A.tim, A.adj, A.adr
     call    RefreshDiffBits
+    ; reset all WR0124 indicators to regular white+black
+    ld      hl,$3838
+    ld      (MEM_ZX_ATTRIB_5800+$20*4+11),hl
+    ld      (MEM_ZX_ATTRIB_5800+$20*4+13),hl
     ; WR0: %01 in D1D0 ("transfer") - this test does not support/show other options!
     ; direction D2: 0 = A<-B, 1 = A->B, port A adr: D4D3, length: D6D5
     ld      hl,MEM_ZX_ATTRIB_5800+$20*4+11
@@ -789,7 +855,7 @@ RedrawValues:
     call    MarkUncommitedDifference
     ; WR2: D3: B-type (not in diff), B-adjust D5D4, B-timing D6+byte
     ld      l,low (MEM_ZX_ATTRIB_5800+$20*4+13)
-    ld      bc,(1<<8) | %0'0'110'000    ; WR1: B.tim, B.adj
+    ld      bc,(1<<8) | %0'0'110'000    ; WR2: B.tim, B.adj
     call    MarkUncommitedDifference
     ; WR4: mode D6D5, port B adr: D3D2
     ld      l,low (MEM_ZX_ATTRIB_5800+$20*4+14)
@@ -856,9 +922,9 @@ TestAdrToXPos:      ; DE = memory address (or I/O port, treated as memory addres
     ; returns A 1..30 (column) for addresses within testing range, 128 for other
     ; Port A attributes: 5821 .. 583E
     ; Port B attributes: 5861 .. 587E
-    ; Port A pixels: 4021 .. 403E
-    ; Port B pixels: 4061 .. 407E
-    ld      a,$40
+    ; Port A pixels: 4321 .. 433E
+    ; Port B pixels: 4361 .. 437E
+    ld      a,$43
     cp      d
     jr      z,.HighAddressInTestRange
     ld      a,$58
@@ -1034,6 +1100,19 @@ DrawPortInfo:    ; HL = $4000, DE = $5800, B = 'A'/'B', C = $00/$08 mem/IO
 .typeStrings:
     DB      'mem',0
     DB      'io',0
+
+;; highlights source/destination address DE by using bright attribute (for "edit")
+DrawEditAdrPointer: ; DE = edit.portA.adr, HL = VRAM attributes line address
+    call    TestAdrToXPos
+    cp      32
+    ret     nc      ; edit pos is outside of valid range (how???)
+    ld      e,a
+    ld      d,0
+    add     hl,de
+    ld      a,(hl)
+    or      A_BRIGHT
+    ld      (hl),a
+    ret
 
 ;; will draw various combination of pointers with --/++/+0 adjustments (if at valid pos)
 ; same pos = special arrow "-W+", next to other "-vV+"/"-Vv+", separate pos "-v+ -V+"
@@ -1329,6 +1408,429 @@ PatchAttrExtra:             ; HL = base attribute VRAM address, DE = patch data
     ld      (hl),a
     jr      PatchAttrExtra
 
+DisplayError:
+    push    hl
+    call    ScrollUpBottomTwoThirdsByRow
+    ld      hl,MEM_ZX_ATTRIB_5800+$20*23+0
+    ld      b,32
+.AttrLoop:
+    ld      (hl),P_RED|WHITE
+    inc     l
+    djnz    .AttrLoop
+    pop     hl
+    ld      de,MEM_ZX_SCREEN_4000+$1000+$20*7+0
+    jp      OutStringAtDe
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; keyboard handler + key handlers
+
+MyRefreshKeyboardState:
+    ; refresh caps-shift, and symbol-shift first, then run the Refresh from controls.i.asm
+    ld      bc,ULA_P_FE + ($FE<<8)
+    in      a,(c)
+    rra
+    sbc     a,a
+    ld      (s.caps),a
+    cpl
+    jr      z,.capsIsPressed    ; ZF is still set from SBC, A=FF when CS=0
+    ; refresh symbol shit status, but allow it only when caps is released
+    ld      b,$7F
+    in      a,(c)
+    rra
+    rra
+    sbc     a,a
+.capsIsPressed:
+    ld      (s.symbol),a
+    jp      RefreshKeyboardState
+
+handleKey_Q:            ; test scenario1, caps=redraw+reinit
+    rlc     (ix + StateData.symbol)
+    ret     nc
+    rlc     (ix + StateData.caps)
+    jp      nc,RedrawScreen ; redraw upper third of screen fully (including "CLS")
+    ; test scenario 1
+    ;FIXME all
+    ret
+
+handleKey_W:            ; test scenario2
+    rlc     (ix + StateData.symbol)
+    ret     nc
+    rlc     (ix + StateData.caps)
+    ret     nc
+    ; test scenario 2
+    ;FIXME all
+    ret
+
+handleKey_E:            ; test scenario3, caps=DMA_ENABLE
+    rlc     (ix + StateData.symbol)
+    ret     nc
+    rlc     (ix + StateData.caps)
+    jr      nc,.dma_enable
+    ; test scenario 3
+    ;FIXME all
+    ret
+.dma_enable:
+    ld      bc,(DmaPortData)    ; reload C with DMA port number
+    ld      a,DMA_ENABLE
+    jp      SendDmaByte
+
+handleKey_R:            ; test scenario4, caps=DMA_RESET
+    rlc     (ix + StateData.symbol)
+    ret     nc
+    rlc     (ix + StateData.caps)
+    jr      nc,.dma_reset
+    ; test scenario 4
+    ;FIXME all
+    ret
+.dma_reset:
+    ld      (ix + StateData.edit.a.timing),$FF
+    ld      (ix + StateData.edit.b.timing),$FF
+    ld      bc,(DmaPortData)    ; reload C with DMA port number
+    ld      a,DMA_RESET
+    jp      SendDmaByte
+
+handleKey_ENTER:        ; lot of stuff, multi-mode
+    ;;FIXME detect edit/mode if this handler will be used to exit it
+    rlc     (ix + StateData.symbol)
+    jr      c,.noSymbolShift
+    ;FIXME symbol+Enter -> enter edit more
+    ret
+.noSymbolShift:
+    rlc     (ix + StateData.caps)
+    jr      c,.noCapsShift
+    ;caps + Enter -> send custom byte to DMA
+    ld      a,(s.isCByteStandard)
+    or      a
+    jr      nz,.refuseToSendStdByte ; standard byte value can't be sent to DMA
+    ld      a,(s.customByte)
+    ld      bc,(DmaPortData)    ; reload C with DMA port number
+    jp      SendDmaByte
+.refuseToSendStdByte:
+    ld      hl,ErrTxt_StdToDma
+    jp      DisplayError
+.noCapsShift:
+    call    handleKey_4
+    call    handleKey_2
+    call    handleKey_1
+    ;
+    ; fallthrough into handleKey_0
+    ;
+handleKey_0:            ; commit WR0
+    rlc     (ix + StateData.symbol)
+    ret     nc
+    rlc     (ix + StateData.caps)
+    ret     nc
+    ld      a,(s.diff)
+    and     %1'1'000'001        ; WR0: dir, length, A.adr
+    ret     z
+    jp      p,.directionDidNotChange
+    ; direction change, flip the source/destination data in VRAM
+    call    SwapTransferAreas
+.directionDidNotChange:
+    ld      bc,(DmaPortData)    ; reload C with DMA port number
+    ld      b,%00000'01'0       ; future "D8=%0 + D1D0=%01" (for WR0 byte)
+    ld      hl,DmaSetWr0Sequence
+    ld      iy,s.edit.length+1
+    call    .addDataBitAndByte
+    dec     iy
+    call    .addDataBitAndByte
+    ld      iy,s.edit.a.adr+1
+    call    .addDataBitAndByte
+    dec     iy
+    call    .addDataBitAndByte
+    ld      a,(s.edit.direction)
+    sub     CUSTOM_CHAR_DIRL    ; CF=1 A->B, CF=0 B->A
+    ld      a,b
+    rla                         ; direction bit
+    rlca                        ; rotate them all to final positions
+    rlca
+    ld      (hl),a              ; final WR0 byte
+    ld      (playSequence),hl   ; start the replay of the dynamically prepared data
+    ret
+.addDataBitAndByte:
+    ld      a,(iy)
+    cp      (iy + (StateData.wr-StateData.edit))
+    jr      z,.sameByte         ; CF=0
+    ld      (hl),a
+    dec     hl
+    scf                         ; CF=1 (byte will be sent)
+.sameByte:
+    rl      b
+    ret
+
+handleKey_1:            ; commit WR1
+    rlc     (ix + StateData.symbol)
+    ret     nc
+    rlc     (ix + StateData.caps)
+    ret     nc
+    ld      a,(s.diff)
+    and     %0'0'000'110        ; WR1: A.tim, A.adj
+    ret     z
+    ld      iy,s.edit.a
+    ld      d,(ix + StateData.portAtype)
+    ld      a,$40               ; set future D2=0 (port A)
+    jr      handleKey_WR1_WR2_setPort
+
+handleKey_2:            ; commit WR2
+    rlc     (ix + StateData.symbol)
+    ret     nc
+    rlc     (ix + StateData.caps)
+    ret     nc
+    ld      a,(s.diff)
+    and     %0'0'110'000        ; WR2: B.tim, B.adj
+    ret     z
+    ld      iy,s.edit.b
+    ld      d,(ix + StateData.portBtype)
+    xor     a                   ; clear future D2=0 (port B)
+    ;
+    ; fallthrough into handleKey_WR1_WR2_setPort
+    ;
+handleKey_WR1_WR2_setPort:
+    ld      bc,(DmaPortData)    ; reload C with DMA port number
+    ld      e,(iy + StateData_Port.timing)  ; E = new timing
+    or      a,(iy + StateData_Port.adjust)  ; add adjust data
+    rlca
+    rlca
+    rlca
+    rlca                        ; position adjust data and port bit
+    or      d                   ; add port type
+    inc     e                   ; check if timing is standard byte, then leave it out
+    jp      z,SendDmaByte
+    push    de
+    or      $40                 ; timing byte will follow (even if it's not different)
+    call    SendDmaByte
+    pop     de
+    ld      a,e
+    dec     a                   ; A = timing byte (restored)
+    jp      SendDmaByte
+
+handleKey_4:            ; commit WR4
+    rlc     (ix + StateData.symbol)
+    ret     nc
+    rlc     (ix + StateData.caps)
+    ret     nc
+    ld      a,(s.diff + 1)
+    rra
+    ld      a,(s.diff)
+    rla     ; shift diff + add mode bit
+    and     %0'001'000'1
+    ret     z           ; no difference in WR4, don't commit it
+    ld      a,(s.edit.mode)
+    rrca
+    rrca
+    rrca
+    ld      bc,(DmaPortData)    ; reload C with DMA port number
+    bit     3,(ix + StateData.diff)
+    jr      nz,.commitWr4WithAdr
+    or      %1'00'0'00'01       ; just WR4 without address
+    jp      SendDmaByte
+.commitWr4WithAdr:
+    or      %1'00'0'11'01       ; WR4 with B.adr
+    call    SendDmaByte
+    ld      a,(s.edit.b.adr)
+    call    SendDmaByte
+    ld      a,(s.edit.b.adr+1)
+    jp      SendDmaByte
+
+handleKey_M:            ; chg mode, caps=DMA_READ_MASK_FOLLOWS
+    rlc     (ix + StateData.symbol)
+    ret     nc
+    rlc     (ix + StateData.caps)
+    jr      nc,.startSetReadMaskReplay
+    ; cycle modes: %00 = byte, %01 = continuous, %10 = burst
+    ld      a,(s.edit.mode)
+    cp      2
+    sbc     a,-2
+    and     3
+    ld      (s.edit.mode),a
+    jp      RedrawValues
+.startSetReadMaskReplay:
+    ld      hl,DmaResetReadMaskOnly
+    ld      (playSequence),hl
+    ret
+
+handleKey_D:            ; flip direction, caps=DMA_DISABLE
+    rlc     (ix + StateData.symbol)
+    ret     nc
+    rlc     (ix + StateData.caps)
+    jr      nc,.dmaDisable
+    ; flip direction
+    ld      a,(s.edit.direction)
+    xor     1
+    ld      (s.edit.direction),a
+    jp      RedrawValues
+.dmaDisable:
+    ld      bc,(DmaPortData)    ; reload C with DMA port number
+    ld      a,DMA_DISABLE
+    jp      SendDmaByte
+
+handleKey_A:            ; chg A.adr, shift=A.adjust, caps=DMA_RESET_PORT_A_TIMING
+    ld      a,DMA_RESET_PORT_A_TIMING
+    ld      iy,s.edit.a
+.handleIt:
+    rlc     (ix + StateData.caps)
+    jr      nc,.dma_reset_p
+    rlc     (ix + StateData.symbol)
+    jr      nc,.adjust
+    ; do address +=4 and wrap around all the time
+    ; Port A attributes:    5821 .. 583E, Port B attributes:    5861 .. 587E
+    ; Port A pixels:        4321 .. 433E, Port B pixels:        4361 .. 437E
+    ld      a,(iy + StateData_Port.adr)
+    add     a,4
+    bit     5,a
+    jr      nz,.doNotWrap
+    sub     32
+.doNotWrap:
+    ld      (iy + StateData_Port.adr),a
+    jp      RedrawValues
+.adjust:
+    ld      a,(iy + StateData_Port.adjust)  ; cycle through 0,1,2
+    cp      2
+    sbc     a,-2
+    and     3
+    ld      (iy + StateData_Port.adjust),a
+    jp      RedrawValues
+.dma_reset_p:
+    ld      (iy + StateData_Port.timing),$FF
+    ld      bc,(DmaPortData)    ; reload C with DMA port number
+    jp      SendDmaByte
+
+handleKey_B:            ; chg B.adr, shift=B.adjust, caps=DMA_RESET_PORT_B_TIMING
+    ld      a,DMA_RESET_PORT_B_TIMING
+    ld      iy,s.edit.b
+    jr      handleKey_A.handleIt
+
+handleKey_L:            ; chg length, caps=DMA_LOAD
+    rlc     (ix + StateData.symbol)
+    ret     nc
+    rlc     (ix + StateData.caps)
+    jr      nc,.dma_load
+    ; change length: cycle through 1..4 (and reset high byte to 0)
+    ld      (ix + StateData.edit.length+1),0
+    ld      a,(s.edit.length)
+    and     3
+    inc     a
+    ld      (s.edit.length),a
+    jp      RedrawValues
+.dma_load:
+    ld      bc,(DmaPortData)    ; reload C with DMA port number
+    ld      a,DMA_LOAD
+    jp      SendDmaByte
+
+handleKey_T:            ; chg A.timing, shift=load custom A.timing
+    ld      iy,s.edit.a
+.handleIt:
+    rlc     (ix + StateData.caps)
+    ret     nc
+    rlc     (ix + StateData.symbol)
+    jr      nc,.customTiming
+    ; cycle timing (T-states) through 4,3,2T (%00, %01, %10)
+    ld      a,(iy + StateData_Port.timing)
+    inc     a           ; increment the value (going 4T, 3T, 2T) (and checks for $FF)
+    jr      nz,.wasNotStandard
+    ld      a,$0E       ; from standard go straight to $0E custom timing value
+.wasNotStandard:
+    ld      b,a         ; now check if he incremented value didn't reach %11, if yes, fix
+    inc     a
+    and     3           ; ZF=1 if the new value has %11 (illegal 1T)
+    ld      a,b
+    jr      nz,.isStillValid
+    xor     3
+.isStillValid:
+    ld      (iy + StateData_Port.timing),a
+    jp      RedrawValues
+.customTiming:
+    ld      a,(s.isCByteStandard)
+    or      a
+    ld      a,(s.customByte)
+    jr      z,.customTimingFromByte
+    ld      a,$0E
+.customTimingFromByte:
+    ld      (iy + StateData_Port.timing),a
+    jp      RedrawValues
+
+handleKey_Y:            ; chg B.timing, shift=load custom B.timing
+    ld      iy,s.edit.b
+    jr      handleKey_T.handleIt
+
+handleKey_P:            ; flip pixels/attributes, caps=flip port+restart
+    rlc     (ix + StateData.symbol)
+    ret     nc
+    rlc     (ix + StateData.caps)
+    jr      c,.flipPixels
+    ; flip the port to the other one (between $6B and $0B)
+    ld      a,(DmaPortData)
+    xor     Z80_DMA_PORT_DATAGEAR^Z80_DMA_PORT_MB02
+    ld      (DmaPortData),a
+    ; restart the test completely
+    jp      StartAfterPortChange
+.flipPixels:
+    ld      a,(s.isPixelTransfer)
+    xor     1
+    ld      (s.isPixelTransfer),a   ; flip the pixel flag
+    ; adjust the source/destination addresses
+    ld      hl,SrcDataAdr
+    ld      c,a
+    ld      b,0
+    add     hl,bc
+    ld      a,(hl)
+    ld      b,a         ; target VRAM high byte for new addresses
+    xor     $58^$43     ; calculate the "other" value for comparison with current adr.
+    cp      (ix + StateData.edit.a.adr+1)
+    jr      nz,.PortAhasCustomAddress
+    ld      (ix + StateData.edit.a.adr+1),b     ; patch standard address
+.PortAhasCustomAddress:
+    cp      (ix + StateData.edit.b.adr+1)
+    jr      nz,.PortBhasCustomAddress
+    ld      (ix + StateData.edit.b.adr+1),b     ; patch standard address
+.PortBhasCustomAddress:
+    ; commit the modified addresses
+    call    RefreshDiffBits
+    call    handleKey_4 ; this sends DMA commands directly
+    call    handleKey_0 ; this prepares replay buffer
+    ; redraw the screen
+    call    RedrawTransferAreas
+    jp      RedrawValues        ; this may be wasteful as WR0 write *may* follow
+        ; but if WR0 does not follow (custom port A address), then this is needed
+
+handleKey_C:            ; caps=DMA_CONTINUE
+    rlc     (ix + StateData.caps)
+    ret     c
+    ld      bc,(DmaPortData)    ; reload C with DMA port number
+    ld      a,DMA_CONTINUE
+    jp      SendDmaByte
+
+handleKey_F:            ; caps=DMA_FORCE_READY
+    rlc     (ix + StateData.caps)
+    ret     c
+    ld      bc,(DmaPortData)    ; reload C with DMA port number
+    ld      a,DMA_FORCE_READY
+    jp      SendDmaByte
+
+handleKey_S:            ; caps=DMA_REINIT_STATUS_BYTE
+    rlc     (ix + StateData.caps)
+    ret     c
+    ld      bc,(DmaPortData)    ; reload C with DMA port number
+    ld      a,DMA_REINIT_STATUS_BYTE
+    jp      SendDmaByte
+
+handleKey_3:            ; caps=set WR3
+    rlc     (ix + StateData.caps)
+    ret     c
+    ld      bc,(DmaPortData)    ; reload C with DMA port number
+    ld      a,$80               ; WR3 = disable interrupts and everything
+    jp      SendDmaByte
+
+handleKey_5:            ; caps=set WR5
+    rlc     (ix + StateData.caps)
+    ret     c
+    ld      bc,(DmaPortData)    ; reload C with DMA port number
+    ld      a,%10'0'0'0010      ; WR5 = stop after block, /CE only
+    jp      SendDmaByte
+
+ErrTxt_StdToDma:
+    DZ      'Err: can''t send "standard" byte'
+
     ALIGN   256
 CustomCharsGfx:
     ; zero char
@@ -1562,7 +2064,33 @@ Start:
     ld      sp,StackSpace
     ; auto-detect TBBlue, will also switch to Zilog mode of DMA, and set 28MHz
     call    AutoDetectTBBlue
+    ; install keyboard handlers
+    IGNORE_KEY      KEY_CAPS
+    IGNORE_KEY      KEY_SYMBOL
+    REGISTER_KEY    KEY_Q, handleKey_Q      ; test scenario1, caps=redraw+reinit
+    REGISTER_KEY    KEY_W, handleKey_W      ; test scenario2
+    REGISTER_KEY    KEY_E, handleKey_E      ; test scenario3, caps=DMA_ENABLE
+    REGISTER_KEY    KEY_R, handleKey_R      ; test scenario4, caps=DMA_RESET
+    REGISTER_KEY    KEY_L, handleKey_L      ; chg length, caps=DMA_LOAD
+    REGISTER_KEY    KEY_A, handleKey_A      ; chg A.adr, shift=A.adjust, caps=DMA_RESET_PORT_A_TIMING
+    REGISTER_KEY    KEY_B, handleKey_B      ; chg B.adr, shift=B.adjust, caps=DMA_RESET_PORT_B_TIMING
+    REGISTER_KEY    KEY_T, handleKey_T      ; chg A.timing, shift=load custom A.timing
+    REGISTER_KEY    KEY_Y, handleKey_Y      ; chg B.timing, shift=load custom B.timing
+    REGISTER_KEY    KEY_D, handleKey_D      ; flip direction, caps=DMA_DISABLE
+    REGISTER_KEY    KEY_M, handleKey_M      ; chg mode, caps=DMA_READ_MASK_FOLLOWS
+    REGISTER_KEY    KEY_ENTER, handleKey_ENTER  ; lot of stuff, multi-mode
+    REGISTER_KEY    KEY_0, handleKey_0      ; commit WR0
+    REGISTER_KEY    KEY_1, handleKey_1      ; commit WR1
+    REGISTER_KEY    KEY_2, handleKey_2      ; commit WR2
+    REGISTER_KEY    KEY_4, handleKey_4      ; commit WR4
+    REGISTER_KEY    KEY_3, handleKey_3      ; caps=set WR3
+    REGISTER_KEY    KEY_5, handleKey_5      ; caps=set WR5
+    REGISTER_KEY    KEY_P, handleKey_P      ; flip pixels/attributes, caps=flip port+restart
+    REGISTER_KEY    KEY_C, handleKey_C      ; caps=DMA_CONTINUE
+    REGISTER_KEY    KEY_F, handleKey_F      ; caps=DMA_FORCE_READY
+    REGISTER_KEY    KEY_S, handleKey_S      ; caps=DMA_REINIT_STATUS_BYTE
 StartAfterPortChange:
+    ld      sp,StackSpace       ; reset SP also when test is restarted
     call    StartTest
     ; re-init global state
     ld      hl,stateInitSet
@@ -1571,9 +2099,8 @@ StartAfterPortChange:
     ldir
     ld      ix,s
     ; make the "visible" init sequence play from start
-    ld      hl,DmaVisibleInit
+    ld      hl,DmaVisibleInitSequence
     ld      (playSequence),hl
-    ; FIXME check if anything else needs reinit... keybaord/etc?
 
     ;; do the full init of DMA chip and helper settings in NextRegs and I/O ports
     BORDER  YELLOW
@@ -1584,17 +2111,10 @@ DmaPortData EQU $+1         ; self-modify storage of port number
     ld      bc,(DmaHiddenInitSz<<8)|Z80_DMA_PORT_MB02
     otir
 
-    ; setup interrupt to handle keyboard scanning? FIXME figure out what interrupt will do)
-    ld      a,IM2_IVT
-    ld      i,a
-    im      2
-    ei
-
     ; redraw the main screen with initial info
     call    RedrawScreen
 
     ; "controls" line
-    halt
     call    ScrollUpBottomTwoThirdsByRow
     ld      de,MEM_ZX_SCREEN_4000+$1000+$20*7+0
     ld      hl,LegendTxt_Keyboard
@@ -1604,7 +2124,6 @@ DmaPortData EQU $+1         ; self-modify storage of port number
     call    PatchAttrExtra
 
     ; "controls 2" line
-    halt
     call    ScrollUpBottomTwoThirdsByRow
     ld      hl,MEM_ZX_SCREEN_4000+$1000+$20*7+0
     ld      b,CUSTOM_CHAR_ENTER
@@ -1620,7 +2139,6 @@ DmaPortData EQU $+1         ; self-modify storage of port number
     call    PatchAttrExtra
 
     ; "standard byte" line
-    halt
     call    ScrollUpBottomTwoThirdsByRow
     ld      hl,MEM_ZX_SCREEN_4000+$1000+$20*7+0
     ld      b,CUSTOM_CHAR_STD
@@ -1631,7 +2149,6 @@ DmaPortData EQU $+1         ; self-modify storage of port number
     call    OutString
 
     ; "uncommited" line
-    halt
     call    ScrollUpBottomTwoThirdsByRow
     ld      de,MEM_ZX_SCREEN_4000+$1000+$20*7+0
     ld      hl,LegendTxt_Uncommited
@@ -1641,7 +2158,6 @@ DmaPortData EQU $+1         ; self-modify storage of port number
     call    PatchAttrExtra
 
     ; "port" line
-    halt
     call    ScrollUpBottomTwoThirdsByRow
     ld      de,MEM_ZX_SCREEN_4000+$1000+$20*7+0
     ld      hl,LegendTxt_Port
@@ -1667,8 +2183,6 @@ DmaPortData EQU $+1         ; self-modify storage of port number
     BORDER  BLUE
 
 MainLoop:
-    halt
-
     ; check if some sequence is being played -> do the "send byte to DMA" every loop
     ld      hl,(playSequence)
     ld      a,(hl)
@@ -1676,29 +2190,17 @@ MainLoop:
     jr      z,.noSequenceIsPlaying
     inc     hl
     ld      (playSequence),hl
-
     call    SendDmaByte
     jr      MainLoop
-
+    ; if no sequence is playing, read the key state and handle key presses
 .noSequenceIsPlaying:
+    push    bc
+    call    MyRefreshKeyboardState
+    pop     bc
+    jr      MainLoop
+
 ;     call    ScrollUpBottomTwoThirdsByRow
 ;     call    RedrawScreen
-
-    ;; FIXME switch to full keyboard handler
-    ; check for press of "P" to restart the whole test with the other port
-    ld      a,%11011111
-    in      a,(ULA_P_FE)
-    rra
-    jp      c,MainLoop
-    ; flip the port to the other one (between $6B and $0B)
-    di
-    ld      a,(DmaPortData)
-    xor     Z80_DMA_PORT_DATAGEAR^Z80_DMA_PORT_MB02
-    ld      (DmaPortData),a
-    ; revert any self-modify things which require reverting for proper restart
-    ; (nothing so far?)
-    ; restart the test completely
-    jp      StartAfterPortChange
 
 ;; DMA init + transfer sequences used to reset DMA and to init the flashing border blocks
 
@@ -1710,8 +2212,7 @@ DmaHiddenInitSz EQU $ - DmaHiddenInit
 DmaEmptySequence:
     DB  DMA_END_SEQUENCE
 
-DmaVisibleInit:
-; FIXME write the "player" to run this
+DmaVisibleInitSequence:
     DB  DMA_RESET           ; (resets also port timings)
     DB  DMA_READ_MASK_FOLLOWS, $7F  ; reset read-mask to $7F (default for this test)
     DB  %0'1111'1'01        ; WR0 = A->B transfer, A.adr=$582D, length=2
@@ -1724,45 +2225,21 @@ DmaVisibleInit:
     DB  %10'0'0'0010        ; WR5 = stop after block, /CE only
     DB  DMA_LOAD            ; LOAD (to set up RR registers)
     DB  DMA_FORCE_READY     ; FORCE_READY (ready to "enable" first transfer)
-    DB  DMA_ENABLE  ; FIXME DEBUG
     DB  DMA_END_SEQUENCE
 
-;; DMA sequence to send the border letters "DMA" into top border area
+DmaResetReadMaskOnly:
+    DB  DMA_READ_MASK_FOLLOWS, $7F
+    DB  DMA_END_SEQUENCE
 
-    ALIGN   256
-IM2_IVT     EQU high $
-IM2_HANDLER EQU ((IM2_IVT+1)<<8)|(IM2_IVT+1)
-    BLOCK   257, IM2_IVT+1
+    ; set WR0 sequence - this will be dynamically set by code, needs end pointer
+    BLOCK   6, DMA_END_SEQUENCE
+DmaSetWr0Sequence:
+    DB      DMA_END_SEQUENCE, DMA_END_SEQUENCE
 
     ALIGN   2
     BLOCK   120, $CC
 StackSpace:
     DW      0
-Im2TempByte DB  0
-    ASSERT $ <= IM2_HANDLER
-    org     IM2_HANDLER
-Im2Handler:
-    push    af
-    push    bc
-    push    hl
-    ;;FIXME probably remove timer code.. or not?
-    ;;FIXME add keyboard handler
-    ;;FIXME maybe some "DMA sequence" player for first visible init and predefined tests
-.TimeCnt    EQU $+1
-    ld      a,0
-    inc     a
-    cp      25                  ; 0.5s wait
-    ld      c,a
-    sbc     a,a                 ; $00 when CF=0, $FF when CF=1
-    and     c                   ; keep or reset time counter
-    ld      (.TimeCnt),a
-
-    ; return from interrupt
-    pop     hl
-    pop     bc
-    pop     af
-    ei
-    ret
 
     IFNDEF BUILD_TAP
         savesna "dmaDebug.sna", Start
