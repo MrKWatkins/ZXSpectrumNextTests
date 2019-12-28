@@ -71,6 +71,7 @@ length              WORD    $0002   ; 3-bytes transfers for test purposes
 
 
     STRUCT StateData
+isEditMode          BYTE    0       ; 0=normal UI, 0!=edit mode (cursor at position)
 isCByteStandard     BYTE    1       ; 1=custom byte is "standard" (dynamic per purpose)
 customByte          BYTE    $00     ; specific custom byte entered (not standard)
 isPixelTransfer     BYTE    0       ; source/destination data are 1=pixels/0=attributes
@@ -417,37 +418,30 @@ SendDmaByte:
     ; read the DMA internal state
     ld      a,DMA_START_READ_SEQUENCE
     out     (c),a
-    ld      hl,MEM_ZX_SCREEN_4000+$1000+$20*7+15
-    ld      (OutCurrentAdr),hl
-    in      a,(c)
-    ld      (s.rrStatus),a
+    ld      hl,s.rrStatus
+    ld      b,7
+    inir
+    ; output the DMA internal state to the end of line
+    ld      hl,OutCurrentAdr+1
+    ld      (hl),high (MEM_ZX_SCREEN_4000+$1000+$20*7+15)
+    dec     hl
+    ld      (hl),low (MEM_ZX_SCREEN_4000+$1000+$20*7+15)
+    ld      a,(s.rrStatus)
     call    OutHexaValue
-    ld      l,$20*7+18
-    ld      (OutCurrentAdr),hl
-    in      e,(c)
-    in      d,(c)
-    ld      (s.rrCnt),de
-    ld      a,d
+    inc     (hl)
+    ld      a,(s.rrCnt+1)
     call    OutHexaValue
-    ld      a,e
+    ld      a,(s.rrCnt)
     call    OutHexaValue
-    ld      l,$20*7+23
-    ld      (OutCurrentAdr),hl
-    in      e,(c)
-    in      d,(c)
-    ld      (s.rrAadr),de
-    ld      a,d
+    inc     (hl)
+    ld      a,(s.rrAadr+1)
     call    OutHexaValue
-    ld      a,e
+    ld      a,(s.rrAadr)
     call    OutHexaValue
-    ld      l,$20*7+28
-    ld      (OutCurrentAdr),hl
-    in      e,(c)
-    in      d,(c)
-    ld      (s.rrBadr),de
-    ld      a,d
+    inc     (hl)
+    ld      a,(s.rrBadr+1)
     call    OutHexaValue
-    ld      a,e
+    ld      a,(s.rrBadr)
     call    OutHexaValue
     ; modify attributes of read values to use blue ink
     ld      hl,MEM_ZX_ATTRIB_5800+$20*23+15
@@ -510,10 +504,10 @@ RedrawScreen:
     jp      RedrawValues
 
 RedrawTextData:
-    DB  '  ',13,13,' pix WR0124',13,'  A t Tt   m    '
-    DB  'WR3 WR5 Test:qwer B y Ty   l    '
-    DB  'LOAD F-RDY ENA RST-S RST-M a    '
-    DB  'CONT DIS RST RST-A RST-B d b    '
+    DB  '  ',13,13,' Pix WR0124',13,'  A T tT   M    '
+    DB  'WR3 WR5 Test:QWER B Y tY   L    '
+    DB  'LOAD F-RDY ENA RST-S RST-M A    '
+    DB  'CONT DIS RST RST-A RST-B D B    '
 
 RedrawAttributeData:
     ; test area block
@@ -781,6 +775,14 @@ RedrawValues:
     ld      (OutCurrentAdr),hl
     xor     a
     call    Clear2Char
+    ld      a,(s.isEditMode)
+    or      a
+    jr      z,.notInEditMode
+    add     a,low (MEM_ZX_ATTRIB_5800+$20*4-1)
+    ld      l,a
+    ld      h,high (MEM_ZX_ATTRIB_5800+$20*4+0)
+    ld      (hl),A_FLASH|A_BRIGHT|P_WHITE|BLACK
+.notInEditMode:
     ld      a,(s.isCByteStandard)
     dec     a
     jr      z,.showStandardByte
@@ -1489,15 +1491,19 @@ handleKey_R:            ; test scenario4, caps=DMA_RESET
     ld      a,DMA_RESET
     jp      SendDmaByte
 
-handleKey_ENTER:        ; lot of stuff, multi-mode
-    ;;FIXME detect edit/mode if this handler will be used to exit it
+handleKey_ENTER:                ; commit WR0124, caps=Send byte to DMA, symbol=edit byte
     rlc     (ix + StateData.symbol)
     jr      c,.noSymbolShift
-    ;FIXME symbol+Enter -> enter edit more
-    ret
+.enterEditMode:
+    ld      (ix + StateData.isEditMode),1
+    ld      (ix + StateData.isCByteStandard),1
+    ld      (ix + StateData.customByte),0
+    call    RedrawValues
+    jp      SetKeyHandlers_EditMode
 .noSymbolShift:
     rlc     (ix + StateData.caps)
     jr      c,.noCapsShift
+.capsEnter:
     ;caps + Enter -> send custom byte to DMA
     ld      a,(s.isCByteStandard)
     or      a
@@ -1558,11 +1564,11 @@ handleKey_0:            ; commit WR0
     rl      b
     ret
 
-handleKey_1:            ; commit WR1
+handleKey_1:            ; commit WR1, caps=EDIT (custom byte)
     rlc     (ix + StateData.symbol)
     ret     nc
     rlc     (ix + StateData.caps)
-    ret     nc
+    jp      nc,handleKey_ENTER.enterEditMode
     ld      a,(s.diff)
     and     %0'0'000'110        ; WR1: A.tim, A.adj
     ret     z
@@ -1831,6 +1837,172 @@ handleKey_5:            ; caps=set WR5
 ErrTxt_StdToDma:
     DZ      'Err: can''t send "standard" byte'
 
+handleKey_ENTER_Edit:
+    xor     a
+    ld      (s.isEditMode),a
+    call    RedrawValues
+    call    SetKeyHandlers_UiMode
+    ; force "send byte" after edit when the DMA is awaiting more bytes
+    ld      bc,(DmaPortData)    ; reload C with DMA port number
+    ld      a,(s.awaitingWriteBytes)
+    or      a
+    ld      a,(s.customByte)    ; send whatever value in customByte (even "standard == 0")
+    jp      nz,SendDmaByte
+    ; otherwise "send byte" only with Caps shift
+    rlc     (ix + StateData.caps)
+    ret     c                   ; no caps, just finish edit mode (both regular and symbol)
+    jp      handleKey_ENTER.capsEnter
+
+handleKey_HexaDigit:
+    ; DE = key_code
+    ld      a,e
+    rlc     (ix + StateData.caps)
+    jr      nc,.capsWithDigit
+.findKeyCodeInA:
+    ; ignore symbol shift status
+    ld      hl,ConvertKeyCodeToHexaDigit
+    ld      b,15
+.findCurrentKey:
+    cp      (hl)
+    jr      z,.keyCodeFound
+    inc     hl
+    djnz    .findCurrentKey
+.keyCodeFound:
+    ; B = digit value
+    ld      (ix + StateData.isCByteStandard),0  ; no more standard byte
+    ; move cursor from first to second position (but stay there)
+    ld      a,(s.isEditMode)
+    ld      l,a
+    inc     a
+    and     2
+    ld      (s.isEditMode),a    ; 1 -> 2, 2 -> 2
+    ld      a,$F0           ; which nibble should be kept of current value (cursor=2)
+    dec     l
+    jr      nz,.cursorWas2
+    ; cursor was 1, edit the top nibble
+    ld      a,$0F
+    rlc     b
+    rlc     b
+    rlc     b
+    rlc     b
+.cursorWas2:
+    and     (ix + StateData.customByte)
+    or      b
+    ld      (s.customByte),a
+    jp      RedrawValues
+.capsWithDigit:
+    cp      KEY_0
+    jr      z,.delete
+    cp      KEY_5           ; arrow left works as delete too
+    ret     nz              ; ignore other keys with caps
+.delete:
+    ; move cursor one position back
+    ld      a,(s.isEditMode)    ; 2 -> 1, 1 -> 1
+    sub     2
+    adc     a,1
+    ld      (s.isEditMode),a
+    jp      RedrawValues
+
+ConvertKeyCodeToHexaDigit:
+    DB      KEY_F, KEY_E, KEY_D, KEY_C, KEY_B, KEY_A, KEY_9, KEY_8
+    DB      KEY_7, KEY_6, KEY_5, KEY_4, KEY_3, KEY_2, KEY_1
+
+SetKeyHandlers_UiMode:
+    ld              hl,KeyHandlers_UiMode
+    jr              SetKeyHandlers_EditMode.copyHandlersData
+
+SetKeyHandlers_EditMode:
+    ld              hl,KeyHandlers_EditMode
+.copyHandlersData:
+    ld              de,registeredHandlers
+    ld              bc,TOTAL_KEYS*2
+    ldir
+    ret
+
+KeyHandlers_UiMode:
+    DW              0           ; KEY_CAPS
+    DW              0           ; KEY_Z
+    DW              0           ; KEY_X
+    DW              handleKey_C ; KEY_C ; caps=DMA_CONTINUE
+    DW              0           ; KEY_V
+    DW              handleKey_A ; KEY_A ; chg A.adr, shift=A.adjust, caps=DMA_RESET_PORT_A_TIMING
+    DW              handleKey_S ; KEY_S ; caps=DMA_REINIT_STATUS_BYTE
+    DW              handleKey_D ; KEY_D ; flip direction, caps=DMA_DISABLE
+    DW              handleKey_F ; KEY_F ; caps=DMA_FORCE_READY
+    DW              0           ; KEY_G
+    DW              handleKey_Q ; KEY_Q ; test scenario1, caps=redraw+reinit
+    DW              handleKey_W ; KEY_W ; test scenario2
+    DW              handleKey_E ; KEY_E ; test scenario3, caps=DMA_ENABLE
+    DW              handleKey_R ; KEY_R ; test scenario4, caps=DMA_RESET
+    DW              handleKey_T ; KEY_T ; chg A.timing, shift=load custom A.timing
+    DW              handleKey_1 ; KEY_1 ; commit WR1, caps=EDIT
+    DW              handleKey_2 ; KEY_2 ; commit WR2
+    DW              handleKey_3 ; KEY_3 ; caps=set WR3
+    DW              handleKey_4 ; KEY_4 ; commit WR4
+    DW              handleKey_5 ; KEY_5 ; caps=set WR5
+    DW              handleKey_0 ; KEY_0 ; commit WR0
+    DW              0           ; KEY_9
+    DW              0           ; KEY_8
+    DW              0           ; KEY_7
+    DW              0           ; KEY_6
+    DW              handleKey_P ; KEY_P ; flip pixels/attributes, caps=flip port+restart
+    DW              0           ; KEY_O
+    DW              0           ; KEY_I
+    DW              0           ; KEY_U
+    DW              handleKey_Y ; KEY_Y ; chg B.timing, shift=load custom B.timing
+    DW              handleKey_ENTER ; KEY_ENTER ; commit WR0124, caps=Send byte to DMA, symbol=edit byte
+    DW              handleKey_L ; KEY_L ; chg length, caps=DMA_LOAD
+    DW              0           ; KEY_K
+    DW              0           ; KEY_J
+    DW              0           ; KEY_H
+    DW              0           ; KEY_SPACE
+    DW              0           ; KEY_SYMBOL
+    DW              handleKey_M ; KEY_M ; chg mode, caps=DMA_READ_MASK_FOLLOWS
+    DW              0           ; KEY_N
+    DW              handleKey_B ; KEY_B ; chg B.adr, shift=B.adjust, caps=DMA_RESET_PORT_B_TIMING
+
+KeyHandlers_EditMode:
+    DW              0           ; KEY_CAPS
+    DW              0           ; KEY_Z
+    DW              0           ; KEY_X
+    DW              handleKey_HexaDigit     ; KEY_C
+    DW              0           ; KEY_V
+    DW              handleKey_HexaDigit     ; KEY_A
+    DW              0           ; KEY_S
+    DW              handleKey_HexaDigit     ; KEY_D
+    DW              handleKey_HexaDigit     ; KEY_F
+    DW              0           ; KEY_G
+    DW              0           ; KEY_Q
+    DW              0           ; KEY_W
+    DW              handleKey_HexaDigit     ; KEY_E
+    DW              0           ; KEY_R
+    DW              0           ; KEY_T
+    DW              handleKey_HexaDigit     ; KEY_1
+    DW              handleKey_HexaDigit     ; KEY_2
+    DW              handleKey_HexaDigit     ; KEY_3
+    DW              handleKey_HexaDigit     ; KEY_4
+    DW              handleKey_HexaDigit     ; KEY_5
+    DW              handleKey_HexaDigit     ; KEY_0
+    DW              handleKey_HexaDigit     ; KEY_9
+    DW              handleKey_HexaDigit     ; KEY_8
+    DW              handleKey_HexaDigit     ; KEY_7
+    DW              handleKey_HexaDigit     ; KEY_6
+    DW              0           ; KEY_P
+    DW              0           ; KEY_O
+    DW              0           ; KEY_I
+    DW              0           ; KEY_U
+    DW              0           ; KEY_Y
+    DW              handleKey_ENTER_Edit    ; KEY_ENTER
+    DW              0           ; KEY_L
+    DW              0           ; KEY_K
+    DW              0           ; KEY_J
+    DW              0           ; KEY_H
+    DW              0           ; KEY_SPACE
+    DW              0           ; KEY_SYMBOL
+    DW              0           ; KEY_M
+    DW              0           ; KEY_N
+    DW              handleKey_HexaDigit     ; KEY_B
+
     ALIGN   256
 CustomCharsGfx:
     ; zero char
@@ -1975,15 +2147,15 @@ CUSTOM_CHAR_END     EQU     ($ - CustomCharsGfx)/8
 
     ;       '01234567012345670123456701234567'
 LegendTxt_Keyboard:
-    DZ      'Controls: a=A, a=CS+A, a=SS+A'
+    DZ      'Controls: X=x, X=CS+x, X=SS+x'
 LegendTxt_Keyboard2:
     DZ      ' =edit custom byte  =send to DMA'
 LegendTxt_Standard:
     DZ      ' ="standard" byte - specific fn.'
 LegendTxt_Uncommited:
-    DZ      'Uncommited changes:1234 q=redraw'
+    DZ      'Uncommited changes:1234 Q=redraw'
 LegendTxt_Port:
-    DZ      'DMA Port $   p=alternate+restart'
+    DZ      'DMA Port $   P=alternate+restart'
 
     ; 78 = bright white (regular key) 70 = bright yellow (symbol), 58 = bright magenta (caps)
     ; offsets are -1 ("inc a" is used to test for 255 terminator value)
@@ -2067,31 +2239,11 @@ Start:
     ; install keyboard handlers
     IGNORE_KEY      KEY_CAPS
     IGNORE_KEY      KEY_SYMBOL
-    REGISTER_KEY    KEY_Q, handleKey_Q      ; test scenario1, caps=redraw+reinit
-    REGISTER_KEY    KEY_W, handleKey_W      ; test scenario2
-    REGISTER_KEY    KEY_E, handleKey_E      ; test scenario3, caps=DMA_ENABLE
-    REGISTER_KEY    KEY_R, handleKey_R      ; test scenario4, caps=DMA_RESET
-    REGISTER_KEY    KEY_L, handleKey_L      ; chg length, caps=DMA_LOAD
-    REGISTER_KEY    KEY_A, handleKey_A      ; chg A.adr, shift=A.adjust, caps=DMA_RESET_PORT_A_TIMING
-    REGISTER_KEY    KEY_B, handleKey_B      ; chg B.adr, shift=B.adjust, caps=DMA_RESET_PORT_B_TIMING
-    REGISTER_KEY    KEY_T, handleKey_T      ; chg A.timing, shift=load custom A.timing
-    REGISTER_KEY    KEY_Y, handleKey_Y      ; chg B.timing, shift=load custom B.timing
-    REGISTER_KEY    KEY_D, handleKey_D      ; flip direction, caps=DMA_DISABLE
-    REGISTER_KEY    KEY_M, handleKey_M      ; chg mode, caps=DMA_READ_MASK_FOLLOWS
-    REGISTER_KEY    KEY_ENTER, handleKey_ENTER  ; lot of stuff, multi-mode
-    REGISTER_KEY    KEY_0, handleKey_0      ; commit WR0
-    REGISTER_KEY    KEY_1, handleKey_1      ; commit WR1
-    REGISTER_KEY    KEY_2, handleKey_2      ; commit WR2
-    REGISTER_KEY    KEY_4, handleKey_4      ; commit WR4
-    REGISTER_KEY    KEY_3, handleKey_3      ; caps=set WR3
-    REGISTER_KEY    KEY_5, handleKey_5      ; caps=set WR5
-    REGISTER_KEY    KEY_P, handleKey_P      ; flip pixels/attributes, caps=flip port+restart
-    REGISTER_KEY    KEY_C, handleKey_C      ; caps=DMA_CONTINUE
-    REGISTER_KEY    KEY_F, handleKey_F      ; caps=DMA_FORCE_READY
-    REGISTER_KEY    KEY_S, handleKey_S      ; caps=DMA_REINIT_STATUS_BYTE
 StartAfterPortChange:
     ld      sp,StackSpace       ; reset SP also when test is restarted
     call    StartTest
+    ; re-install keyboard handlers for UI mode
+    call    SetKeyHandlers_UiMode
     ; re-init global state
     ld      hl,stateInitSet
     ld      de,s
@@ -2170,16 +2322,6 @@ DmaPortData EQU $+1         ; self-modify storage of port number
     ld      a,(DmaPortData)
     call    OutHexaValue
 
-    ; do the read of DMA port while nothing was requested yet
-;     ld      hl,MEM_ZX_SCREEN_4000+$20*7+0
-;     ld      (OutCurrentAdr),hl
-;     ld      ix,MEM_ZX_ATTRIB_5800+$20*7+0
-;     call    ReadAndShowDmaByte
-    ; request status of DMA after full init
-;     ld      a,DMA_READ_STATUS_BYTE
-;     out     (c),a
-;     call    ReadAndShowDmaByte
-
     BORDER  BLUE
 
 MainLoop:
@@ -2188,19 +2330,37 @@ MainLoop:
     ld      a,(hl)
     cp      DMA_END_SEQUENCE
     jr      z,.noSequenceIsPlaying
+    BORDER  YELLOW
+    ld      a,(hl)
     inc     hl
     ld      (playSequence),hl
     call    SendDmaByte
     jr      MainLoop
     ; if no sequence is playing, read the key state and handle key presses
 .noSequenceIsPlaying:
+    ld      a,(s.awaitingWriteBytes)
+    or      a
+    jr      z,.noByteIsAwaitedOrInEditMode
+    ld      a,(s.isEditMode)
+    or      a
+    jr      nz,.noByteIsAwaitedOrInEditMode     ; already in edit mode
+    ; force edit mode when some byte is being awaited and no pending replay
+    push    bc
+    call    handleKey_ENTER.enterEditMode
+    pop     bc
+    jr      MainLoop
+.noByteIsAwaitedOrInEditMode:
+    ; do BLUE/RED border depending on UI/editByte mode
+    ld      a,(s.isEditMode)
+    inc     a
+    and     2
+    or      1
+    out     (ULA_P_FE),a
+    ; refresh the keyboard state and handle key presses
     push    bc
     call    MyRefreshKeyboardState
     pop     bc
     jr      MainLoop
-
-;     call    ScrollUpBottomTwoThirdsByRow
-;     call    RedrawScreen
 
 ;; DMA init + transfer sequences used to reset DMA and to init the flashing border blocks
 
@@ -2246,4 +2406,7 @@ StackSpace:
     ELSE
         savebin "dma8000.bin", BinStart, $-BinStart
         shellexec "bin2tap -o dmaDebug.tap -a 32768 -b -r 32768 dma8000.bin && rm dma8000.bin"
+        org 0
+        incbin "ReadMe.txt"
+        savetap "dmaDebug.tap", CODE, "ReadMe.txt", 0, $
     ENDIF

@@ -33,6 +33,24 @@
     ⌥↲      send custom byte to DMA (if edit mode, also ends edit)
     ⌥p      alternate DMA port ($0B vs $6B) - restarts whole test!
 
+### screen layout
+
+Top third of screen contains default test area for transfers and UI part (controls and
+values). Most of the value changes are "uncommitted" after pressing the key, changed
+only in UI part, but not written to DMA chip. The uncommitted changes are highlighted
+in blue, pressing "Enter" or particular 0,1,2 or 4 key will write all/particular WR
+value to the DMA chip (commit the change).
+
+Bottom two thirds of screen is scrolling area where every byte sent to DMA chip is shown.
+The bytes are parsed back, most of the DMA functionality should be recognized by test
+(there are few omissions like interrupt-control functionality of Zilog DMA and zxnDMA
+"prescalar" in WR2 - those may get test into confused state), and it will update its
+internal "WR" state, and display the function of byte in the bottom line (like "WR2").
+
+On the right side of each line the blue hexa values are full state of DMA chip read
+back through WR6 $A7 "START_READ_SEQUENCE", registers are shown as:
+RR0 (status) RR2:RR1 (counter) RR4:RR3 (port A address) RR6:RR5 (port B address)
+
 ### what it does
 
 Allows you to try out various DMA init sequences. The test will after start prepare
@@ -60,7 +78,7 @@ If you just enter custom-byte edit and exit it immediately, it will reset the va
 to "standard" value ("SS" in controls paragraph). This value can't be send to DMA
 chip, but has special meaning for controls "⌥q" and "p", which will then fill
 the source area with test-pattern data, and controls "⇑t" and "⇑y" will load timing
-byte 0x0E to particular port.
+byte 0x0E (2T timing) to particular port.
 
 The test will try to detect when it is run at ZX Spectrum Next board, and it will
 configure the Next to use 28MHz mode, but it will switch zxnDMA to "Zilog"
