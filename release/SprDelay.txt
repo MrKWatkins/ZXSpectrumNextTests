@@ -22,7 +22,29 @@ If the ULA line is misaligned, it signals the copper commands are affecting
 wrong scanlines (common in emulators to affect previous scanline instead
 of target one, in such case the sprite delay counts against the cyan paper).
 
-On current core 3.0.5 the sprite engine is using double-buffering (per
+## New technical info for core 3.0.7+
+
+The sprite engine is now swapping the buffers at sprite coordinate X=-1,
+just before the first sprite pixel is sent to the display. This shifts
+the description in following paragraph by roughly 1/4 of scanline T-states
+to right, so now changes done to sprite attributes during H-blank period
+will be only one scanline delayed (or may affect the current buffer which
+will be displayed at following scanline, if the renderer is still rendering
+the sprites you are modifying).
+
+In other words, if you want to turn sprite from invisible to visible at
+pixel [10,52] (sprite coordinates) (scanline 20, left border scanline 19
+in copper coordinates), the sprite engine should pick the change of flag
+if it is written ahead of copper WAIT(line=18, horizontal=~50).
+
+Somewhere around copper coordinates line=18,H=50 (scanline 19 (in PAPER))
+the buffers are swapped, buffer with new drawing is shown at scanline 19,
+and sprite engine is drawing with the modified flag new buffer for scanline
+20 (in PAPER).
+
+## Older core 3.0.5 technical details
+
+On older core 3.0.5 the sprite engine is using double-buffering (per
 scanline), so the result is visible with one scanline delay. But be aware
 the rendering of buffer for scanline "y" starts right after the last
 sprite pixel of line y-2 is displayed (copper H=36, sprite X=320), and will
