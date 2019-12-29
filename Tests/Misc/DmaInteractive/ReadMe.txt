@@ -15,6 +15,7 @@
     p       test area is in attributes/pixels (will require addresses re-LOAD!)
             the source test area for pixels is pre-filled by custom byte (SS=default patterns)
             does redraw screen (not fully like ⌥q)
+    h       outputs couple of hexa values from destination area (from first non-zero)
     ⌥q      redraw screen, reset source+destination area
     ⌥3      WR3     ; WR3=$80 (disable interrupt and all) (for other use custom byte)
     ⌥5      WR5     ; WR5=$82 (stop on end, /CE, ready active low) (for other use custom byte)

@@ -1817,6 +1817,62 @@ handleKey_P:            ; flip pixels/attributes, caps=flip port+restart
     jp      RedrawValues        ; this may be wasteful as WR0 write *may* follow
         ; but if WR0 does not follow (custom port A address), then this is needed
 
+handleKey_H:            ; outputs couple of hexa values from dst area (from first != 0)
+    rlc     (ix + StateData.symbol)
+    ret     nc
+    rlc     (ix + StateData.caps)
+    ret     nc
+    ; scroll info lines
+    call    ScrollUpBottomTwoThirdsByRow
+    ; alternate bright/non-bright per each digit pair
+    ld      hl,MEM_ZX_ATTRIB_5800+$20*23+5
+    ld      b,7
+.highlightPairsOfHexa:
+    set     6,(hl)
+    inc     l
+    set     6,(hl)
+    inc     l
+    inc     l
+    inc     l
+    djnz    .highlightPairsOfHexa
+    ; calculate destination address
+    ld      a,(s.isPixelTransfer)
+    add     a,low SrcDataAdr
+    ld      l,a
+    ld      h,high SrcDataAdr
+    ld      h,(hl)
+    ld      a,(s.wr.direction)
+    and     1
+    rrca
+    rrca
+    xor     $60     ; A = $60 for A->B, $20 for A<-B
+    ld      l,a
+    ; search for first non-zero value
+    ld      b,30-14
+.searchForNonZero:
+    xor     a
+    inc     l
+    or      (hl)
+    jr      nz,.foundNonZero
+    djnz    .searchForNonZero
+.foundNonZero:
+    ; output the debug info
+    ld      de,MEM_ZX_SCREEN_4000+$1000+$20*7+0
+    ld      (OutCurrentAdr),de
+    ld      a,h
+    call    OutHexaValue
+    ld      a,l
+    call    OutHexaValue
+    ld      a,' '
+    call    OutChar
+    ld      b,13
+.dumpVaulues:
+    ld      a,(hl)
+    inc     l
+    call    OutHexaValue
+    djnz    .dumpVaulues
+    ret
+
 handleKey_C:            ; caps=DMA_CONTINUE
     rlc     (ix + StateData.caps)
     ret     c
@@ -1972,7 +2028,7 @@ KeyHandlers_UiMode:
     DW              handleKey_L ; KEY_L ; chg length, caps=DMA_LOAD
     DW              0           ; KEY_K
     DW              0           ; KEY_J
-    DW              0           ; KEY_H
+    DW              handleKey_H ; KEY_H ; show destination hexa bytes (from first non-zero)
     DW              0           ; KEY_SPACE
     DW              0           ; KEY_SYMBOL
     DW              handleKey_M ; KEY_M ; chg mode, caps=DMA_READ_MASK_FOLLOWS
