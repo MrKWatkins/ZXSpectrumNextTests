@@ -3,6 +3,7 @@
     org	$6000
 
     INCLUDE "../../Constants.asm"
+    INCLUDE "../../Macros.asm"
 
     ; data at beginning, as they will be 256B-aligned thanks to org $6000 "for free"
     ALIGN 256

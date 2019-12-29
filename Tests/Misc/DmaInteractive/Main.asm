@@ -2313,22 +2313,7 @@ ReadAndShowDmaByte:
     ret
 
 AutoDetectTBBlue:
-    ld      bc,TBBLUE_REGISTER_SELECT_P_243B
-    ld      a,MACHINE_ID_NR_00
-    out     (c),a
-    inc     b       ; bc = TBBLUE_REGISTER_ACCESS_P_253B
-    in      a,(c)   ; read desired NextReg state
-    cp      8
-    jr      z,.emulator
-    cp      10
-    ret     nz      ; not TBBlue
-.emulator:
-    dec     b
-    ld      a,NEXT_VERSION_NR_01
-    out     (c),a
-    inc     b
-    in      a,(c)
-    cp      $FF     ; CF=1 for non $FF (Next core version 15.15.x will fail this test)
+    call    DetectTBBlue
     ret     nc
     ; modify default port to $6B on TBBlue boards
     ld      a,ZXN_DMA_P_6B

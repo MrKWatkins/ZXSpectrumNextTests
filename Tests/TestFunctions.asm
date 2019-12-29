@@ -13,6 +13,14 @@ StartTest:
     ld      (hl),P_WHITE|BLACK
     ld      bc,32*24-1      ; and overwrite remaining 767 bytes
     ldir
+    ; detect if the test is running at TBBlue machine (ZX Next)
+    call    DetectTBBlue
+    ret     nc
+    ; if running at TBBlue, enable all Next specific HW in the NextRegisters $82-$85
+    NEXTREG_nn  INTERNAL_PORT_DECODING_0_NR_82,$FF
+    NEXTREG_nn  INTERNAL_PORT_DECODING_1_NR_83,$FF
+    NEXTREG_nn  INTERNAL_PORT_DECODING_2_NR_84,$FF
+    NEXTREG_nn  INTERNAL_PORT_DECODING_3_NR_85,$FF
     ret
 
 EndTest
@@ -33,7 +41,7 @@ EndTiming
 ReadNextReg:
     ; reads nextreg in A into A (does modify currently selected NextReg on I/O port)
     push    bc
-    ld      bc, TBBLUE_REGISTER_SELECT_P_243B
+    ld      bc,TBBLUE_REGISTER_SELECT_P_243B
     out     (c),a
     inc     b       ; bc = TBBLUE_REGISTER_ACCESS_P_253B
     in      a,(c)   ; read desired NextReg state
@@ -43,7 +51,7 @@ ReadNextReg:
 ; Read NextReg into A (does modify A, and NextReg selected on the I/O port)
 ; is not optimized for speed + restores BC
     MACRO NEXTREG2A register?
-        ld     a, register?
+        ld     a,register?
         call   ReadNextReg
     ENDM
 
@@ -52,10 +60,26 @@ WriteNextRegByIo:
     push    bc
     push    af
     ld      a,b
-    ld      bc, TBBLUE_REGISTER_SELECT_P_243B
+    ld      bc,TBBLUE_REGISTER_SELECT_P_243B
     out     (c),a
     inc     b       ; bc = TBBLUE_REGISTER_ACCESS_P_253B
     pop     af
     out     (c),a   ; write value
     pop     bc
+    ret
+
+DetectTBBlue:
+    ; check if the TBBlue board (or emulator) is running the code: CF=1 TBBlue, CF=0 not
+    NEXTREG2A   MACHINE_ID_NR_00
+    cp      8
+    jr      z,.emulatorOrTBBlue
+    cp      10
+    jr      z,.emulatorOrTBBlue
+    ; not TBBlue
+    or      a       ; CF=0
+    ret
+.emulatorOrTBBlue:
+    NEXTREG2A   NEXT_VERSION_NR_01
+    dec     a       ; convert version $00 to $FF, and $FF to $FE
+    cp      $FE     ; CF=0 for version numbers $00 and $FF ($01..$FE versions = CF=1)
     ret

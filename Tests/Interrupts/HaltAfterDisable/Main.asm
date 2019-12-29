@@ -3,6 +3,7 @@
 	org	$6000
 
 	INCLUDE "../../Constants.asm"
+	INCLUDE "../../Macros.asm"
 	INCLUDE "../../TestFunctions.asm"
 	INCLUDE "../../OutputFunctions.asm"
 
