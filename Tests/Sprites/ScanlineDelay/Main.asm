@@ -292,48 +292,56 @@ PAL_S_Y         EQU     PAL_T_Y+32-2
 
 TYPES_SPR_Y     EQU     32+8*11+6
 
+; cores 2.x .. 3.0.6 flip sprite buffer at Sprite X==320, so the changes to sprites must
+; be done well before h-blank (a bit before sprite X==320) to be picked by sprite renderer
+; WAIT_H          EQU     35
+
+; core 3.0.7 flip sprite buffer at Sprite X==-1 (so the renderer should pick changes even
+; when they are done at the end of the h-blank period
+WAIT_H          EQU     48
+
 CopperCode:     ;; remember the copper instructions are big endian (bytes: WAIT/REGISTER, scanline/value)
     DW  SPRITE_ATTR_SLOT_SEL_NR_34|(1<<8)       ; select second sprite (first one to modify on fly)
     DW  PALETTE_CONTROL_NR_43|(%10000000<<8)    ; ULA first palette, auto-increment OFF
     DW  PALETTE_INDEX_NR_40|(16+7<<8)           ; index of white paper (bright 0) (will be used a lot)
     ; in h-blank of previous scanline, make the second sprite visible
-    DW  COPPER_WAIT_H|(35<<1)|(VIS_TARGET_Y-1<<8)
+    DW  COPPER_WAIT_H|(WAIT_H<<1)|(VIS_TARGET_Y-1<<8)
     DW  SPRITE_ATTR3_NR_38|($80<<8)             ; visible ON sprite
     DW  PALETTE_VALUE_NR_41|(%011'101'10<<8)    ; bright cyan paper in ULA (also active scanline)
     ; in h-blank of target scanline, make the second sprite invisible again
-    DW  COPPER_WAIT_H|(35<<1)|(VIS_TARGET_Y<<8)
+    DW  COPPER_WAIT_H|(WAIT_H<<1)|(VIS_TARGET_Y<<8)
     DW  SPRITE_ATTR3_INC_NR_78|($00<<8)         ; visible OFF sprite ++sprite index
     DW  PALETTE_VALUE_NR_41|(%101'101'10<<8)    ; regular white paper in ULA
     ; sprite 2 test (rotation/position test)
-    DW  COPPER_WAIT_H|(35<<1)|(ROTPOS_T_Y-1<<8)
+    DW  COPPER_WAIT_H|(WAIT_H<<1)|(ROTPOS_T_Y-1<<8)
     DW  SPRITE_ATTR0_NR_35|(32+129<<8)          ; move it to right with X coordinate
     DW  SPRITE_ATTR2_NR_37|($0A<<8)             ; switch ON ROTATE+MIRRORX
     DW  PALETTE_VALUE_NR_41|(%110'110'10<<8)    ; bright yellow paper in ULA
-    DW  COPPER_WAIT_H|(35<<1)|(ROTPOS_T_Y<<8)
+    DW  COPPER_WAIT_H|(WAIT_H<<1)|(ROTPOS_T_Y<<8)
     DW  SPRITE_ATTR0_NR_35|(32+120<<8)          ; move it back
     DW  SPRITE_ATTR2_INC_NR_77|($00<<8)         ; switch OFF ROTATE+MIRRORX
     DW  PALETTE_VALUE_NR_41|(%101'101'10<<8)    ; regular white paper in ULA
     ; sprite 3 test (transparency index test)
-    DW  COPPER_WAIT_H|(35<<1)|(TRANS_T_Y-1<<8)
+    DW  COPPER_WAIT_H|(WAIT_H<<1)|(TRANS_T_Y-1<<8)
     DW  SPRITE_TRANSPARENCY_I_NR_4B|(1<<8)      ; transparency index set to $01 (blue)
     DW  PALETTE_VALUE_NR_41|(%101'011'10<<8)    ; bright yellow paper in ULA
-    DW  COPPER_WAIT_H|(35<<1)|(TRANS_T_Y<<8)
+    DW  COPPER_WAIT_H|(WAIT_H<<1)|(TRANS_T_Y<<8)
     DW  SPRITE_TRANSPARENCY_I_NR_4B|($1F<<8)    ; transparency index back to $1F
     DW  PALETTE_VALUE_NR_41|(%101'101'10<<8)    ; regular white paper in ULA
     ; sprite 4 test (palette color measuring)
-    DW  COPPER_WAIT_H|(35<<1)|(PAL_T_Y-5<<8)
+    DW  COPPER_WAIT_H|(WAIT_H<<1)|(PAL_T_Y-5<<8)
     DW  SPRITE_TRANSPARENCY_I_NR_4B|(1<<8)      ; transparency index to $01 (make sprite fully visible)
-    DW  COPPER_WAIT_H|(35<<1)|(PAL_T_Y-1<<8)
+    DW  COPPER_WAIT_H|(WAIT_H<<1)|(PAL_T_Y-1<<8)
     DW  PALETTE_VALUE_NR_41|(%011'101'10<<8)    ; bright cyan paper in ULA
     DW  PALETTE_CONTROL_NR_43|(%10100000<<8)    ; Sprites first palette, auto-increment OFF
     DW  PALETTE_INDEX_NR_40|($1F<<8)            ; index $1F (the right side of sprite pattern)
     DW  PALETTE_VALUE_NR_41|(%111'100'00<<8)    ; orange color (but transparency is index-based)
-    DW  COPPER_WAIT_H|(35<<1)|(PAL_T_Y<<8)
+    DW  COPPER_WAIT_H|(WAIT_H<<1)|(PAL_T_Y<<8)
     DW  PALETTE_VALUE_NR_41|($1F<<8)            ; back to $1F color (to make it transparent)
     DW  PALETTE_CONTROL_NR_43|(%10000000<<8)    ; ULA first palette, auto-increment OFF
     DW  PALETTE_INDEX_NR_40|(16+7<<8)           ; index of white paper (bright 0) (will be used a lot)
     DW  PALETTE_VALUE_NR_41|(%101'101'10<<8)    ; regular white paper in ULA
-    DW  COPPER_WAIT_H|(35<<1)|(PAL_T_Y+7<<8)
+    DW  COPPER_WAIT_H|(WAIT_H<<1)|(PAL_T_Y+7<<8)
     DW  SPRITE_TRANSPARENCY_I_NR_4B|($1F<<8)    ; transparency index back to $1F
 
     DW  COPPER_HALT_B|(COPPER_HALT_B<<8)    ; copper HALT
