@@ -13,7 +13,7 @@
 ; When using custom-byte values, or asking the test to do transfers outside
 ; of test areas, you risk the damage of the test itself. Generally don't enable
 ; transfers outside of test areas, or double check the values. The test itself
-; resides in memory from address $8000 to $9FFF (FIXME refresh after final).
+; resides in memory from address $8000 to $97FF.
 ; While the test will try to parse custom bytes sent to DMA and interpret them
 ; to keep the current state fresh, it will not try to protect itself.
 
@@ -1451,8 +1451,20 @@ handleKey_Q:            ; test scenario1, caps=redraw+reinit
     rlc     (ix + StateData.caps)
     jp      nc,RedrawScreen ; redraw upper third of screen fully (including "CLS")
     ; test scenario 1
-    ;FIXME all
-    ret
+    ld      hl,TestScenario1
+    ld      (playSequence),hl
+    ld      a,'1'
+    ;
+    ; fallthrough into FinishTestScenarioSetup
+    ;
+FinishTestScenarioSetup:
+    push    af
+    call    ScrollUpBottomTwoThirdsByRow
+    ld      de,MEM_ZX_SCREEN_4000+$1000+$20*7+0
+    ld      hl,TestScenarioTxt
+    call    OutStringAtDe
+    pop     af
+    jp      OutChar
 
 handleKey_W:            ; test scenario2
     rlc     (ix + StateData.symbol)
@@ -1460,8 +1472,10 @@ handleKey_W:            ; test scenario2
     rlc     (ix + StateData.caps)
     ret     nc
     ; test scenario 2
-    ;FIXME all
-    ret
+    ld      hl,TestScenario2
+    ld      (playSequence),hl
+    ld      a,'2'
+    jr      FinishTestScenarioSetup
 
 handleKey_E:            ; test scenario3, caps=DMA_ENABLE
     rlc     (ix + StateData.symbol)
@@ -1469,8 +1483,10 @@ handleKey_E:            ; test scenario3, caps=DMA_ENABLE
     rlc     (ix + StateData.caps)
     jr      nc,.dma_enable
     ; test scenario 3
-    ;FIXME all
-    ret
+    ld      hl,TestScenario3
+    ld      (playSequence),hl
+    ld      a,'3'
+    jr      FinishTestScenarioSetup
 .dma_enable:
     ld      bc,(DmaPortData)    ; reload C with DMA port number
     ld      a,DMA_ENABLE
@@ -1482,8 +1498,10 @@ handleKey_R:            ; test scenario4, caps=DMA_RESET
     rlc     (ix + StateData.caps)
     jr      nc,.dma_reset
     ; test scenario 4
-    ;FIXME all
-    ret
+    ld      hl,TestScenario4
+    ld      (playSequence),hl
+    ld      a,'4'
+    jr      FinishTestScenarioSetup
 .dma_reset:
     ld      (ix + StateData.edit.a.timing),$FF
     ld      (ix + StateData.edit.b.timing),$FF
@@ -2002,6 +2020,57 @@ KeyHandlers_EditMode:
     DW              0           ; KEY_M
     DW              0           ; KEY_N
     DW              handleKey_HexaDigit     ; KEY_B
+
+TestScenarioTxt:
+    DZ  'Test scenario '
+
+TestScenario1:
+    ; try transfer with LOAD done only before final direction flip
+    DB  %0'0000'0'01        ; A<-B transfer
+    DB  DMA_LOAD
+    DB  %0'0000'1'01        ; A->B transfer
+    DB  DMA_FORCE_READY
+    DB  DMA_ENABLE
+    DB  DMA_END_SEQUENCE
+
+TestScenario2:
+    ; try change of port adr adjust before continue + enable
+    DB  DMA_LOAD            ; expects default state (A++, B++)
+    DB  DMA_FORCE_READY
+    DB  DMA_ENABLE
+    DB  DMA_CONTINUE
+    DB  DMA_FORCE_READY
+    DB  DMA_ENABLE
+    DB  %0'0'00'0'100       ; WR1 = A memory, --, keep timing
+    DB  DMA_CONTINUE
+    DB  DMA_FORCE_READY
+    DB  DMA_ENABLE
+    DB  DMA_END_SEQUENCE
+
+TestScenario3:
+    ; try change of port adr adjust between continue + enable
+    DB  DMA_LOAD            ; expects default state (A++, B++)
+    DB  DMA_FORCE_READY
+    DB  DMA_ENABLE
+    DB  DMA_CONTINUE
+    DB  DMA_FORCE_READY
+    DB  DMA_ENABLE
+    DB  DMA_CONTINUE
+    DB  %0'0'00'0'100       ; WR1 = A memory, --, keep timing
+    DB  DMA_FORCE_READY
+    DB  DMA_ENABLE
+    DB  DMA_END_SEQUENCE
+
+TestScenario4:
+    ; try figure out what precisely RESET does
+    DB  DMA_LOAD            ; expects default state (A++, B++)
+    DB  DMA_FORCE_READY
+    DB  DMA_ENABLE
+    DB  DMA_RESET
+    DB  DMA_CONTINUE
+    DB  DMA_FORCE_READY
+    DB  DMA_ENABLE
+    DB  DMA_END_SEQUENCE
 
     ALIGN   256
 CustomCharsGfx:

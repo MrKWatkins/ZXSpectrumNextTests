@@ -69,7 +69,7 @@ against sequence which would damage the test, it's up to the user to make sure t
 values loaded in the DMA are reasonable before hitting that Caps_shift+E to ENABLE
 the currently set transfer.
 
-Test itself occupies memory in range $8000 to $9FFF, does use ROM character set ($3D00),
+Test itself occupies memory in range $8000 to $97FF, does use ROM character set ($3D00),
 but no ROM code, and doesn't use interrupt or memory banking, i.e. as long as your
 transfers don't hit the test memory range, it should keep working (use "redraw" action
 to restore the UI display).
