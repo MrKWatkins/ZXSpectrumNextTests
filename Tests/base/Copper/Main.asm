@@ -88,9 +88,9 @@ Start:
     ; PALETTE_INDEX_NR_40 is still set to 128+7 (!)
     ; and should stay that way for whole test (if auto-increment OFF works)
 
-    ; set up Copper control to "stop" + index 0
-    NEXTREG COPPER_CONTROL_LO_NR_61, 0
+    ; set up Copper control to "stop" + index 0 (STOP first, but should not matter)
     NEXTREG COPPER_CONTROL_HI_NR_62, 0      ; full stop + index zero
+    NEXTREG COPPER_CONTROL_LO_NR_61, 0
 
     ; set up Copper data - set the TBBlue I/O port to COPPER_DATA_NR_60
     ld      bc,TBBLUE_REGISTER_SELECT_P_243B
