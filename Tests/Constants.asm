@@ -228,6 +228,7 @@ TILEMAP_CONTROL_NR_6B           equ $6B
 TILEMAP_DEFAULT_ATTR_NR_6C      equ $6C
 TILEMAP_BASE_ADR_NR_6E          equ $6E     ;Tilemap base address of map
 TILEMAP_GFX_ADR_NR_6F           equ $6F     ;Tilemap definitions (graphics of tiles)
+LAYER2_CONTROL_NR_70            equ $70
 SPRITE_ATTR0_INC_NR_75          equ $75     ;port $57 mirror in nextreg space (accessible to copper) (slot index++)
 SPRITE_ATTR1_INC_NR_76          equ $76
 SPRITE_ATTR2_INC_NR_77          equ $77
