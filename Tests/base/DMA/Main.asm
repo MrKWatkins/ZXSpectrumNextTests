@@ -436,10 +436,10 @@ LegendaryText:
     DB  "................................"
     DB  "................................"
     DB  "..\"slow\".burst.18FPS.color.chg.."
-    DB  "..auto-restart..2s.CPU.Hz.chg..."
+    DB  "..auto-restart..2s.CPU.MHz.chg.."
     DB  "................................"
     DB  "................................"
-    DB  "-= 3.5  7  14  28 Mhz -==-==-==-"
+    DB  "-= 3.5  7  14  28 MHz -==-==-==-"
     DB  0
 
     ALIGN   256, $CC            ; align to boundary
