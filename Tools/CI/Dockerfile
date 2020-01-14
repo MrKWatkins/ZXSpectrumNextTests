@@ -10,9 +10,9 @@ FROM gcc:6
 
 # clone sources of sjasmplus (from my fork repository, where I put also "RC" tags),
 # build sjasmplus and install it as part of this container
-RUN git clone --depth=1 --branch v1.14.4-rc1 https://github.com/ped7g/sjasmplus.git \
+RUN git clone --depth=1 --branch v1.14.4 https://github.com/ped7g/sjasmplus.git \
     && cd sjasmplus \
     && make clean \
-    && make \
+    && make -j4 \
     && make install \
     && make clean
