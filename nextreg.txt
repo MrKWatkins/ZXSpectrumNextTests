@@ -620,14 +620,14 @@ Joystick modes:
   bits 7:6 = Reserved, must be 0
   bits 5:4 = Layer 2 resolution (soft reset = 0)
     00 = 256x192x8
-	 01 = 320x256x8
-	 10 = 640x256x4
+    01 = 320x256x8
+    10 = 640x256x4
   bits 3:0 = Palette offset (soft reset = 0)
 
 0x71 (113) => Layer 2 X Scroll MSB
 (R/W)
-	bits 7:1 = Reserved, must be 0
-	bit 0 = MSB of scroll amount
+   bits 7:1 = Reserved, must be 0
+   bit 0 = MSB of scroll amount
 
 0x75 (117) => Sprite Attribute 0 with automatic post increment of Sprite Number
 (W) see nextreg 0x35
