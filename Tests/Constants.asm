@@ -229,13 +229,15 @@ TILEMAP_DEFAULT_ATTR_NR_6C      equ $6C
 TILEMAP_BASE_ADR_NR_6E          equ $6E     ;Tilemap base address of map
 TILEMAP_GFX_ADR_NR_6F           equ $6F     ;Tilemap definitions (graphics of tiles)
 LAYER2_CONTROL_NR_70            equ $70
+LAYER2_XOFFSET_MSB_NR_71        equ $71     ; for 320x256 and 640x256 L2 modes (core 3.0.6+)
 SPRITE_ATTR0_INC_NR_75          equ $75     ;port $57 mirror in nextreg space (accessible to copper) (slot index++)
 SPRITE_ATTR1_INC_NR_76          equ $76
 SPRITE_ATTR2_INC_NR_77          equ $77
 SPRITE_ATTR3_INC_NR_78          equ $78
 SPRITE_ATTR4_INC_NR_79          equ $79
 USER_STORAGE_0_NR_7F            equ $7F
-EXPANSION_BUS_CONTROL_NR_80     equ $80
+EXPANSION_BUS_ENABLE_NR_80      equ $80
+EXPANSION_BUS_CONTROL_NR_81     equ $81
 INTERNAL_PORT_DECODING_0_NR_82  equ $82     ;bits 0-7
 INTERNAL_PORT_DECODING_1_NR_83  equ $83     ;bits 8-15
 INTERNAL_PORT_DECODING_2_NR_84  equ $84     ;bits 16-23
@@ -245,6 +247,7 @@ EXPANSION_BUS_DECODING_1_NR_87  equ $87     ;bits 8-15 mask
 EXPANSION_BUS_DECODING_2_NR_88  equ $88     ;bits 16-23 mask
 EXPANSION_BUS_DECODING_3_NR_89  equ $89     ;bits 24-31 mask
 EXPANSION_BUS_PROPAGATE_NR_8A   equ $8A     ;Monitoring internal I/O or adding external keyboard
+ALTERNATE_ROM_NR_8C             equ $8C     ;Enable alternate ROM or lock 48k ROM
 PI_GPIO_OUT_ENABLE_0_NR_90      equ $90     ;pins 0-7
 PI_GPIO_OUT_ENABLE_1_NR_91      equ $91     ;pins 8-15
 PI_GPIO_OUT_ENABLE_2_NR_92      equ $92     ;pins 16-23
@@ -256,6 +259,10 @@ PI_GPIO_3_NR_9B                 equ $9B     ;pins 24-27
 PI_PERIPHERALS_ENABLE_NR_A0     equ $A0
 PI_I2S_AUDIO_CONTROL_NR_A2      equ $A2
 PI_I2S_CLOCK_DIVIDE_NR_A3       equ $A3
+ESP_WIFI_GPIO_OUTPUT_NR_A8      equ $A8
+ESP_WIFI_GPIO_NR_A9             equ $A9
+DIVMMC_TRAP_ENABLE_1_NR_B2      equ $B2
+DIVMMC_TRAP_ENABLE_2_NR_B4      equ $B4
 DEBUG_LED_CONTROL_NR_FF         equ $FF     ;Turns debug LEDs on and off on TBBlue implementations that have them.
 
 ;-----------------------------------------------------------------------------
