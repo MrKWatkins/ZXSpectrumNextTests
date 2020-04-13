@@ -24,7 +24,8 @@ TBBlue / ZX Spectrum Next Peripheral Ports
 |*|*||0001 0101 0011 1011| 0x153b  |UART control                    |
 | |*||1011 1111 0011 1011| 0xbf3b  |ULA+ Register                   |
 |*|*||1111 1111 0011 1011| 0xff3b  |ULA+ Data                       |
-|*|*||XXXX XXXX 0110 1011| 0x6b    |zxnDMA                          |
+|*|*||XXXX XXXX 0000 1011| 0x0b    |z80DMA                          | \ accessing port
+|*|*||XXXX XXXX 0110 1011| 0x6b    |zxnDMA                          | / selects DMA mode
 |*|*||11XX XXXX XXXX X101| 0xfffd  |AY reg                          |
 | |*||10XX XXXX XXXX X101| 0xbffd  |AY dat (readable on +3 only)    |
 | |*||XXXX XXXX 0001 1111| 0x1f    |DAC A                           |
@@ -196,7 +197,7 @@ Otherwise if multiple AY chips is enabled (nextreg 0x08 bit 1 = 1):
     00 = reserved
 
 0xBFFD AY data
-(R) readable if machine type is +3 or zx next only
+(R) readable if video timing is +3 / zx next only
 Returns the value stored in the selected register on the active AY chip
 (W)
 Writes data to the selected register on the active AY chip
@@ -226,7 +227,10 @@ All ports are write only.
 
 See https://www.specnext.com/the-zxndma/
 
-The zxn dma implements a subset of the Zilog Z80DMA architecture while adding a burst mode primarily used to play digital music. Nextreg 0x06 bit 6 can be used to select a Z80DMA compatibility mode.
+The zxn dma implements a subset of the Zilog Z80DMA architecture while adding a burst mode primarily used to play digital music.  Accessing the DMA through a particular port selects the DMA mode.
+
+0x0B Z80 DMA control
+(R/W)
 
 0x6B ZXN DMA control
 (R/W)
@@ -313,7 +317,7 @@ bits 5:0 Writes data
 0xFF3B ULA+ Data
 (R)
 if palette group is selected, the palette value stored at the current ula+ palette index is returned
-if the mode group is selected, bits 5:0 of port 0xFF is returned
+if the mode group is selected, bit 0 = 1 to indicate ULA+ is enabled
 (W)
 if the palette group is selected, a palette value is written to the current ula+ palette index
 if the mode group is selected, bit 0 = 1 to enable ULA+, 0 to disable ULA+
