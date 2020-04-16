@@ -46,7 +46,7 @@ TBBlue / ZX Spectrum Next Peripheral Ports
 |*| ||XXXX 1111 1101 1111| 0xffdf  |Kempston mouse y                |
 |*| ||XXXX 1010 1101 1111| 0xfadf  |Kempston mouse wheel, buttons   |
 |*| ||XXXX XXXX 0001 1111| 0x1f    |Kempston joy 1                  |
-|*| ||XXXX XXXX 0011 0111| 0x37    |Kempston joy 2                  |
+|*|*||XXXX XXXX 0011 0111| 0x37    |Kempston joy 2 / Joy Control    |
 |*|*||XXXX XXXX 0001 1111| 0x1f    |Multiface 1 disable             |
 |*|*||XXXX XXXX 1001 1111| 0x9f    |Multiface 1 enable              |
 |*|*||XXXX XXXX 0011 1111| 0x3f    |Multiface 128 disable           |
@@ -69,13 +69,13 @@ Most devices and their associated i/o ports can be selectively deactivated by th
 * The top eight bits of the port address are active low signals that select one or more key rows for reading.
 bit 6 = EAR in from the tape audio jack
 bits 4:0 = key column result from keyboard, active low
-(W)
+(W) (soft reset = 0)
 bit 4 = EAR out connected to internal speaker
 bit 3 = MIC out saving via audio jack
 bits 2:0 = border colour
 
 0xFF Timex SCLD extension of the ULA
-(R/W) only readable if nextreg 0x08 bit 2 = 1
+(R/W) only readable if nextreg 0x08 bit 2 = 1 (soft reset = 0)
 bit 7 = timex horizontal mmu bank select (not implemented)
 bit 6 = 1 to disable the ULA frame interrupt
 bits 5:3 sets the screen colour in hi-res mode
@@ -101,7 +101,8 @@ bits 2:0 selects ula screen mode
 A write to any of the ports 0x7FFD, 0xDFFD, 0x1FFD sets mmu0=0xff and mmu1=0xff to reveal the selected rom in the bottom 16K.  mmu6 and mmu7 are set to reflect the selected 16K memory bank.
 
 0x7FFD Spectrum 128K paging
-(W)
+(W) (soft reset = 0)
+Bits 7:6 = Extra two bits for 16K RAM bank if in Pentagon 512K mode (see port 0xdffd)
 bit 5 = 1 disables this port and freezes the current memory page selection
 bit 4 = rom select, 0 = 128k editor, 1 = 48k basic
 bit 3 = screen bank location, 0 = bank 5, 1 = bank 7
@@ -113,11 +114,14 @@ bits 2:0 = 16K RAM bank to place at 0xc000
 
 0xDFFD Spectrum Next bank extension
 (W)
-bits 3:0 = most significant bits of the 16K RAM bank selected in port 0x7FFD
+bit 7 = 1 to set pentagon 512K mode (hard reset = 0) **
+bits 3:0 = most significant bits of the 16K RAM bank selected in port 0x7FFD (soft reset = 0)
 * Port 0xDFFD bits 3:0 are combined as the highest bits with the bank selected in port 0x7FFD to form a 7-bit bank number.
+** Pentagon 512K mode is applied only when the machine is set to pentagon timing (nextreg 0x03). In this mode the selected 16K bank comes from port 0x7ffd {bits 7:6, bits 2:0}
+
 
 0x1FFD Spectrum +3 paging
-(W)
+(W) (soft reset = 0)
 bit 4 = printer strobe (not implemented)
 bit 3 = disk motor, 0 = off, 1 = on (not implemented)
 bit 2 = in normal mode, paired with port 0x7FFD bit 4 as the high bit of the rom selection:
@@ -153,6 +157,7 @@ Reads or writes data to the selected register.
 
 0x123B Layer 2 control
 (R/W) If bit 4 = 0:
+  (soft reset = 0)
   bits 7:6 = layer 2 memory map type
     00 = first 16K of layer 2 in the bottom 16K
     01 = second 16K of layer 2 in the bottom 16K
@@ -165,6 +170,7 @@ Reads or writes data to the selected register.
   bit 1 = 1 to enable layer 2 display
   bit 0 = 1 to enable mapping for memory writes
 (W) If bit 4 = 1:
+  (soft reset = 0)
   bits 7:5 = Reserved, must be 0
   bit 4 = 1
   bit 3 = Reserved, must be 0
@@ -269,10 +275,11 @@ There are two independent uarts in the next that share the same i/o ports.  One 
 
 0x153B UART control
 (R/W)
-bit 6 = 0 to select the esp uart, 1 to select the pi uart
+bit 6 = 0 to select the esp uart, 1 to select the pi uart **
 bit 4 = 1 if the bits 2:0 are being written
 bits 2:0 = most significant bits of the 17-bit prescalar setting baud rate
 * pi gpio must be configured for uart, see nextreg 0xa0
+** either uart can be redirected to the joystick ports, see port 0x37
 
 0x133B UART Tx
 (R)
@@ -307,7 +314,7 @@ See https://www.facebook.com/notes/cheveron-group/official-ulaplus-specification
 
 0xBF3B ULA+ Register
 (W)
-bits 7:6 Selects register group
+bits 7:6 Select register group
   00 = palette group
   01 = mode group
 bits 5:0 Writes data
@@ -392,24 +399,38 @@ bit 0 = 1 for left button press
 
 Kempston joystick and MD Pads share the same ports, MD pads simply define more bits in a read. Sinclair sticks are also attached to i/o ports but they appear as keypresses 1-5 and 6-0.
 
-0x1F Kempston joy 1 / MD Pad 1
+0x1F Kempston joy 1 / MD Pad 1 / IO Mode Left
 (R)
-bit 7 = 0 [md = start/mode]
-bit 6 = 0 [md = a/x]
-bit 5 = fire 2 (poorly supported) [md = b/y]
-bit 4 = fire 1 [md = c/z]
-bit 3 = up
-bit 2 = down
-bit 1 = left
-bit 0 = right
+bit 7 = 0 [md = start]
+bit 6 = 0 [md = a]
+bit 5 = fire 2 (poorly supported in legacy software) [md = c] = pin 9
+bit 4 = fire 1 [md = b] = pin 6
+bit 3 = up = pin 1
+bit 2 = down = pin 2
+bit 1 = left = pin 3
+bit 0 = right = pin 4
 
-0x37 Kempston joy 2 / MD Pad 2
+0x37 Kempston joy 2 / MD Pad 2 / IO Mode Right
 (R)
-bit 7 = 0 [md = start/mode]
-bit 6 = 0 [md = a/x]
-bit 5 = fire 2 (poorly supported) [md = b/y]
-bit 4 = fire 1 [md = c/z]
-bit 3 = up
-bit 2 = down
-bit 1 = left
-bit 0 = right
+bit 7 = 0 [md = start]
+bit 6 = 0 [md = a]
+bit 5 = fire 2 (poorly supported in legacy software) [md = c] = pin 9
+bit 4 = fire 1 [md = b] = pin 6
+bit 3 = up = pin 1
+bit 2 = down = pin 2
+bit 1 = left = pin 3
+bit 0 = right = pin 4
+
+0x37 Joystick I/O Mode
+(W) (soft reset = 0)
+bits 7:6 Select I/O Mode
+  00 = bit bang
+  01 = clock
+  10 = uart
+bits 5:1 Reserved must be 0
+bit 0 parameter bit controls state of pin 7 on both joystick connectors
+  bit bang : bit 0 is copied to pin 7
+  clock    : 0 = place slow clock on pin 7 (Fsys/2048 = 13.672kHz), 1 = place fast clock on pin 7 (Fsys/8 = 3.5MHz) **
+  uart     : 0 = redirect esp uart to joystick connector, 1 = redirect pi uart to joystick connector (Tx appears on pin 7, Rx taken from pin 9)
+** A runt clock pulse may appear in the first cycle, minimum pulse width is 1/Fsys = 35.7ns
+The i/o mode should be set by writing this port first followed by enabling io mode on the joysticks with a write to nextreg 0x05.
