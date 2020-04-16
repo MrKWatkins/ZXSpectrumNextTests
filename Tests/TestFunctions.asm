@@ -28,14 +28,14 @@ EndTest
 
 StartTiming
     ; Set the border to green.
-    ld a, GREEN
-    out (ULA_P_FE), a
+    ld      a,GREEN
+    out     (ULA_P_FE),a
     ret
 
 EndTiming
     ; Set the border to black.
-    ld a, BLACK
-    out (ULA_P_FE), a
+    ld      a,BLACK
+    out     (ULA_P_FE),a
     ret
 
 ReadNextReg:
@@ -73,9 +73,10 @@ DetectTBBlue:
     NEXTREG2A   MACHINE_ID_NR_00
     cp      8
     jr      z,.emulatorOrTBBlue
-    cp      10
-    jr      z,.emulatorOrTBBlue
-    ; not TBBlue
+    and     $0F
+    cp      %1010
+    jr      z,.emulatorOrTBBlue     ; any ID with "10" in bottom nibble is accepted "tbblue"
+    ; not TBBlue, emulator or ZX-DOS
     or      a       ; CF=0
     ret
 .emulatorOrTBBlue:
