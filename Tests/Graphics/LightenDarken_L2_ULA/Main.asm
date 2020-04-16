@@ -103,6 +103,7 @@ colourGenDelta:         ; will be subtracted from base
     db      %01001001   ; base %111
 
 Start:
+    ld      sp,$FFE0
     call    StartTest
 
     ; Set first-ULA palette, enable ULANext, enable auto-inc    (ULA pal. is LoRes pal.!)

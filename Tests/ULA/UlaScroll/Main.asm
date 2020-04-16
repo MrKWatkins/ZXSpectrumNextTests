@@ -38,6 +38,7 @@ Start:
     ; reset ULA scroll registers
     NEXTREG_nn ULA_XOFFSET_NR_26, 0
     NEXTREG_nn ULA_YOFFSET_NR_27, 0
+    NEXTREG_nn ULA_CONTROL_NR_68, 0     ; half-scroll + completely classic ULA
     ; reset LoRes scroll registers
     NEXTREG_nn LORES_XOFFSET_NR_32, 0
     NEXTREG_nn LORES_YOFFSET_NR_33, 0

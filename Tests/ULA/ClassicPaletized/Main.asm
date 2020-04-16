@@ -28,8 +28,12 @@ Start:
     NEXTREG_nn GLOBAL_TRANSPARENCY_NR_14,$E3    ; default transparent colour
     NEXTREG_nn TRANSPARENCY_FALLBACK_COL_NR_4A,$E3  ; +make it visible (i.e. "solid" :) )
     NEXTREG_nn SPRITE_CONTROL_NR_15, %00010100    ; Set ULS layer priority, sprites OFF
-    NEXTREG_nn LORES_XOFFSET_NR_32,0            ; reset ULA scroll offset to 0,0
-    NEXTREG_nn LORES_YOFFSET_NR_33,0
+    ; reset LoRes scroll registers (did affect ULA screen in cores 2.00.25+ to 3.0.5?)
+    NEXTREG_nn LORES_XOFFSET_NR_32, 0
+    NEXTREG_nn LORES_YOFFSET_NR_33, 0
+    ; reset ULA scroll registers (regular scroll for ULA since some late core 3.0.x)
+    NEXTREG_nn ULA_XOFFSET_NR_26, 0
+    NEXTREG_nn ULA_YOFFSET_NR_27, 0
 
     ;; keep first ULA palette in default state (should emulate classic ZX colours)
     ;; setup second ULA palette to distinct patterns for visual-test purpose

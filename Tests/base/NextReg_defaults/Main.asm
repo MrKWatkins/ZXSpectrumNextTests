@@ -393,12 +393,15 @@ CustomWriteTest:
     ret
 
 DrawMachineInfoAndFinish:
-    ; reset LoRes scroll registers (does affect ULA screen since core 2.00.25+)
-    ld      a,0
-    ld      b,LORES_XOFFSET_NR_32
+    ; reset ULA scroll registers
+    xor     a
+    ld      b,ULA_XOFFSET_NR_26
     call    WriteNextRegByIo
-    ld      a,0
-    ld      b,LORES_YOFFSET_NR_33
+    xor     a
+    ld      b,ULA_YOFFSET_NR_27
+    call    WriteNextRegByIo
+    xor     a               ; reset half-pixel scroll, and set classic ULA in all aspects
+    ld      b,ULA_CONTROL_NR_68
     call    WriteNextRegByIo
     ; fix MMU1 mapping to make my life easier when testing with CSpect emulator
     ld      a,$FF

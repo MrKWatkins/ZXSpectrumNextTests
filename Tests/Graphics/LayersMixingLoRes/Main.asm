@@ -50,6 +50,7 @@ colourDef:
 colourDefSz equ     $ - colourDef
 
 Start:
+    ld      sp,$FFE0
     call    StartTest
 
     ; Set first-ULA palette, enable ULANext, enable auto-inc    (ULA pal. is LoRes pal.!)

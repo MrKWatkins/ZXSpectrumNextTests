@@ -51,6 +51,7 @@ colourDef:
 colourDefSz equ     $ - colourDef
 
 Start:
+    ld      sp,$FFE0
     call    StartTest
 
     ; set up Timex HiResolution mode
@@ -96,10 +97,12 @@ Start:
 
     ; draw the ULA Timex hi-res part for pixel combining
     call    DrawUlaHiResPart
-    ; reset LoRes scroll registers (does affect ULA screen since core 2.00.25+)
-    NEXTREG_nn LORES_XOFFSET_NR_32, 0   ; not sure if it affects hi-res, but to be sure
+    ; reset LoRes scroll registers (did affect ULA screen in cores 2.00.25+ to 3.0.5?)
+    NEXTREG_nn LORES_XOFFSET_NR_32, 0
     NEXTREG_nn LORES_YOFFSET_NR_33, 0
-
+    ; reset ULA scroll registers (regular scroll for ULA since some late core 3.0.x)
+    NEXTREG_nn ULA_XOFFSET_NR_26, 0
+    NEXTREG_nn ULA_YOFFSET_NR_27, 0
     ; reset Layer2 scroll registers
     NEXTREG_nn LAYER2_XOFFSET_NR_16, 0
     NEXTREG_nn LAYER2_YOFFSET_NR_17, 0
