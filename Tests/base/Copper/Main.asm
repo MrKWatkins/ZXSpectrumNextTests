@@ -14,7 +14,9 @@ LegendText:
     db      '[242,118] above ... and more :)',0
 
 CopperBytesTxt:
-    db      'Copper ins. (max 0400): ',0
+    db      'Copper ins. (max 0400):   ',0
+CopperBytesTxt2:
+    db      'Read back from registers: ',0
 
 FlagData:
     db      %00000110,%00000000     ; 5:2:9 - blue, yellow, blue
@@ -125,24 +127,43 @@ Start:
     out     (c),a
     inc     iy          ; count total instructions
 
-    ; start Copper
-    ld      b,COPPER_CONTROL_HI_NR_62
-    ld      a,%11000000     ; reset PC + start, reset on every frame [0,0]
-    call    WriteNextRegByIo
+    ; read back total instructions from the $61+$62 registers to verify they are readable
+    NEXTREG2A COPPER_CONTROL_LO_NR_61
+    ld      l,a
+    NEXTREG2A COPPER_CONTROL_HI_NR_62
+    ld      h,a
 
-    ; Output total amount of copper instructions used
-    ld      de,MEM_ZX_SCREEN_4000+16*256+7*32
+    ; put the total instructions counters onto stack (read ones + counted in IY)
+    push    hl
+    push    iy
+
+    ; start Copper ; reset PC + start, reset on every frame [0,0]
+    NEXTREG COPPER_CONTROL_HI_NR_62, %11000000
+
+    ; Output total amount of copper instructions used (manually counted)
+    ld      de,MEM_ZX_SCREEN_4000+16*256+6*32
     ld      hl,CopperBytesTxt
     call    OutStringAtDe
-    push    iy
     pop     hl
     ld      a,h
     call    OutHexaValue
     ld      a,l
     call    OutHexaValue
-    pop     iy
+    ; Output total amount of copper instructions read back from NextRegs
+    ld      de,MEM_ZX_SCREEN_4000+16*256+7*32
+    ld      hl,CopperBytesTxt2
+    call    OutStringAtDe
+    pop     hl          ; this is actually byte-index, not instruction-count
+    ld      a,h         ; rotate it to right by 1 bit and put high byte to A
+    rr      h           ; if it is odd by some accident, the printed number will be 8xxx
+    rr      l
+    rra
+    call    OutHexaValue
+    ld      a,l
+    call    OutHexaValue
 
     ; finish the test (the screen is updated automatically by Copper, no CPU work needed)
+    pop     iy
     call    EndTest
 
 ; swedish flag: dimensions 5:2:9 horizontally, 4:2:4 vertically, proportion 5:8
