@@ -88,3 +88,24 @@ compatibility mode (test does **NOT** support zxnDMA mode and "prescalar" featur
 The zxnDMA documentation can be found at https://wiki.specnext.dev/DMA (mostly
 describing the "zxnDMA" mode but also mentions limits of zxnDMA), for Zilog DMA chip
 look for regular documentation.
+
+### ZX128 +2 Grey with original Zilog DMA chip notes:
+
+- the destination port is really loaded during write phase of transfer, the read-back
+values after LOAD don't show the target address (as documented by Zilog).
+- also the destination port must be ++ or -- to load (as documented by Zilog).
+- the transaction starts at port A or B depending on the direction of transfer at the
+time of LOAD command. If you flip the direction after LOAD and enable the transfer, it
+will start with wrong port and do the write-phase first (with 0xFF byte in the
+intermediate storage), then the read phase, finishing the transfer with last byte
+read into the intermediate storage (without writing it). Further CONTINUE transfer
+will still start with wrong port (doing write first) with that intermediate value
+read at end of previous transfer.
+- i.e. it's essential to do the last LOAD command with the correct transfer direction
+set up, otherwise the transfer is damaged.
+- the port adjustment type (--/++/fixed) can be modified any time before ENABLE, even
+after load/continue commands, the DMA will pick the new change and use it
+- the RESET command will adjust the source port by one in the selected direction
+
+The photos included in `Tests/Misc/DmaInteractive/zilog_hw_photos` are from "grey"
+ZX128+2 with genuine Zilog DMA chip (provided by MB-02 disk system).
