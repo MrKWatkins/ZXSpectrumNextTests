@@ -16,7 +16,7 @@
    540 DATA "LmxHiRes.sna", "SprBig4b.sna", "SpritBig.sna", "SpritRel.sna"
    550 DATA "SpritTra.sna", "Ula_Pal.sna",  "TFalBUla.sna", "L2Port.sna"
    560 DATA "SprDelay.sna", "NReg0x69.sna", "UlaScrol.sna", "!dma.sna"
-   570 DATA "zilogDMA.sna", "dmaDebug.sna"
+   570 DATA "zilogDMA.sna", "dmaDebug.sna", "linesIRQ.sna"
    970 REM {PAPER 5}empty string = terminator{PAPER 7}
    980 DATA "" : STOP
    999 SAVE "auto.bas" LINE 1
