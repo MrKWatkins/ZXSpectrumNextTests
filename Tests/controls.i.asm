@@ -1,3 +1,11 @@
+    IFNDEF  _CONTROLS_DEBOUNCE_REGULAR
+        ; key press will reset debounce (50 is for non-halt type of loop)
+        DEFINE  _CONTROLS_DEBOUNCE_REGULAR  50
+    ENDIF
+    IFNDEF  _CONTROLS_DEBOUNCE_ANY_KEY
+        DEFINE  _CONTROLS_DEBOUNCE_ANY_KEY  20
+    ENDIF
+
     MACRO REGISTER_KEY keyCode?, handlerAddress?
         ld      a,keyCode?
         ld      de,handlerAddress?
@@ -137,7 +145,7 @@ RefreshKeyboardState:   ; modifies everything
 .keyPressed:
     ld      a,(debounceState)
     or      a
-    ld      a,50        ; key press will reset debounce (50 is for non-halt type of loop)
+    ld      a,_CONTROLS_DEBOUNCE_REGULAR
     ld      (debounceState),a
     ret     nz          ; debounce was not zero yet, ignore the keypress
     ld      e,d         ; remember the pressed key
@@ -154,7 +162,7 @@ WaitForAnyKey:
     call    .readAllKeys
     jr      nz,.WaitForAllReleased
     ; set some debounce
-    ld      a,20
+    ld      a,_CONTROLS_DEBOUNCE_ANY_KEY
     ld      (debounceState),a
     ret
 .readAllKeys:

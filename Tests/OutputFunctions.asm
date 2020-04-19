@@ -196,7 +196,9 @@ OutHexaValue:
 ; this is naive subtraction-loop implementation just to get the result, not fast/smart
 ; modifies OutCurrentAdr and AF
 OutDecimalValue:
+    push    de
     push    bc
+    ld      e,0
     ld      bc,$FF00 | 100          ; b = -1, c = 100
     call    .FindDecimalDigit
     call    .OutDecDigitIfNonZero
@@ -207,6 +209,7 @@ OutDecimalValue:
     ; output final digit (even zero)
     ld      a,c
     pop     bc
+    pop     de
     jr      .OutDecDigit
 .FindDecimalDigit:
     inc     b
@@ -216,9 +219,11 @@ OutDecimalValue:
     ret
 .OutDecDigitIfNonZero:
     ld      c,a
-    xor     a
-    or      b
+    ld      a,b
+    or      e       ; test also against previously displayed digits, to catch any non-zero
+    ld      e,a     ; remember the new mix
     ret     z
+    ld      a,b
 .OutDecDigit:
     add     a,'0'
     jp      OutChar
