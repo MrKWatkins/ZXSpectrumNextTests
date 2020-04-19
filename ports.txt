@@ -49,8 +49,8 @@ TBBlue / ZX Spectrum Next Peripheral Ports
 |*|*||XXXX XXXX 0011 0111| 0x37    |Kempston joy 2 / Joy Control    |
 |*|*||XXXX XXXX 0001 1111| 0x1f    |Multiface 1 disable             |
 |*|*||XXXX XXXX 1001 1111| 0x9f    |Multiface 1 enable              |
-|*|*||XXXX XXXX 0011 1111| 0x3f    |Multiface 128 disable           |
-|*|*||XXXX XXXX 1011 1111| 0xbf    |Multiface 128 enable            |
+|*|*||XXXX XXXX 0011 1111| 0x1f    |Multiface 128 disable           |
+|*|*||XXXX XXXX 1011 1111| 0x9f    |Multiface 128 enable            |
 |*|*||XXXX XXXX 1011 1111| 0xbf    |Multiface +3 disable            |
 |*|*||XXXX XXXX 0011 1111| 0x3f    |Multiface +3 enable             |
 |*|*||0011 0000 0011 1011| 0x303b  |Sprite slot, flags              |
