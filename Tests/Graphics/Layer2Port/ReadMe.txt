@@ -1,4 +1,5 @@
-The results of tests are green/red rectangles covering the "#" spots:
+The results of tests are green/red rectangles covering the "#" spots and
+green/red dots between "[]" areas for Bank offset test (***):
 
 Visible Layer 2 (NextReg 0x12)
 ### write-over-ROM 16kiB
@@ -15,6 +16,14 @@ Shadow Layer 2  (NextReg 0x13)
 ### read-over-ROM 48kiB (data)
   # read-over-ROM (code)
   # read-over-ROM (IM1 in L2)
+
+Bank offset (b4=1 I/O 0x123B)
+[    ] r+w-over-ROM 16ki 0x12
+[    ] r+w-over-ROM 48ki 0x12
+
+[    ] r+w-over-ROM 16ki 0x13
+[    ] r+w-over-ROM 48ki 0x13
+
 
 The result rectangle is 6x8 pixels, divided into four 6x2px blocks.
 Green is OK, Red is failure. If all tests did pass, the final
@@ -51,3 +60,29 @@ Meaning of four 6x2px blocks in the result rectangle:
  (if some block is not green, there was either interrupt not fired,
   or the handler in the Layer2 was not used to handle it)
  (only first 8kiB page is part of the test)
+
+
+(***) Bank offset test details
+
+Since core3.0.7 the Layer2 port has new feature to set "bank offset" +0..+7 by writing
+to I/O port with bit4 set to 1 (i.e. "out (0x123B),0x13" will set +3 as "bank offset").
+
+The bottom third of screen tests the offsets in all modes for both visible and shadow
+mapping.
+
+On each mini-line there are 16 (2x2 px) dots (8 rectangles 4x2 px with space between).
+Each 4x2 px rectangle has first dot for read-mapping, and second dot for write-mapping.
+8 rectangles then represent all possible offsets from +0 to +7.
+
+The three mini-lines for 16ki blocks are per different base mapping (bank0/bank1/bank2),
+i.e. "out (0x123B),0x83 : out (0x123B),0x13 : reg 0x12,30" will map 16k bank 32+3 = 35
+into region 0000-3FFF for write operations (32 is third bank for visible layer 2, +3
+is the new bank offset feature) (the offsets does NOT wrap near edge of memory, instead
+the behaviour is "unspecified" and it can be anything in future cores, so use only valid
+combinations of 0x12/0x13 register values and bank offsets).
+
+Three mini-lines for 48ki mapping are testing the mapping at addresses $1000, $5000 and
+$9000, checking all three banks mapped into 48ki address area.
+
+Then the "shadow" mapping is set up and the same tests are run, this time the base bank
+taken from NextReg 0x13.

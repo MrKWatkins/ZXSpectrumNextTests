@@ -21,13 +21,21 @@ LegendTests:
     db      ' *** read-over-ROM 48kiB (data)',0
     db      '   * read-over-ROM (code)',0
     db      '   * read-over-ROM (IM1 in L2)',0
+LegendBankOffset:
+    db      ' Bank offset (b4=1 I/O 0x123B)', 0
+    db      '[      ] r+w-over-ROM 16ki 0x12',0
+    db      '[      ] r+w-over-ROM 48ki 0x12',0
+    db      0
+    db      '[      ] r+w-over-ROM 16ki 0x13',0
+    db      '[      ] r+w-over-ROM 48ki 0x13',0
+.lines      equ     6
 
 Start:
     ld      sp,stack
     NEXTREG_nn  TURBO_CONTROL_NR_07,3       ; 28MHz
     call    StartTest
-    ld      de,MEM_ZX_SCREEN_4000+32*8*16+5  ; bottom right corner
-    ld      bc,MEM_ZX_SCREEN_4000+32*8*16+19
+    ld      de,MEM_ZX_SCREEN_4000+32*8*16+7*32+5    ; bottom right corner
+    ld      bc,MEM_ZX_SCREEN_4000+32*8*16+7*32+19
     call    OutMachineIdAndCore_defLabels
     ;; preparing ULA screen for output
     BORDER  CYAN
@@ -41,10 +49,10 @@ Start:
     NEXTREG_nn LAYER2_XOFFSET_NR_16, 0
     NEXTREG_nn LAYER2_YOFFSET_NR_17, 0
     NEXTREG_nn CLIP_WINDOW_CONTROL_NR_1C,$01    ; reset index in L2 clip
-    NEXTREG_nn CLIP_LAYER2_NR_18,7              ; [7,1] -> [33,127] is enough for results
-    NEXTREG_nn CLIP_LAYER2_NR_18,33
+    NEXTREG_nn CLIP_LAYER2_NR_18,7              ; [7,1] -> [55,176] is enough for results
+    NEXTREG_nn CLIP_LAYER2_NR_18,55
     NEXTREG_nn CLIP_LAYER2_NR_18,1
-    NEXTREG_nn CLIP_LAYER2_NR_18,127
+    NEXTREG_nn CLIP_LAYER2_NR_18,176
     ; init banks + make layer 2 visible
     NEXTREG_nn  LAYER2_RAM_BANK_NR_12,8
     NEXTREG_nn  LAYER2_RAM_SHADOW_BANK_NR_13,11
@@ -79,6 +87,14 @@ Start:
     call    TestReadOverRomCode
     call    TestReadOverRomIm1
     ;;; read+write together?
+    call    TestBankOffsetRead
+
+    ; reset the L2 port settings
+        ld      bc,LAYER2_ACCESS_P_123B
+        ld      a,LAYER2_ACCESS_BANK_OFFSET|0
+        out     (c),a
+        ld      a,LAYER2_ACCESS_L2_ENABLED|LAYER2_ACCESS_SHADOW_OVER_ROM
+        out     (c),a       ; but set "shadow" mode to exercise emulators more
 
     ;; test done - do total border RED/GREEN depending on some error detected
     ld      a,e
@@ -308,6 +324,15 @@ TestReadOverRomIm1:
     ei
     .4 halt     ; each IM1 should set one bit in D
     di
+    ; clear the visible part of Layer2
+    push    de
+    NEXTREG_nn MMU7_E000_NR_57,10*2
+    ld      hl,$E000+$38
+    ld      de,$E000+$38+1
+    ld      bc,RomShadowTestIm1SourceLength
+    ld      (hl),$E3
+    ldir
+    pop     de
     ; print result
     ld      a,9*2+1
     ld      hl,$F01B
@@ -320,6 +345,152 @@ RomShadowTestIm1Source:
     ei
     ret
 RomShadowTestIm1SourceLength EQU $ - RomShadowTestIm1Source
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; test new bank-offset of core3.1+ with read-over-rom mapping
+
+TestBankOffsetRead:
+    ; set up memory banks for the bank-offset tests again
+        BORDER  BLUE
+        ld      ix,$F000
+        ld      a,8*2
+.setMemoryLoop:             ; mark even 8k pages (odd are not tested)
+        NEXTREG_A   MMU7_E000_NR_57
+        cpl
+        ld      (ix+1),a
+        cpl
+        ld      (ix),a
+        inc     a
+        inc     a
+        cp      (13+8)*2
+        jr      nz,.setMemoryLoop
+    ; revert the memory mapping to default rom:5:2:x
+        NEXTREG_nn  MMU0_0000_NR_50,255
+        NEXTREG_nn  MMU1_2000_NR_51,255
+        NEXTREG_nn  MMU2_4000_NR_52,5*2+0
+        NEXTREG_nn  MMU3_6000_NR_53,5*2+1
+        NEXTREG_nn  MMU4_8000_NR_54,2*2+0
+        NEXTREG_nn  MMU5_A000_NR_55,2*2+1
+    ; run tests
+        BORDER  YELLOW
+    ; test visible L2 layer first (both 16ki and 48ki tests in one subroutine)
+        ld      iy,(10*2<<8)+8*2    ; test value - visible first bank + result page number
+        ld      hl,$E809            ; result output address
+        ld      a,LAYER2_ACCESS_OVER_ROM_BANK_0
+        call    Test16kiAnd48kiBankOffsets
+    ; test shadow L2 layer first (both 16ki and 48ki tests in one subroutine)
+        ld      iy,((10*2+1)<<8)+11*2   ; test value - shadow first bank + result page
+        ld      hl,$E009            ; result output address
+        ld      a,LAYER2_ACCESS_OVER_ROM_BANK_0|LAYER2_ACCESS_SHADOW_OVER_ROM
+    ;  |
+    ; fallthrough into Test16kiAnd48kiBankOffsets and return from there
+    ;  |
+Test16kiAnd48kiBankOffsets:
+    ; IN:
+    ;  IYL = test-value and first page of first bank (8*2 for bank0 offset 0 NR$12=8)
+    ;  IYH = 8ki page number for result output (for MMU7_E000 slot)
+    ;  HL = result output address, E = global error tracking
+    ;  A = visible/shadow value for port $123B (Layer2 port)
+    ;  IX = check address in MMU7 slot ($F000 in this test)
+    ; OUT: HL += $0300 (+3 lines below), updated E
+    ; MOD: AF, BC, l2port, IYL
+        or      LAYER2_ACCESS_L2_ENABLED|LAYER2_ACCESS_WRITE_OVER_ROM|LAYER2_ACCESS_READ_OVER_ROM
+        push    iy
+    ; do the three 16ki tests (base mapping changes, r+w test address is fixed $1000..+1)
+.loopNextBankType:
+    ; change the layer2 port mapping bank0/1/2 with desired mode
+        ld      bc,LAYER2_ACCESS_P_123B
+        out     (c),a
+        call    TestEightBankOffsets
+        inc     iyl             ; starting at +1 bank later
+        inc     iyl
+        add     a,$40           ; next bank offset
+        cp      LAYER2_ACCESS_OVER_ROM_48K
+        jr      c,.loopNextBankType
+    ; do the three 48ki tests (base mapping fixed, r+w test address: $1000, $5000, $9000)
+        ld      bc,LAYER2_ACCESS_P_123B
+        out     (c),a           ; A = the 48ki mapping constant from last ADD above
+        pop     iy              ; restore test value - visible first bank
+.loop48kiBankType:
+        call    TestEightBankOffsets
+        inc     iyl             ; starting at +1 bank later
+        inc     iyl
+        ld      a,(TestEightBankOffsets.aR+1)
+        add     a,$40
+        ld      (TestEightBankOffsets.aR+1),a
+        ld      (TestEightBankOffsets.aW+1),a
+        cp      $C0
+        jr      c,.loop48kiBankType
+    ; reset test addresses inside TestEightBankOffsets subroutine
+        ld      a,$10
+        ld      (TestEightBankOffsets.aR+1),a
+        ld      (TestEightBankOffsets.aW+1),a
+        ret
+
+TestEightBankOffsets:
+    ; IN:
+    ;  IYL = test-value and first page of first bank (8*2 for bank0 offset 0 NR$12=8)
+    ;  IYH = 8ki page number for result output (for MMU7_E000 slot)
+    ;  HL = result output address, E = global error tracking
+    ;  I/O $123B (Layer2 port) = read+write mapping for visible or shadow layer as desired
+    ;  IX = check address in MMU7 slot ($F000 in this test)
+    ; OUT: HL += $0300 (+3 lines below), updated E
+    ; MOD: BC
+        push    af
+        push    hl
+        push    iy
+        ld      a,LAYER2_ACCESS_BANK_OFFSET|0
+.doNextBankOffset:
+        ld      bc,LAYER2_ACCESS_P_123B
+        out     (c),a
+        ld      bc,%110'000'00'000'110'00   ; red:green (Bad:Correct)
+        ex      af,af
+.aR=$+1 ld      a,($1000)
+        cp      iyl
+        call    DisplayResultDot
+        ld      bc,%111'000'00'000'111'00   ; red:green (Bad:Correct)
+        ld      a,iyl
+.aW=$+1 ld      ($1001),a
+        NEXTREG_A MMU7_E000_NR_57
+        cp      (ix+1)
+        call    DisplayResultDot
+        inc     l
+        inc     l
+        inc     iyl
+        inc     iyl
+        ex      af,af
+        inc     a
+        cp      LAYER2_ACCESS_BANK_OFFSET|8
+        jr      nz,.doNextBankOffset
+        pop     iy
+        pop     hl
+        inc     h               ; +3 pixel lines down
+        inc     h
+        inc     h
+        pop     af
+        ret
+
+DisplayResultDot:
+    ; IYH = 8ki page number for result output (for MMU7_E000 slot)
+    ; ZF = correctness, HL = target adr, BC = colors (bad:correct)
+    ; E = global result tracking (will be damaged in case of incorrect result
+    ; output: HL+=2, updated E, modifies: AF, MMU7_E000 mapping
+        ld      a,iyh
+        NEXTREG_A MMU7_E000_NR_57
+        ld      a,c             ; "correct" color
+        jr      z,.isCorrectResult
+        res     7,e             ; mark error in total result
+        ld      a,b             ; "bad" color
+.isCorrectResult:
+        ld      (hl),a          ; draw 2x2 dot
+        inc     h
+        ld      (hl),a
+        inc     l
+        ld      (hl),a
+        dec     h
+        ld      (hl),a
+        inc     l
+        ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; utility functions
@@ -357,6 +528,17 @@ DisplayResultSquare:        ; D = %xxxx'0000 => results, x=1 OK, x=0 BAD
 
 ; display legend in ULA screen text
 OutputLegend:
+    ; new part of test - bank offset legend
+    ld      de,MEM_ZX_SCREEN_4000+32*8*16   ; third third
+    ld      hl,LegendBankOffset
+    ld      b,LegendBankOffset.lines
+.bankOfsLegendLoop:
+    call    OutStringAtDe
+    ld      a,e
+    add     a,32
+    ld      e,a
+    djnz    .bankOfsLegendLoop
+    ; old parts of test
     ld      de,MEM_ZX_SCREEN_4000
     ld      hl,LegendNr12
     call    OutStringAtDe
