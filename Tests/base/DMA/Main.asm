@@ -4,8 +4,8 @@
 ; The zxnDMA is simplified a lot, removing many "gotcha" rules, and doing transfers
 ; of blocks without the +1/+2 to the set length, to make it less tricky for new
 ; programmers. The board can be configured to work as Zilog DMA chip doing +1 byte
-; transfers (but no search, no interrupts, no single-byte mode) by selecting it in
-; NextReg 0x06, to make it compatible with old ZX software using datagear/MB-02 DMA.
+; transfers (but no search, no interrupts, no single-byte mode) by using I/O port $0B,
+; to make it compatible with old ZX software using datagear/MB-02 DMA.
 ;
 ; The zxnDMA code in this test is thus breaking some Zilog DMA rules:
 ; - it's not always doing explicit DISABLE command after each block (good idea on Zilog)
@@ -108,9 +108,8 @@ line = line + 4
     ;; do the full init of DMA chip and helper settings in NextRegs and I/O ports
     BORDER  YELLOW
 
-    ; switch DMA to zxnDMA mode (and enable all keys: turbo, 50/60Hz, NMI)
+    ; enable all keys: turbo, 50/60Hz, NMI
     NEXTREG2A   PERIPHERAL_2_NR_06
-    and     ~%0100'0000         ; clear DMA mode (set it as zxnDMA)
     or      %1010'1000          ; enable F8, F3 and NMI buttons
     NEXTREG_A   PERIPHERAL_2_NR_06
 
@@ -322,9 +321,7 @@ outer_loop_i = outer_loop_i + 1
     ld      a,DMA_START_READ_SEQUENCE
     out     (c),a
 
-;    jr      .CSpectDiesSkip
-
-    ; just "continue" (unfortunately this kills the code on #CSpect 2.11.8)
+    ; just "continue"
     ; change: actually it does "useless" start address setup of port A/B to verify
     ; they don't get loaded when they should not (with "continue" only)
     nop : ; DW $01DD    ; break
@@ -369,8 +366,6 @@ outer_loop_i = outer_loop_i + 1
     out     (c),a
     ld      a,DMA_DISABLE   ; after block transfer, disable DMA from "inactive" state
     out     (c),a
-
-.CSpectDiesSkip:
 
     ;; set up the slow burst DMA + interrupt
     ; setup interrupt to change colors (every interrupt = 50/60Hz), and CPU speed (2s)
