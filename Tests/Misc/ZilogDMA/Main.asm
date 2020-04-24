@@ -1,4 +1,4 @@
-; WARNING - this is DMA test of "zxnDMA" variant (the ZX Spectrum Next with core
+; WARNING - this is DMA test of "zxnDMA chip" (the ZX Spectrum Next with core
 ; implemented in FPGA, including the DMA-like mechanics emulating the Zilog DMA)
 ;
 ; But in Zilog compatibility mode. The zxnDMA emulates only limited sub-set of
@@ -16,7 +16,7 @@
 ; Details (UA858D):
 ; * the "continue" command in 4+4+2 transfer will transfer 10B -> 10B
 ; * the variable timing per port is preserved even when WR1/2.D6=0 (test with real UA858D)
-;   (to reset custom timing one has to do probably reset command - not tested)
+;   (to reset custom timing one has to do reset command)
 ; * length of transfer is "length + 1" (as Zilog docs document)
 ; * values read after transfer [A.adrS (++) -> B.adrS (++), length=N] are:
 ;   counter=N, A.adrS+N+1, B.adrS+N (N+1 bytes are transferred in total)
@@ -47,6 +47,11 @@
 ;   after LOAD will result in wrong addresses used for source/destination of transfer.
 ; * the "START_READ_SEQUENCE" will be preserved also across LOAD, in sync with Zilog docs.
 ;   Although the Zilog DMA chip itself doesn't work like documented, zxnDMA is better. :)
+;
+; Details Next core 3.1.5:
+; ! zxnDMA vs zilog mode is selected by I/O port itself: $0B is zilog, $6B is zxnDMA
+; ! reading the length counter does now return correctly in little-endian way, so
+; ! reading after transfer has counter=N (same as Zilog or UA chip)
 
 ;     DEFINE  BUILD_TAP
 
@@ -94,25 +99,11 @@ ReadAndShowDmaByte:
     ret
 
 AutoDetectTBBlue:
-    ld      bc,TBBLUE_REGISTER_SELECT_P_243B
-    ld      a,MACHINE_ID_NR_00
-    out     (c),a
-    inc     b       ; bc = TBBLUE_REGISTER_ACCESS_P_253B
-    in      a,(c)   ; read desired NextReg state
-    cp      8
-    jr      z,.emulator
-    cp      10
-    ret     nz      ; not TBBlue
-.emulator:
-    dec     b
-    ld      a,NEXT_VERSION_NR_01
-    out     (c),a
-    inc     b
-    in      a,(c)
-    cp      $FF     ; CF=1 for non $FF (Next core version 15.15.x will fail this test)
-    ret     nc
-    ; modify default port to $6B on TBBlue boards
-    ld      a,ZXN_DMA_P_6B
+    call    DetectTBBlue
+    ret     nc          ; not TBBlue board
+    ; modify default port to $0B on TBBlue boards (to get Zilog-like behaviour of zxnDMA)
+    ; (technically the port already *is* $0B in the DmaPortData, but enforcing it here)
+    ld      a,ZILOG_DMA_P_0B
     ld      (DmaPortData),a
     ret
 
@@ -176,23 +167,15 @@ line = line + 4
     ;; do the full init of DMA chip and helper settings in NextRegs and I/O ports
     BORDER  YELLOW
 
-    ; switch DMA to Zilog mode (and enable all keys: turbo, 50/60Hz, NMI)
-    ; use only regular Z80 instructions, so it can survive even on ZX48/ZX128
+    ; use only regular Z80 instructions, so this code will survive even on ZX48/ZX128
     ld      bc,TBBLUE_REGISTER_SELECT_P_243B
-    ld      a,PERIPHERAL_2_NR_06
-    out     (c),a
-    inc     b       ; bc = TBBLUE_REGISTER_ACCESS_P_253B
-    in      a,(c)   ; read desired NextReg state
-    or      %1110'1000          ; enable F8, F3 and NMI buttons, Zilog DMA mode
-    out     (c),a   ; write new value
     ; switch timing of ZX Next to 128 model
-    dec     b       ; register select
     ld      a,MACHINE_TYPE_NR_03
     out     (c),a
     inc     b
     in      a,(c)   ; read Machine type register
     and     %0'000'0'111
-    or      %1'010'1'000    ; lock "native" ZX128+3 timing
+    or      %1'010'0'000    ; request "native" ZX128+2 timing (not +2A/+2B/+3/Next)
     out     (c),a   ; write new value
 
     ; init AY register to value which will be used for I/O port tests
@@ -431,9 +414,7 @@ outer_loop_i = outer_loop_i + 1
     ld      a,DMA_START_READ_SEQUENCE
     out     (c),a
 
-;    jr      .CSpectDiesSkip
-
-    ; just "continue" (unfortunately this kills the code on #CSpect 2.11.8)
+    ; just "continue"
     ; change: actually it does "useless" start address setup of port A/B to verify
     ; they don't get loaded when they should not (with "continue" only)
     nop : ; DW $01DD    ; break
@@ -482,8 +463,6 @@ outer_loop_i = outer_loop_i + 1
     out     (c),a
     ld      a,DMA_DISABLE   ; after block transfer, disable DMA from "inactive" state
     out     (c),a
-
-.CSpectDiesSkip:
 
     ;; set up the slow burst DMA + interrupt
     ; setup interrupt to change colors (every interrupt = 50/60Hz), and CPU speed (2s)

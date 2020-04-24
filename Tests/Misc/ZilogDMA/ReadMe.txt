@@ -125,20 +125,27 @@ code did change, so it's difficult to be sure if the reading is randomly
 unstable or only certain sequence of commands makes the read wrong).
 
 ----------------------------------------------------------------------------
--- TBBLue zxnDMA core 3.0.5 --
+-- TBBLue zxnDMA core 3.1.5 --
 
 The FPGA code respects the start-read-sequence command over LOAD, and the
 returned bytes should be like:
-3A'3A'1A00042A'1A'1A00D104'1A'1A00D508
+3A'3A'1A03042A'1A'1A03D104'1A'1A03D508
 00'SS'ssccaabb'00'ssccaabb'00'ssccaabb
 
 The non-requested reads are clearly legitimate status byte, the read sequence
-differs from Zilo/UA chip by reporting after transfer counter=0, and address
-of destination port being adjusted by N+1 instead of N only. The status
-reports end-of-block correctly, but "any" DMA-operation is not reported.
+differs from Zilog/UA chip by reporting after transfer address of destination
+port being adjusted by N+1 instead of N only. The status reports end-of-block
+correctly, but "any" DMA-operation bit is not reported.
 
 The timing of flashing blocks is 4T for both of them, setting WR1.D6=0 does
 not reset port timing.
+
+The second line of hexadecimal values is:
+1A'1A'65'00'FE 1A 1A'650B'0097'FE00  (apostrophes are added to group digits)
+
+(basically same as Zilog/UA except reading status byte when unexpected read
+and missing the "any byte transferred" byte in status - the +1 in destination
+address is not visible, because destination was fixed address not advancing)
 
 ----------------------------------------------------------------------------
 
@@ -147,8 +154,10 @@ to destination port by flipping directions, and not doing WR3=$C0 (unfortunate
 mistake of many MB-02/UA858D examples, gets ignored on UA, but triggers the
 transfer prematurely on Zilog chip).
 
-The test will auto-detect TBBlue board and switch default DMA port from $0B
-to $6B, but you can change it manually by pressing the "P".
+The test will start with port $0B which works as Zilog-mode port for zxnDMA
+(TBBlue board), and it's also common port for MB-02 setups. There is still
+key "P" to change port to $6B and back, but on TBBlue port $6B works in
+zxnDMA mode, producing different results.
 
 ----------------------------------------------------------------------------
 
@@ -156,7 +165,7 @@ The final part of test is "DMA" text in top border, timed on "Toastrack"
 ZX128 + UA858D chip in MB-02 disc system and two "flashing" border blocks
 below.
 
-The image of "DMA" is transfered as one large block with 4T timing from memory
+Big letters "DMA" are transfered as one large block with 4T timing from memory
 to ULA 254 port. The "fixed 254" address of port B is LOAD-ed while direction
 A->B is set (so the LOAD works on Zilog DMA), then the direction is flipped
 to final B->A and transfer is initiated (without second LOAD!).
@@ -192,6 +201,12 @@ HW chips the 2T+2T timing remains even there, D6=0 leads just to shorter
 init sequence.
 
 ----------------------------------------------------------------------------
+-- TBBLue zxnDMA core 3.1.2+ --
+
+The zxnDMA vs Zilog-DMA modes are now selected by the I/O port used to
+communicate with the DMA. The port $0B is now Zilog-mode port, the port
+$6B is now zxnDMA-mode port, and this is not configurable any more.
+
 -- TBBLue zxnDMA core 3.0.5 --
 
 ZX Spectrum Next has "zxnDMA" DMA implemented in FPGA core, the test contains
@@ -208,6 +223,7 @@ tests with mostly identical results to UA858D chip, except these differences:
  - any read from DMA port without read request command will read status byte
  - the values after transfer N are:
    counter=0, A.adr=AadrS+N+1, B.adr=BadrS+N+1 (counter and B.adr differ)
+   (counter=N since core 3.1.5 - byte order of counter is fixed)
  - status byte has never bit 0 set (any byte transferred)
 
 This behaviour and differences from legacy DMA chips may change in future
@@ -216,16 +232,14 @@ versions of ZXN core, you can use this test to check current status then.
 ----------------------------------------------------------------------------
 -- other HW/emulators --
 
-Other HW/emulators status:
+Other HW/emulators status (as of 2020-04-24):
 
  - MB-03 is under active development to produce reasonable results with this
    test (already working ok, with "correct" transfer of "DMA" including red).
- - #CSpect 2.11.10 - will crash due to wrong "DMA_CONTINUE" emulation.
+ - #CSpect 2.12.22 - has no DMA at port $0B and only zxnDMA at $6B.
  - RealSpec did survive one of the earlier versions of test, but timing
    of blocks is always 3T+3T (didn't try with latest version of test)
  - Fuse does produce mostly incorrect results for almost all transfer variants
  - ZEsarUX 8.1 beta2 in TBBlue mode has only zxnDMA-like implementation
  - my fork of ZEsarUX "ZESERUse" does emulate now both zxnDMA and Zilog mode,
-   even more correctly than the board, which is sort of wrong, so overall it's
-   work in progress, talking also with Allen A. about future core changes,
-   then I will probably limit emulation to what TBBlue does.
+   but the mode-switch is still in NextReg $06 and not by I/O port.
