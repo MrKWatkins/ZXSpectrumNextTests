@@ -59,8 +59,7 @@ default test sequence, operating in visible range of VRAM. You can add/adjust/ch
 the setup of DMA chip by using the UI commands, which offer basic possibilities (should
 be enough for common memory transfer usage examples).
 
-The default DMA port is $0B, but when Spectrum Next is detected, the port $6B is used
-first (press caps+p to switch between the ports).
+The default DMA port is $0B (press caps+p to switch between the ports $0B <-> $6B).
 
 By using "custom byte" manual editing you can send anything to the DMA chip and initiate
 sequence also with parameters not editable through the UI of test.
@@ -82,8 +81,9 @@ the source area with test-pattern data, and controls "⇑t" and "⇑y" will load
 byte 0x0E (2T timing) to particular port.
 
 The test will try to detect when it is run at ZX Spectrum Next board, and it will
-configure the Next to use 28MHz mode, but it will switch zxnDMA to "Zilog"
-compatibility mode (test does **NOT** support zxnDMA mode and "prescalar" feature).
+configure the Next to use 28MHz mode, but test does **NOT** support zxnDMA specific
+features like "prescalar" burst mode (you can switch between Zilog or zxnDMA mode
+by alternating between the ports (core3.1.2+), but the test is designed for Zilog mode).
 
 The zxnDMA documentation can be found at https://wiki.specnext.dev/DMA (mostly
 describing the "zxnDMA" mode but also mentions limits of zxnDMA), for Zilog DMA chip

@@ -2315,22 +2315,13 @@ ReadAndShowDmaByte:
 AutoDetectTBBlue:
     call    DetectTBBlue
     ret     nc
-    ; modify default port to $6B on TBBlue boards
-    ld      a,ZXN_DMA_P_6B
+    ; modify default port to $0B on TBBlue boards (Zilog-mode port)
+    ld      a,ZILOG_DMA_P_0B
     ld      (DmaPortData),a
 
-    ; switch DMA to Zilog mode (and enable all keys: turbo, 50/60Hz, NMI)
+    ; switch to 28MHz on TBBlue
     ; use only regular Z80 instructions, so it can survive even on ZX48/ZX128
     ld      bc,TBBLUE_REGISTER_SELECT_P_243B
-    ld      a,PERIPHERAL_2_NR_06
-    out     (c),a
-    inc     b       ; bc = TBBLUE_REGISTER_ACCESS_P_253B
-    in      a,(c)   ; read desired NextReg state
-    or      %1110'1000          ; enable F8, F3 and NMI buttons, Zilog DMA mode
-    out     (c),a   ; write new value
-
-    ; switch to 28MHz on TBBlue
-    dec     b       ; register select
     ld      a,TURBO_CONTROL_NR_07
     out     (c),a
     inc     b
@@ -2344,7 +2335,7 @@ Start:
     di
     ; reset SP pointer
     ld      sp,StackSpace
-    ; auto-detect TBBlue, will also switch to Zilog mode of DMA, and set 28MHz
+    ; auto-detect TBBlue, will also select Zilog mode port of DMA, and set 28MHz
     call    AutoDetectTBBlue
     ; install keyboard handlers
     IGNORE_KEY      KEY_CAPS
@@ -2364,7 +2355,7 @@ StartAfterPortChange:
     ld      hl,DmaVisibleInitSequence
     ld      (playSequence),hl
 
-    ;; do the full init of DMA chip and helper settings in NextRegs and I/O ports
+    ;; do the full init of DMA chip
     BORDER  YELLOW
 
     ; hidden init of DMA - make the sequence of five RESETs (not needed to show)
@@ -2510,6 +2501,8 @@ DmaSetWr0Sequence:
     BLOCK   120, $CC
 StackSpace:
     DW      0
+
+    ASSERT $ <= $97FF
 
     IFNDEF BUILD_TAP
         savesna "dmaDebug.sna", Start
