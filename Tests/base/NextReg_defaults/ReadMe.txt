@@ -5,12 +5,14 @@ This test does very basic read+write to every Next-register known to it, testing
 in some cases for known default values (keeping it relaxed where the default value is
 unclear and may depend on user configuration, like 50/60Hz, etc.).
 
-The implemented set of Next registers is according to info about core 2.00.26.
+The implemented set of Next registers is according to info about core 3.1.5.
 
 The machine is expected to be configured as ZX48 with NEXT functionality allowed, but
 mostly OFF (expected: turbo speed OFF, memory contention as ZX48, ...)
 Or to put it in other words, the expected defaults are as after power-on and booting
 into ZX48 mode, defaults specified in: https://www.specnext.com/tbblue-io-port-system/
+(the more recent source of next-registers info is now public VHDL source of the core:
+https://gitlab.com/SpectrumNext/ZX_Spectrum_Next_FPGA - there is "nextreg.txt" file)
 
 The displayed values are all always hexadecimal, except the MachineID and core versions
 under the "legend" part, those are decimal, as having core "2.0.16" instead of "2.0.22"
@@ -62,7 +64,8 @@ In case of failure, the unexpected value is printed into "LOG" (bottom third of 
 * yellow = "default value" kind of test
 * red = "verify write" kind of test
 * cyan = NextRegister number for the previously reported "bad values"
-* empty/garbage colours boxes = the ROM char gfx got unmapped due to MMU1 read failure.
+* empty/garbage colours boxes = the ROM char gfx got unmapped due to MMU1 read failure
+or the current ROM does not contain character set gfx (due to ROM mapping failure)
 
 For clip-window test there may be printed multiple wrong values for single NextReg (one
 to four for "defaults", and one to four for "verify", but there's no identification
@@ -113,6 +116,8 @@ MMU regs reading first, then rerun the test, to see remaining values in log outp
 
 List on unobservable side-effect of "write" tests into NextRegs:
 ================================================================
+
+! this info is now outdated and requires refresh ! (code changes for core 3.1.5)
 
 $02: zero is written into it, it shouldn't do anything. From the docs it is not clear,
  when reading value should modify, whether the on-reset flags are one-time-read flags,

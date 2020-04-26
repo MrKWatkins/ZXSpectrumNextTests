@@ -13,21 +13,21 @@ NextRegDefaultRead:
     ; $FC = extra code should handle the test
     ; Other values are expected default value (must match strictly)
     ; NextReg $22 may rarely fail the test (when INT was high during read, timing issue)
-    ; Clip-window registers $18..$1A require also writing to read them, so they are
+    ; Clip-window registers $18..$1B require also writing to read them, so they are
     ; tested fully in the custom-write mode, skipping read-only phase.
     ;    x0  x1  x2  x3  x4  x5  x6  x7  x8  x9  xA  xB  xC  xD  xE  xF
-    db  $FD,$FD,$FE,$FD,$FF,$FE,$FE,$00,$10,$00,$FF,$FF,$FF,$FF,$FE,$FF ; $00..0F
-    db  $00,$FF,$08,$0B,$E3,$00,$00,$00,$FF,$FF,$FF,$FF,$C6,$FF,$FE,$FE ; $10..1F
-    db  $FF,$FF,$00,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$00 ; $20..2F
+    db  $FD,$FD,$FE,$FD,$FF,$FE,$FE,$00,$FE,$FE,$FF,$FF,$FF,$FF,$FE,$FF ; $00..0F
+    db  $00,$FE,$08,$0B,$E3,$00,$00,$00,$FF,$FF,$FF,$FF,$E4,$FF,$FE,$FE ; $10..1F
+    db  $FF,$FF,$00,$00,$FF,$FF,$00,$00,$00,$FF,$FF,$FF,$FE,$FE,$FE,$00 ; $20..2F
     db  $00,$00,$00,$00,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $30..3F
-    db  $00,$00,$0F,$00,$01,$FF,$FF,$FF,$FF,$FF,$00,$E3,$0F,$FF,$FF,$FF ; $40..4F
+    db  $00,$00,$07,$00,$01,$FF,$FF,$FF,$FF,$FF,$E3,$E3,$0F,$FF,$FF,$FF ; $40..4F
     db  $FD,$FD,$0A,$0B,$04,$05,$00,$01,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $50..5F
-    db  $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$00,$FF,$FF,$00,$00,$FF,$00,$00 ; $60..6F
-    db  $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $70..7F
-    db  $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $80..8F
-    db  $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $90..9F
-    db  $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $A0..AF
-    db  $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $B0..BF
+    db  $FF,$01,$00,$FF,$FF,$FF,$FF,$FF,$00,$00,$00,$00,$00,$FF,$2C,$0C ; $60..6F
+    db  $00,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FD ; $70..7F
+    db  $00,$00,$FD,$FD,$FD,$FD,$FD,$FD,$FD,$FD,$00,$FF,$00,$FF,$08,$FF ; $80..8F
+    db  $00,$00,$00,$00,$FF,$FF,$FF,$FF,$00,$00,$00,$00,$FF,$FF,$FF,$FF ; $90..9F
+    db  $FE,$FF,$FE,$0B,$FF,$FF,$FF,$FF,$00,$FE,$FF,$FF,$FF,$FF,$FF,$FF ; $A0..AF
+    db  $FE,$FE,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $B0..BF
     db  $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $C0..CF
     db  $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $D0..DF
     db  $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $E0..EF
@@ -46,38 +46,38 @@ NextRegWriteInfo:       ; must follow NextRegDefaultRead in memory, at 256B boun
     ; specific modes: $03, $04, ...
     ; $05 register writes back the same value (to not break user's config) = weak test
     ;    x0  x1  x2  x3  x4  x5  x6  x7  x8  x9  xA  xB  xC  xD  xE  xF
-    db  $FF,$FF,$00,$FE,$FE,$80,$02,$01,$74,$08,$FF,$FF,$FF,$FF,$FF,$FF ; $00..0F
+    db  $FF,$FF,$00,$FE,$FE,$80,$02,$01,$74,$18,$FF,$FF,$FF,$FF,$FF,$FF ; $00..0F
     db  $FE,$FE,$09,$0A,$25,$02,$55,$56,$FC,$FC,$FC,$FC,$08,$FF,$FF,$FF ; $10..1F
-    db  $FF,$FF,$01,$02,$FF,$FF,$FF,$FF,$FE,$FE,$FE,$FE,$FF,$00,$FF,$01 ; $20..2F
+    db  $FF,$FF,$01,$02,$FF,$FF,$02,$01,$FE,$FE,$FE,$FE,$7F,$7F,$7F,$01 ; $20..2F
     db  $03,$06,$02,$01,$7B,$00,$00,$0F,$3F,$0A,$FF,$FF,$FF,$FF,$FF,$FF ; $30..3F
-    db  $70,$1F,$07,$68,$FC,$FF,$FF,$FF,$FF,$FF,$1F,$20,$0E,$FF,$FF,$FF ; $40..4F
+    db  $70,$1F,$03,$68,$FC,$FF,$FF,$FF,$FF,$FF,$1F,$20,$0E,$FF,$FF,$FF ; $40..4F
     db  $80,$80,$0A,$0B,$04,$05,$00,$01,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $50..5F
-    db  $00,$33,$01,$FF,$FF,$FF,$FF,$FF,$40,$FF,$FF,$60,$0F,$FF,$5B,$5C ; $60..6F
-    db  $FF,$FF,$FF,$FF,$FF,$00,$00,$0F,$3F,$0A,$FF,$FF,$FF,$FF,$FF,$FF ; $70..7F
-    db  $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $80..8F
-    db  $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $90..9F
-    db  $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $A0..AF
+    db  $00,$33,$01,$00,$FF,$FF,$FF,$FF,$40,$00,$02,$60,$0F,$FF,$5B,$5C ; $60..6F
+    db  $14,$01,$FF,$FF,$FF,$00,$00,$0F,$3F,$0A,$FF,$FF,$FF,$FF,$FF,$13 ; $70..7F
+    db  $10,$00,$80,$80,$80,$80,$80,$80,$80,$80,$10,$FF,$30,$FF,$03,$FF ; $80..8F
+    db  $FE,$FE,$FE,$FE,$FF,$FF,$FF,$FF,$FE,$FE,$FE,$FE,$FF,$FF,$FF,$FF ; $90..9F
+    db  $FE,$FF,$FE,$16,$FF,$FF,$FF,$FF,$FE,$FE,$FF,$FF,$FF,$FF,$FF,$FF ; $A0..AF
     db  $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $B0..BF
     db  $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $C0..CF
     db  $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $D0..DF
     db  $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $E0..EF
-    db  $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$01 ; $F0..FF
+    db  $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $F0..FF
 
     ; Expected read values after WRITE test, must follow NextRegWriteInfo in memory
     ; $FF = do NOT test read, $FE = test against original value read
     ; Other values are precise values to be compared with value read from register
     ;    x0  x1  x2  x3  x4  x5  x6  x7  x8  x9  xA  xB  xC  xD  xE  xF
-    db  $FF,$FF,$FF,$FF,$FF,$FE,$02,$01,$74,$08,$FF,$FF,$FF,$FF,$FF,$FF ; $00..0F
-    db  $FF,$FF,$09,$0A,$25,$02,$55,$56,$FF,$FF,$FF,$FF,$06,$FF,$FF,$FF ; $10..1F
-    db  $FF,$FF,$01,$02,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$01 ; $20..2F
+    db  $FF,$FF,$FF,$FF,$FF,$FE,$02,$11,$74,$10,$FF,$FF,$FF,$FF,$FF,$FF ; $00..0F
+    db  $FF,$FF,$09,$0A,$25,$02,$55,$56,$FF,$FF,$FF,$FF,$24,$FF,$FF,$FF ; $10..1F
+    db  $FF,$FF,$01,$02,$FF,$FF,$02,$01,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$01 ; $20..2F
     db  $03,$06,$02,$01,$7B,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $30..3F
-    db  $70,$02,$07,$68,$FF,$FF,$FF,$FF,$FF,$FF,$1F,$20,$0E,$FF,$FF,$FF ; $40..4F
+    db  $70,$02,$03,$68,$FF,$FF,$FF,$FF,$FF,$FF,$1F,$20,$0E,$FF,$FF,$FF ; $40..4F
     db  $FE,$FE,$0A,$0B,$04,$05,$00,$01,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $50..5F
-    db  $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$40,$FF,$FF,$60,$0F,$FF,$1B,$1C ; $60..6F
-    db  $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $70..7F
-    db  $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $80..8F
+    db  $FF,$33,$01,$FF,$FF,$FF,$FF,$FF,$40,$00,$02,$60,$0F,$FF,$1B,$1C ; $60..6F
+    db  $14,$01,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$13 ; $70..7F
+    db  $10,$00,$FE,$FE,$FE,$FE,$FE,$FE,$FE,$FE,$10,$FF,$30,$FF,$0B,$FF ; $80..8F
     db  $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $90..9F
-    db  $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $A0..AF
+    db  $FF,$FF,$FF,$16,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $A0..AF
     db  $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $B0..BF
     db  $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $C0..CF
     db  $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $D0..DF
@@ -123,6 +123,8 @@ LegendPapersData:
 LegendPapersDataSize    equ $ - LegendPapersData
 
 LegendText:
+    db      'To quit use:',0
+    db      '!HARD RESET!',0
     db      '** Legend **',0
     db      ' no NextReg',0
     db      ' W      skip',0
@@ -441,10 +443,19 @@ DrawMachineInfoAndFinish:
     jp      EndTest
 
 DrawLegend:
+    ld      bc,$0C01
+    ld      d,A_BRIGHT|P_YELLOW|BLACK
+    ld      hl,MEM_ZX_ATTRIB_5800+1*$20+$13
+    call    FillSomeUlaLines
+    ld      b,3
     ld      hl,LegendText
-    ld      de,$4033
+    ld      de,$4013
+.topLegendLoop:
     call    OutStringAtDe       ; legend title
-    ld      e,$73               ; +2 lines
+    ld      a,e
+    add     a,$20
+    ld      e,a
+    djnz    .topLegendLoop
     ld      c,LegendPapersDataSize  ; B is used by DrawLegendPaperBox
 .LineLoop:
     call    DrawLegendPaperBox
