@@ -46,7 +46,7 @@ TBBlue / ZX Spectrum Next Peripheral Ports
 |*| ||XXXX 1111 1101 1111| 0xffdf  |Kempston mouse y                |
 |*| ||XXXX 1010 1101 1111| 0xfadf  |Kempston mouse wheel, buttons   |
 |*| ||XXXX XXXX 0001 1111| 0x1f    |Kempston joy 1                  |
-|*|*||XXXX XXXX 0011 0111| 0x37    |Kempston joy 2 / Joy Control    |
+|*|*||XXXX XXXX 0011 0111| 0x37    |Kempston joy 2 / Joy IO Mode    |
 |*|*||XXXX XXXX 0001 1111| 0x1f    |Multiface 1 disable             |
 |*|*||XXXX XXXX 1001 1111| 0x9f    |Multiface 1 enable              |
 |*|*||XXXX XXXX 0011 1111| 0x1f    |Multiface 128 disable           |
@@ -116,6 +116,7 @@ bits 2:0 = 16K RAM bank to place at 0xc000
 (W)
 bit 7 = 1 to set pentagon 512K mode (hard reset = 0) **
 bits 3:0 = most significant bits of the 16K RAM bank selected in port 0x7FFD (soft reset = 0)
+* Bit 7 can only be modified when pentagon timing is not active.
 * Port 0xDFFD bits 3:0 are combined as the highest bits with the bank selected in port 0x7FFD to form a 7-bit bank number.
 ** Pentagon 512K mode is applied only when the machine is set to pentagon timing (nextreg 0x03). In this mode the selected 16K bank comes from port 0x7ffd {bits 7:6, bits 2:0}
 
@@ -427,7 +428,9 @@ bits 7:6 Select I/O Mode
   00 = bit bang
   01 = clock
   10 = uart
-bits 5:1 Reserved must be 0
+bit 5 Reserved must be 0
+bit 4 = 0 to read from left joystick, 1 to read from right joystick
+bits 3:1 Reserved must be 0
 bit 0 parameter bit controls state of pin 7 on both joystick connectors
   bit bang : bit 0 is copied to pin 7
   clock    : 0 = place slow clock on pin 7 (Fsys/2048 = 13.672kHz), 1 = place fast clock on pin 7 (Fsys/8 = 3.5MHz) **
