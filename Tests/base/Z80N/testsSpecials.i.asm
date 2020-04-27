@@ -19,7 +19,7 @@ TestFull_NextRegNn:
 .FullTestLoop:
     ld      a,LAYER2_XOFFSET_NR_16
     call    .TestNextReg
-    ld      a,RASTER_INTERUPT_VALUE_NR_23
+    ld      a,VIDEO_INTERUPT_VALUE_NR_23
     call    .TestNextReg
     ld      a,PALETTE_INDEX_NR_40
     call    .TestNextReg
@@ -81,7 +81,7 @@ TestFull_NextRegA:
 .FullTestLoop:
     ld      a,LAYER2_XOFFSET_NR_16
     call    .TestNextReg
-    ld      a,RASTER_INTERUPT_VALUE_NR_23
+    ld      a,VIDEO_INTERUPT_VALUE_NR_23
     call    .TestNextReg
     ld      a,PALETTE_INDEX_NR_40
     call    .TestNextReg

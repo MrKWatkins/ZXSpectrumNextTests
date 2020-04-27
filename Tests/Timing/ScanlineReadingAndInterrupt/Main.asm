@@ -181,7 +181,7 @@ Start:
     ld      a,im2tabHI
     ld      i,a
     im      2
-    nextreg RASTER_INTERUPT_CONTROL_NR_22,%00000'1'1'0  ; scanline interrupt only, disable ULA
+    nextreg VIDEO_INTERUPT_CONTROL_NR_22,%00000'1'1'0  ; scanline interrupt only, disable ULA
 
 MainLoop:
     ld      a,(KeysRepeatDelay)
@@ -202,7 +202,7 @@ TestReadNr1F:
     ld      hl,(TestLineLsb)    ; L = LSB value
     ; read NextReg $1F - LSB of current raster line
     ld      bc,TBBLUE_REGISTER_SELECT_P_243B
-    ld      a,RASTER_LINE_LSB_NR_1F
+    ld      a,VIDEO_LINE_LSB_NR_1F
     out     (c),a               ; select NextReg $1F
     inc     b                   ; BC = TBBLUE_REGISTER_ACCESS_P_253B
     ; if not yet at scanline, wait for it ... wait for it ...
@@ -234,7 +234,7 @@ KeyHandlerTestType:
     ret     nz                  ; TEST_TYPE_READ is set up like this (by DI)
     ; TEST_TYPE_IRQ - enable the interrupt at correct line
     ld      a,(TestLineLsb)
-    nextreg RASTER_INTERUPT_VALUE_NR_23,a
+    nextreg VIDEO_INTERUPT_VALUE_NR_23,a
     ei
     ret
 KeyHandlerSwHzKey:
@@ -474,7 +474,7 @@ im2handler:
         push    af
     ; set interrupt line with new value in TestLineLsb
         ld      a,(TestLineLsb)
-        nextreg RASTER_INTERUPT_VALUE_NR_23,a
+        nextreg VIDEO_INTERUPT_VALUE_NR_23,a
         ld      a,20
 .waitLoop:
         dec     a

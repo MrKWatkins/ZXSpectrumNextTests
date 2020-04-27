@@ -24,11 +24,11 @@
 ; and call it only when it makes sense (i.e. high bit of scanline is known to it)
 WaitForScanline:    ; code is somewhat optimized to return ASAP when it happens
     ld      bc, TBBLUE_REGISTER_SELECT_P_243B
-    ld      a, RASTER_LINE_LSB_NR_1F
+    ld      a, VIDEO_LINE_LSB_NR_1F
     out     (c),a
     inc     b       ; bc = TBBLUE_REGISTER_ACCESS_P_253B
 .waitLoop:
-    in      a,(c)   ; read RASTER_LINE_LSB_NR_1F
+    in      a,(c)   ; read VIDEO_LINE_LSB_NR_1F
     cp      l
     jr      c,.waitLoop
     ret
@@ -36,19 +36,19 @@ WaitForScanline:    ; code is somewhat optimized to return ASAP when it happens
 ; this waits until MSB is equal to L (0/1) (otherwise same gimmick as WaitForScanline)
 WaitForScanlineMSB: ; code is somewhat optimized to return ASAP when it happens
     ld      bc, TBBLUE_REGISTER_SELECT_P_243B
-    ld      a, RASTER_LINE_MSB_NR_1E
+    ld      a, VIDEO_LINE_MSB_NR_1E
     out     (c),a
     inc     b       ; bc = TBBLUE_REGISTER_ACCESS_P_253B
     dec     l
     ld      l,1
     jr      z,.waitForMsbSet
 .waitForMsbReset:
-    in      a,(c)   ; read RASTER_LINE_MSB_NR_1E
+    in      a,(c)   ; read VIDEO_LINE_MSB_NR_1E
     and     l
     jr      nz,.waitForMsbReset
     ret
 .waitForMsbSet:
-    in      a,(c)   ; read RASTER_LINE_MSB_NR_1E
+    in      a,(c)   ; read VIDEO_LINE_MSB_NR_1E
     and     l
     jr      z,.waitForMsbSet
     ret
