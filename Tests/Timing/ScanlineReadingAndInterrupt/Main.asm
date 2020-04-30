@@ -12,8 +12,9 @@
 
 ; max scanline is 260..320 (depending on the mode), so values 0..63 may happen twice, 64+ only once
 TEST_LINE_LSB = 200         ; start at +8 pixels under PAPER area
-TEST_TYPE_READ      EQU     1
-TEST_TYPE_IRQ       EQU     0
+TEST_TYPE_READ      EQU     2
+TEST_TYPE_IRQ       EQU     1
+TEST_TYPE_COPPER    EQU     0
 
 LegendText:
     DW      MEM_ZX_SCREEN_4000+4*32+1
@@ -21,19 +22,24 @@ LegendText:
     DW      MEM_ZX_SCREEN_4000+5*32+1
     DB      "W/S:  Target line LSB +-8",0
     DW      MEM_ZX_SCREEN_4000+6*32+1
-    DB      "Z:     Read $1F Interrupt",0
+    DB      "Z:    NR_$1F INTER. COPPER",0
     DW      MEM_ZX_SCREEN_4000+7*32+1
     DB      "F8/T: MHz: 3.5  7   14  28",0
     DW      MEM_ZX_SCREEN_4000+8*256+0*32+1
     DB      "F3/F: Display: 50Hz 60Hz",0
     DW      MEM_ZX_SCREEN_4000+8*256+1*32+1
     DB      "V:    VGA: ?? 48 +2 +3 Pg",0
+    DW      MEM_ZX_SCREEN_4000+8*256+2*32+1
+    DB      "O/K:  Line offset $64: ",0
     DW      MEM_ZX_SCREEN_4000+8*256+3*32+1
+    DB      "P/L:  Line offset $64 +-8",0
+    DW      MEM_ZX_SCREEN_4000+8*256+5*32+1
     DB      "(F# keys are NMI+number)",0
-    DW      MEM_ZX_SCREEN_4000+8*256+4*32+1
+    DW      MEM_ZX_SCREEN_4000+8*256+6*32+1
     DB      "(HDMI ignores V key)",0
     DB      0, 0, 0
 LineLsbVramAdr      EQU     MEM_ZX_SCREEN_4000+4*32+24
+OffsetVramAdr       EQU     MEM_ZX_SCREEN_4000+8*256+2*32+24
 
 HighlightKeysData:
     DW      MEM_ZX_ATTRIB_5800+4*32+1, MEM_ZX_ATTRIB_5800+4*32+3
@@ -42,6 +48,8 @@ HighlightKeysData:
     DW      MEM_ZX_ATTRIB_5800+7*32+1, MEM_ZX_ATTRIB_5800+7*32+2, MEM_ZX_ATTRIB_5800+7*32+4
     DW      MEM_ZX_ATTRIB_5800+8*32+1, MEM_ZX_ATTRIB_5800+8*32+2, MEM_ZX_ATTRIB_5800+8*32+4
     DW      MEM_ZX_ATTRIB_5800+9*32+1
+    DW      MEM_ZX_ATTRIB_5800+10*32+1, MEM_ZX_ATTRIB_5800+10*32+3
+    DW      MEM_ZX_ATTRIB_5800+11*32+1, MEM_ZX_ATTRIB_5800+11*32+3
 .count = ($ - HighlightKeysData)/2
 
 R_5     EQU     %0000'0101
@@ -84,11 +92,13 @@ UiType      DB  -1
 UiMhz       DB  -1
 UiVidHz     DB  -1
 UiVidVga    DB  -1
+UiOffset    DB  -1
 
 KeysRepeatDelay     DB  0
 
 TestLineLsb DB  TEST_LINE_LSB
 TestType    DB  TEST_TYPE_READ
+TestOffset  DB  0
 
 UiVidHzAttrs:
             BLOCK   5, P_WHITE
@@ -96,9 +106,11 @@ UiVidHzAttrs:
 .len:       BLOCK   5, P_WHITE
 
 UiTypeAttrs:
-            BLOCK   10, P_WHITE
-.ofs:       BLOCK   11, A_BRIGHT|P_CYAN
-.len:       BLOCK   10, P_WHITE
+            BLOCK   7, P_WHITE
+.oneOfs:    BLOCK   7, P_WHITE
+            BLOCK   8, A_BRIGHT|P_CYAN
+.len:       BLOCK   7, P_WHITE
+            BLOCK   7, P_WHITE
 
 UiMhzAttrs:
             BLOCK   4, P_WHITE
@@ -172,6 +184,10 @@ Start:
     REGISTER_KEY KEY_W, KeyHandlerLsbUp8
     REGISTER_KEY KEY_S, KeyHandlerLsbDown8
     REGISTER_KEY KEY_V, KeyHandlerVgaTiming
+    REGISTER_KEY KEY_O, KeyHandlerOfsUp
+    REGISTER_KEY KEY_K, KeyHandlerOfsDown
+    REGISTER_KEY KEY_P, KeyHandlerOfsUp8
+    REGISTER_KEY KEY_L, KeyHandlerOfsDown8
 
     ; setup the color registers to modify white PAPER color in ULA palette (to show "line")
     nextreg PALETTE_CONTROL_NR_43,%1'000'0000   ; ULA palette, no-increment, classic ULA
@@ -184,6 +200,8 @@ Start:
     nextreg VIDEO_INTERUPT_CONTROL_NR_22,%00000'1'1'0  ; scanline interrupt only, disable ULA
 
 MainLoop:
+    ld      a,(TestOffset)
+    nextreg VIDEO_LINE_OFFSET_NR_64,a
     ld      a,(KeysRepeatDelay)
     sub     1
     adc     a,0
@@ -193,6 +211,8 @@ MainLoop:
     ld      a,(TestType)
     cp      TEST_TYPE_READ
     jr      z,TestReadNr1F
+    cp      TEST_TYPE_COPPER
+    jr      z,TestCopper
     ; nothing more to do in interrupt type
     halt
     jr      MainLoop
@@ -221,6 +241,26 @@ TestReadNr1F:
     jr      z,.waitFullLine
     SET_PALETTE_ELEMENT %101'101'10     ; white paper
     jr      MainLoop
+TestCopper:
+    ; refresh the copper code to latest TestLineLsb value (keep doing that every frame)
+    nextreg COPPER_CONTROL_LO_NR_61,0   ; reset low index
+    ; high index is already reset by setup routine (writing %11'000'000 at its end)
+    call    KeyHandlerTestType.writeCopperCode
+    ; wait single scanline to make the keyboard handler refresh at correct rate
+    ; read NextReg $1F - LSB of current raster line
+    ld      bc,TBBLUE_REGISTER_SELECT_P_243B
+    ld      a,VIDEO_LINE_LSB_NR_1F
+    out     (c),a               ; select NextReg $1F
+    inc     b                   ; BC = TBBLUE_REGISTER_ACCESS_P_253B
+.waitInside150:
+    in      a,(c)               ; read the raster line LSB
+    cp      150
+    jr      z,.waitInside150
+.waitFor150:
+    in      a,(c)               ; read the raster line LSB
+    cp      150
+    jr      nz,.waitFor150
+    jr      MainLoop
 
 ;--------------------------------------------------------------------------------------
 ; keyboard handlers
@@ -229,9 +269,41 @@ TestReadNr1F:
 KeyHandlerTestType:
     di
     ld      a,(TestType)
-    xor     1
+    nextreg COPPER_CONTROL_HI_NR_62,a   ; stop copper if it is running (A = 0..2)
+    sub     1
+    jr      nc,.noWrapYet
+    ld      a,TEST_TYPE_READ
+.noWrapYet
     ld      (TestType),a
-    ret     nz                  ; TEST_TYPE_READ is set up like this (by DI)
+    ret     c                   ; TEST_TYPE_READ is set up (by DI and Copper stop)
+    jr      nz,.setupIrqTest    ; if A=1 jump (irq type), A=0 stay (copper type)
+    ; TEST_TYPE_COPPER - code the copper instructions to trigger at desired line
+    nextreg COPPER_CONTROL_LO_NR_61,a
+    nextreg COPPER_CONTROL_HI_NR_62,a   ; write index = 0
+.writeCopperCode:
+    ld      a,(TestLineLsb)
+    nextreg COPPER_DATA_16B_NR_63,$80
+    nextreg COPPER_DATA_16B_NR_63,a     ; WAIT for lineLSB (9th bit is zero)
+    nextreg COPPER_DATA_16B_NR_63,PALETTE_VALUE_NR_41
+    nextreg COPPER_DATA_16B_NR_63,%100'010'00   ; copper-ish paper
+    nextreg COPPER_DATA_16B_NR_63,$80|(52<<1)
+    nextreg COPPER_DATA_16B_NR_63,a     ; WAIT for H=52, revert color back
+    nextreg COPPER_DATA_16B_NR_63,PALETTE_VALUE_NR_41
+    nextreg COPPER_DATA_16B_NR_63,%101'101'10   ; white paper
+    nextreg COPPER_DATA_16B_NR_63,$81
+    nextreg COPPER_DATA_16B_NR_63,a     ; WAIT for lineLSB (9th bit is one)
+    nextreg COPPER_DATA_16B_NR_63,PALETTE_VALUE_NR_41
+    nextreg COPPER_DATA_16B_NR_63,%101'011'00   ; yellow-ish paper
+    nextreg COPPER_DATA_16B_NR_63,$81|(52<<1)
+    nextreg COPPER_DATA_16B_NR_63,a     ; WAIT for H=52 (9th bit is one)
+    nextreg COPPER_DATA_16B_NR_63,PALETTE_VALUE_NR_41
+    nextreg COPPER_DATA_16B_NR_63,%101'101'10   ; white paper
+    nextreg COPPER_DATA_16B_NR_63,$FF   ; copper "HALT" instruction
+    nextreg COPPER_DATA_16B_NR_63,$FF
+    ; start copper code in "restart at [0,0]" mode
+    nextreg COPPER_CONTROL_HI_NR_62,%11'000'000
+    ret
+.setupIrqTest:
     ; TEST_TYPE_IRQ - enable the interrupt at correct line
     ld      a,(TestLineLsb)
     nextreg VIDEO_INTERUPT_VALUE_NR_23,a
@@ -261,32 +333,58 @@ KeyHandlerSwTurboKey:
     nextreg TURBO_CONTROL_NR_07,a
     ret
 KeyHandlerLsbUp:
-    call    KeyHandlerLsb_all
+    call    KeyHandlerWithRepeat
     ret     nz
     ld      hl,TestLineLsb
     dec     (hl)
     ret
 KeyHandlerLsbDown:
-    call    KeyHandlerLsb_all
+    call    KeyHandlerWithRepeat
     ret     nz
     ld      hl,TestLineLsb
     inc     (hl)
     ret
 KeyHandlerLsbUp8:
-    call    KeyHandlerLsb_all
+    call    KeyHandlerWithRepeat
     ret     nz
     ld      a,(TestLineLsb)
     sub     8
     ld      (TestLineLsb),a
     ret
 KeyHandlerLsbDown8:
-    call    KeyHandlerLsb_all
+    call    KeyHandlerWithRepeat
     ret     nz
     ld      a,(TestLineLsb)
     add     a,8
     ld      (TestLineLsb),a
     ret
-KeyHandlerLsb_all:      ; returns Zf=1 if the value should be adjusted
+KeyHandlerOfsUp:
+    call    KeyHandlerWithRepeat
+    ret     nz
+    ld      hl,TestOffset
+    inc     (hl)
+    ret
+KeyHandlerOfsDown:
+    call    KeyHandlerWithRepeat
+    ret     nz
+    ld      hl,TestOffset
+    dec     (hl)
+    ret
+KeyHandlerOfsUp8:
+    call    KeyHandlerWithRepeat
+    ret     nz
+    ld      a,(TestOffset)
+    add     a,8
+    ld      (TestOffset),a
+    ret
+KeyHandlerOfsDown8:
+    call    KeyHandlerWithRepeat
+    ret     nz
+    ld      a,(TestOffset)
+    sub     8
+    ld      (TestOffset),a
+    ret
+KeyHandlerWithRepeat:   ; returns Zf=1 if the value should be adjusted
     xor     a           ; modify controls.i.asm behaviour for auto-repeat and own delay
     ld      (debounceState),a
     ld      a,(KeysRepeatDelay)
@@ -313,6 +411,10 @@ getVideoModeNumber:
     ret                 ; for VGA return 0..5 for video timing selected
 
 refreshUi:
+    ld      hl,UiOffset
+    ld      a,(TestOffset)
+    cp      (hl)
+    call    nz,refreshUiOffset
     ld      hl,UiLineLsb
     ld      a,(TestLineLsb)
     cp      (hl)
@@ -338,6 +440,7 @@ refreshUi:
     ; |
     ; fallthrough to refreshUiVidHz
     ; |
+    ; v
 refreshUiVidHz:
     ld      (hl),a
     ld      hl,UiVidHzAttrs     ; add +5 or +0 for 50Hz/60Hz
@@ -365,7 +468,7 @@ refreshVidVga:
     ret
 refreshUiType:
     ld      (hl),a
-    ld      d,UiTypeAttrs.ofs-UiTypeAttrs
+    ld      d,UiTypeAttrs.oneOfs-UiTypeAttrs
     ld      e,a
     mul     de
     ld      hl,UiTypeAttrs
@@ -388,8 +491,14 @@ refreshUiMhz:
 refreshUiLineLsb:
     ld      (hl),a
     ; clear old value in pixel VRAM
-    ld      bc,$0400
     ld      hl,LineLsbVramAdr
+    ;  |
+    ; fallthrough into refreshUi_PrintDecimal
+    ;  |
+    ;  v
+refreshUi_PrintDecimal:
+    ld      bc,$0400
+    push    hl
 .clearLoop:
     ld      (hl),c  ; clear 3 bytes to right
     inc     l
@@ -404,9 +513,14 @@ refreshUiLineLsb:
     ld      (hl),c
     inc     h
     djnz    .clearLoop  ; do it four times => 8 lines cleared
-    ld      hl,LineLsbVramAdr
+    pop     hl
     ld      (OutCurrentAdr),hl
     jp      OutDecimalValue
+refreshUiOffset:
+    ld      (hl),a
+    ; clear old value in pixel VRAM
+    ld      hl,OffsetVramAdr
+    jr      refreshUi_PrintDecimal
 
     MACRO DRAW_RULER_LABEL coords?, labeladr?
         ld      de,coords?
