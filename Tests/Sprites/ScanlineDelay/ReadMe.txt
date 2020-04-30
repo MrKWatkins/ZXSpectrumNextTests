@@ -1,3 +1,5 @@
+Source in folder: Tests/Sprites/ScanlineDelay/
+
 Test will draw some kind of "ruler" in the ULA screen, with the largest
 ruler line representing the +0 scanline, the active target of copper code.
 

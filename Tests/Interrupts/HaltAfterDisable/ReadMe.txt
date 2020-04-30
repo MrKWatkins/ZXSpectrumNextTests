@@ -1,3 +1,5 @@
+Source in folder: Tests/Interrupts/HaltAfterDisable/
+
 The test disables interrupts and does "halt", the machine should freeze there with
 GREEN BORDER and full WHITE PAPER = OK.
 

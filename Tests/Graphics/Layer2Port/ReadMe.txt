@@ -1,3 +1,5 @@
+Source in folder: Tests/Graphics/Layer2Port/
+
 The results of tests are green/red rectangles covering the "#" spots and
 green/red dots between "[]" areas for Bank offset test (***):
 

@@ -1,3 +1,5 @@
+Source in folder: Tests/Graphics/LayersMixingLoRes/
+
 This is identical test to "Layer2Colours" test, but the ULA layer is switched to "LoRes"
 mode this time. Following text is same as Layer2Colours (if you read it already...).
 -------------------------------------------------------------------------------------

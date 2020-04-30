@@ -1,3 +1,5 @@
+Source in folder: Tests/Sprites/BigSprite/
+
 Does test "big-sprite" relative sprites (feature of core 2.00.27+).
 
 The big sprite is composed of 10 ordinary sprites, occupying total area of 23x25 pixels.

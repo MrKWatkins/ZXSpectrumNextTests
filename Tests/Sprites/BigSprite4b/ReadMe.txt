@@ -1,3 +1,5 @@
+Source in folder: Tests/Sprites/BigSprite4b/
+
 Does test "big-sprite" relative sprites (feature of core 2.00.27+).
 
 This is almost identical test to SpritBig.sna (Tests/Sprites/BigSprite), except

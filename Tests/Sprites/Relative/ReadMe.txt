@@ -1,3 +1,5 @@
+Source in folder: Tests/Sprites/Relative/
+
 Does test "composite" relative sprites (feature of core 2.00.27+).
 
 The correct output is bottom line of screen showing machine info (ID + core version), and

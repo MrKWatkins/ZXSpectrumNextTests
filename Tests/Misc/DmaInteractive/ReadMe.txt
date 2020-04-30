@@ -1,3 +1,5 @@
+Source in folder: Tests/Misc/DmaInteractive/
+
 ## ZX DMA chips interactive test
 
 ### controls: (⌥ = caps shift, ↲ = enter, ⇑ = symbol shift)

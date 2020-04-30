@@ -1,3 +1,5 @@
+Source in folder: Tests/Graphics/Layer2Colours/
+
 Draws all three basic layers (Sprite, Layer2, ULA) in all combinations affecting priority
 and transparency, and in all basic six layer-order modes.
 

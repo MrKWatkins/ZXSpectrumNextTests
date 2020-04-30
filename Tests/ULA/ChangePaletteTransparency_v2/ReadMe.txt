@@ -1,3 +1,5 @@
+Source in folder: Tests/ULA/ChangePaletteTransparency_v2/
+
 This test puts the ULA over Layer2. It fills Layer2 with some data and then switches
 ULANext colours ON, setting INK mask to "default" value 15 in NextReg$42.
 That leads to interpretation of attributes $38 as INK 8, PAPER 3.

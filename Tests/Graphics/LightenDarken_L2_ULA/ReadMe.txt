@@ -1,3 +1,5 @@
+Source in folder: Tests/Graphics/LightenDarken_L2_ULA/
+
 Draws all three basic layers (Sprite, Layer2, ULA-LoRes) in all combinations affecting
 priority and transparency, in both colour mixing modes: S(L+U) and S(L+U-5).
 

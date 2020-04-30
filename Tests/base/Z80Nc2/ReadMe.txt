@@ -1,3 +1,5 @@
+Source in folder: Tests/base/Z80Nc2/
+
 Z80N instructions tests - core 2.00.xx
 ======================================
 

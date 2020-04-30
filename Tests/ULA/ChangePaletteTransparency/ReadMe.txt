@@ -1,3 +1,5 @@
+Source in folder: Tests/ULA/ChangePaletteTransparency/
+
 This demo puts the ULA over Layer2. It fills Layer2 with some data and then changes
 the ULA palette so paper 7 is the default ($E3) transparent colour. It also sets
 transparency-fallback colour to raw cyan ($1F).
