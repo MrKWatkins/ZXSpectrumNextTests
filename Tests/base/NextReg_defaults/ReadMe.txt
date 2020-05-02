@@ -1,3 +1,5 @@
+Source in folder: Tests/base/NextReg_defaults/
+
 Next-register availability and default-value test
 =================================================
 
@@ -117,20 +119,19 @@ MMU regs reading first, then rerun the test, to see remaining values in log outp
 List on unobservable side-effect of "write" tests into NextRegs:
 ================================================================
 
-! this info is now outdated and requires refresh ! (code changes for core 3.1.5)
-
 $02: zero is written into it, it shouldn't do anything. From the docs it is not clear,
  when reading value should modify, whether the on-reset flags are one-time-read flags,
  or whole-session flags (allowing for multiple re-reads).
 
 $05: value read is written back (to not affect user's configuration)
 
-$06: %0000_0010: Turbo, divMMC paging, lightpen, Audio chip mode, ... all disabled
+$06: %0000_0011: Turbo, divMMC paging, lightpen, Audio chip mode, ... all disabled
 
 $08: %0111_0100: disable RAM contention, ACB stereo, internal speaker, Timex modes
 
-$09: %0000_1000: disable Kempston port $DF, scanlines off, AY mono off,
- sprite-index $34 decoupled.
+$09: %0001_1000: Reset divmmc mapram, scanlines off, AY mono off, sprite-index lockstep.
+
+$0A: %0000_0111: reverse mouse buttons and set high DPI
 
 $12, $13: Layer2 beginning set to 9, shadow Layer2 set to 10
 
@@ -145,7 +146,7 @@ $18, $19, $1A, $1B: clip windows are set to {port^$1A, 278-port, (port^$1A)*2, 2
  Tile: {1, 251, 2, 187}
  - the reads don't increment particular register-index, so the tests skip "read-only"
  phase, and all testing is done in custom-write part of code. The test will leave
- indices at 0, 1, 2 and 3, so the $1C read should produce $C6.
+ indices at 0, 1, 2 and 3, so the $1C read should produce $E4.
  The test consists of reading the register (i.e. X1 value on first read is expected),
  then writing the new X1, and so on. It does two rounds, first time expecting default
  clip window 0,255,0,191 (0,159,0,255 for tilemode), second time expecting (and writing
@@ -157,13 +158,14 @@ $1C: reset of Tilemap internal clip-window-indices (pointing back to X1) is requ
 
 $22, $23: line interrupt is set to $102, but not enabled (original ULA interrupt is kept)
 
-$2D: SoundDrive port mirror: simply zero is written there, I didn't bother to check if
- it is good idea, let me know if some value is less disruptive.
+$26, $27: ULA [x,y] scroll set to [$02, $01] (will be reset back to 0,0 at end of test)
 
-$2F, $30, $41: Tilemode scroll offset [xhi:xlo,y] set to [1:3 (= 259), 6].
+$2C, $2D, $2E: value $7F is written to all three DAC registers (should be just slightly
+ different from default $80, i.e. hopefully no audible sound happens)
 
-$32, $33: LoRes scroll [x,y] set to [$02, $01] (after test is finished, this gets reset
-back to [0,0] to make ULA displayed normally).
+$2F, $30, $31: Tilemode scroll offset [xhi:xlo,y] set to [1:3 (= 259), 6].
+
+$32, $33: LoRes scroll [x,y] set to [$02, $01]
 
 $34: Sprite attribute-index is set to $7B (core2.00.26 supports 128 sprites)
 $35, $36, $37, $38, $39: some sprite attributes for sprite $7B: {$00,$00,$0F,$3F,$0A}
@@ -173,7 +175,7 @@ $41:
  - first read colour[$70] = $00 black (ULA palette0) (no index increment, only write does)
  - writes $1F colour into it (increments index to $71)
  - "verify write" read should then read $02 (blue colour in ULA palette0[$71])
-$42: INK_mask 7 is written (instead of default 15)
+$42: INK_mask $03 is written (instead of default $07)
 $43: writes %0110_1000: selects secondary Sprite palette for R/W and display, ULANext off
 $44: the index is still $71, the read should see "second" byte of colour $71, $01 from
  second Sprite palette, i.e. expected value is $01 (in "default value test").
@@ -189,10 +191,17 @@ $50, $51: MMU0 and MMU1 are set to value read from them (should be 0xFF = ROM), 
 $52, .., $57: MMU2, .., MMU7 are set to defaults {$0A,$0B,$04,$05,$00,$01}, i.e. memory
  content shouldn't change (but read+write+verify cycle is done).
 
-$60, $61, $62: zero is sent to Copper data, then $33 to Copper control LO, and $01 to
- Copper control HI (should keep the Copper in "STOP" state, just modifies indices)
+$60, $61, $62, $63: $00 is sent to Copper data, then $33 to Copper control LO, and $01 to
+ Copper control HI (should keep the Copper in "STOP" state, just modifies indices) and
+ $00 to Copper 16b data (only 8b write).
+
+$64: video line offset is set to $20
 
 $68: ULA Control - value $40 written = enable ULA/tilemap mix for blending in SLU 6&7
+
+$69: Display Control 1 = $00 (Layer2 off, shadow ULA off, Timex port = 0)
+
+$6A: LoRes Control = $02 (all default/off, only palette offset set to %0010)
 
 $6B: Tilemap Control - value $60 written = 80x32, global attribute (byte map)
 
@@ -202,8 +211,28 @@ $6E: Tilemap Base Address - value $5B as base address, should read back as $1B.
 
 $6F: Tile Definitions Base Address - value $5C as base address, should read back as $1C.
 
+$70: Layer 2 Control = $14 (320x256x8 mode, %0100 palette offset)
+
+$71: Layer 2 X Scroll MSB = $01
+
 $75, .., $79: again sprite attributes {$00,$00,$0F,$3F,$0A} are written, but this time
  the index should increment after each write, i.e. first attribute lands into sprite $7B
  and last attribute should land into sprite $7F, leaving the index in undefined state.
 
-$FF: $01 is written, hopefully doesn't damage Victor's board (no idea about legal values)
+$7F: user data = $13
+
+$80: Expansion bus enable = $10 (immediate disable memory cycles & ignore romcs)
+
+$81: Expansion Bus Control = $00 (resets to default)
+
+$82, ..., $89: Internal/External I/O decoding: writes the value read from them (no change)
+
+$8A: Expansion Bus IO Propagate = $10 (Propagate port 0xff io cycles)
+
+$8C: Alternate ROM = $30 (lock ROM1 + ROM0 immediately)
+
+$8E: Spectrum Memory Mapping = $03 (ROM select = %11)
+
+$90..$93, $98..$9B: PI GPIO related ones are just skipped in the write test
+
+$A0, $A2, $A8, $A9: PI/ESP related registers are just skipped in the write test
