@@ -6,9 +6,18 @@ This is almost identical test to SpritBig.sna (Tests/Sprites/BigSprite), except
 the graphical patterns are 4-bit and displaying "Golden Wings" item "B" graphics.
 
 The first half (0..127) of pattern slot has original "B" item graphics, the second
-half (128..255) has modified copy showing "E"-like letter.
+half (128..255) has modified copy showing "E"-like letter. The first half of following
+pattern slot (slots 4 and 5 are used) has modified copy showing "||"-like "letter".
+The final half of slot 5 is solid-red square.
 
-In the big sprite there are two sprites using the "E" variant (top-left and middle-right).
+In the big sprite there are two sprites using the "E" variant always (top-left and
+middle-right in base position) and two sprites (bottom-left and bottom-right) are
+for every odd big sprite as "B"+"E", and for every even big sprite as "E"+"||" sprites.
+
+The "||" happens on every second big sprite because the relative sprite has flag
+"relative pattern", anchor is pattern 4 + second half (N6=1), and the relative
+sprite has pattern 0 + second half (N6=1), the result is then pattern 5, N6=0 (the
+N6 bits are a bit like 0.5 value of pattern slot index, i.e. 4.5 + 0.5 = 5.0).
 
 The big sprite is composed of 10 ordinary sprites, occupying total area of ~40x40 pixels.
 
@@ -37,7 +46,7 @@ There are eight big sprites visible, exercising all possible mirror/rotate flags
 at the anchor sprite, and there is one hidden ninth big sprite (just to verify the
 visibility is propagated to all relative sprites).
 
-There're two normal sprites in bottom left part of border, showing both possible gfx
+There're four normal sprites in bottom left part of border, showing all possible gfx
 patterns (these sprites do NOT react to the scale/depart/etc controls).
 
 To get correct output also ULANext mode with ink format 7 is used, and ULA transparency

@@ -226,6 +226,10 @@ PrepareDynamicBigSprites:
     inc     de
     ld      a,(BigSpriteScale)
     or      (hl)        ; no MSBY
+    bit     1,c
+    jr      z,.doNotAlternateN6
+    or      B5_4BIT_HI  ; alternate hi/low 4b sprite pattern position
+.doNotAlternateN6:
     inc     hl
     ld      (de),a      ; byte 5
     inc     de
@@ -301,8 +305,10 @@ B5_REL_NAME equ     $01
 
 SpritesDefs:
     ; pattern test
-    db  4, 204, $0, B4_VIS|NAME_S0|B4_5BEXT, B5_4BIT_LO
-    db  4, 220, $0, B4_VIS|NAME_S0|B4_5BEXT, B5_4BIT_HI
+    db  4, 188, $0, B4_VIS|NAME_S0|B4_5BEXT, B5_4BIT_LO
+    db 14, 200, $0, B4_VIS|NAME_S0|B4_5BEXT, B5_4BIT_HI
+    db  4, 212, $0, B4_VIS|NAME_S1|B4_5BEXT, B5_4BIT_LO
+    db 14, 224, $0, B4_VIS|NAME_S1|B4_5BEXT, B5_4BIT_HI
 SpritesDefsEnd  equ $
 
 BigSpriteDef:
@@ -317,9 +323,9 @@ BigSpriteDef:
     db  -12, -12, $20|B3_MIRRORY|B3_MIRRORX,            B4_VIS|NAME_S0|B4_5BEXT,    B5_REL_4BHI
     db   +2, -12, $20|B3_MIRRORY|B3_REL_PAL,            B4_VIS|NAME_S0|B4_5BEXT,    B5_REL
     db  +14, -12, $40|B3_ROTATE|B3_MIRRORY|B3_MIRRORX,  B4_VIS|NAME_S0|B4_5BEXT,    B5_REL
-    db   -8,  -8, 0,                                    B4_INVIS|NAME_RED|B4_5BEXT, B5_REL
+    db   -8,  -8, 0,                                    B4_INVIS|NAME_S1|B4_5BEXT,  B5_REL_4BHI
     db  +14,  +2, $50|B3_ROTATE|B3_MIRRORX,             B4_VIS|NAME_S0|B4_5BEXT,    B5_REL_4BHI
-    db  +14, +14, $60|0,                                B4_VIS|0|B4_5BEXT,          B5_REL|B5_REL_NAME
+    db  +14, +14, $60|0,                                B4_VIS|0|B4_5BEXT,          B5_REL_4BHI|B5_REL_NAME
     db   +2, +14, $70|B3_MIRRORX,                       B4_VIS|NAME_S0|B4_5BEXT,    B5_REL
     db  -12, +14, $80|B3_ROTATE,                        B4_VIS|0|B4_5BEXT,          B5_REL|B5_REL_NAME
     db  -12,  +2, $E0|B3_ROTATE|B3_MIRRORY|B3_REL_PAL,  B4_VIS|NAME_S0|B4_5BEXT,    B5_REL
@@ -333,26 +339,26 @@ BigSpriteDef_departed:      ; variant with the relatives being +-60px further aw
     db  -72, -72, $20|B3_MIRRORY|B3_MIRRORX,            B4_VIS|NAME_S0|B4_5BEXT,    B5_REL_4BHI
     db   +2, -72, $20|B3_MIRRORY|B3_REL_PAL,            B4_VIS|NAME_S0|B4_5BEXT,    B5_REL
     db  +74, -72, $40|B3_ROTATE|B3_MIRRORY|B3_MIRRORX,  B4_VIS|NAME_S0|B4_5BEXT,    B5_REL
-    db   20,  20, 0,                                    B4_INVIS|NAME_RED|B4_5BEXT, B5_REL
+    db   20,  20, 0,                                    B4_INVIS|NAME_S1|B4_5BEXT,  B5_REL_4BHI
     db  +74,  +2, $50|B3_ROTATE|B3_MIRRORX,             B4_VIS|NAME_S0|B4_5BEXT,    B5_REL_4BHI
-    db  +74, +74, $60|0,                                B4_VIS|0|B4_5BEXT,          B5_REL|B5_REL_NAME
+    db  +74, +74, $60|0,                                B4_VIS|0|B4_5BEXT,          B5_REL_4BHI|B5_REL_NAME
     db   +2, +74, $70|B3_MIRRORX,                       B4_VIS|NAME_S0|B4_5BEXT,    B5_REL
     db  -72, +74, $80|B3_ROTATE,                        B4_VIS|0|B4_5BEXT,          B5_REL|B5_REL_NAME
     db  -72,  +2, $E0|B3_ROTATE|B3_MIRRORY|B3_REL_PAL,  B4_VIS|NAME_S0|B4_5BEXT,    B5_REL
 
 NAME_S0     equ     4
-NAME_RED    equ     5
+NAME_S1     equ     5
 
 LoadPatterns:
     ; Select initial pattern slot NAME_S0
     ld      bc, SPRITE_STATUS_SLOT_SELECT_P_303B
     ld      a,NAME_S0
     out     (c),a
-    ; Upload two "Item B" 4b sprites into slot 4, with HI-half being index-inverted
+    ; Upload three "Item B/E/][" 4b sprites into slots NAME_S0 .. NAME_S1.LO
     ld      c, SPRITE_PATTERN_P_5B
     call    OutputItemBPattern
     ; Upload the red square pattern for invisible test
-    ; 4 256x $88 (works as two 4b sprites with colour $8 = red)
+    ; slot NAME_S1.HI 128x $88 (works as one 4b sprite with colour $8 = red)
     ld      hl, OtherPatternsDef
 .OutPatternDataNextBatch:
     ld      b,(hl)
@@ -367,17 +373,21 @@ LoadPatterns:
     jr      .OutPatternDataNextBatch
 
 OtherPatternsDef:
-    db      0, $88, 0, 0
+    db      128, $88, 0, 0
 
 OutputItemBPattern:
     ld      hl,ItemBPatternDef
+    ; just send 256+128B from definition
     ld      b,0
-    otir                    ; just send 256B from definition
+    otir
+    ld      b,128
+    otir
     ret
 
 ItemBPatternDef:
     ; "itemB" sprite from GoldenWing graphics, (C) 2017 Toni Gálvez
     ; license: made publicly available by author on facebook for ZXN conversion
+    ; "itemB" for 4b NAME_S0.LO pattern
     db  $7D, $FF, $FF, $FF, $FF, $FF, $FF, $D7
     db  $D7, $8F, $FD, $77, $78, $DF, $F7, $7D
     db  $F8, $FD, $34, $77, $88, $88, $DF, $8F
@@ -394,7 +404,7 @@ ItemBPatternDef:
     db  $F7, $FD, $88, $88, $66, $D2, $DF, $1F
     db  $D8, $8F, $FD, $88, $66, $DF, $F8, $1D
     db  $7D, $FF, $FF, $FF, $FF, $FF, $FF, $D1
-    ; "itemE" (modified from "itemB") for HI 4b slot
+    ; "itemE" (modified from "itemB") for 4b NAME_S0.HI pattern
     db  $7D, $FF, $FF, $FF, $FF, $FF, $FF, $D7
     db  $D7, $8F, $FD, $77, $78, $DF, $F7, $7D
     db  $F8, $FD, $34, $77, $88, $88, $DF, $8F
@@ -407,6 +417,23 @@ ItemBPatternDef:
     db  $F7, $7D, $DD, $E2, $DD, $DD, $D2, $2F
     db  $FD, $77, $DD, $EE, $EE, $1D, $11, $DF
     db  $FF, $78, $DD, $D2, $22, $2D, $10, $FF
+    db  $FF, $D8, $88, $DD, $DD, $D2, $2D, $FF
+    db  $F7, $FD, $88, $88, $66, $D2, $DF, $1F
+    db  $D8, $8F, $FD, $88, $66, $DF, $F8, $1D
+    db  $7D, $FF, $FF, $FF, $FF, $FF, $FF, $D1
+    ; "item][" (modified from "itemB") for 4b NAME_S1.LO pattern
+    db  $7D, $FF, $FF, $FF, $FF, $FF, $FF, $D7
+    db  $D7, $8F, $FD, $77, $78, $DF, $F7, $7D
+    db  $F8, $FD, $34, $77, $88, $88, $DF, $8F
+    db  $FF, $DE, $44, $DD, $DD, $88, $8F, $FF
+    db  $FF, $E3, $DD, $ED, $DE, $DD, $66, $FF
+    db  $FD, $E3, $DD, $E2, $DE, $2D, $66, $FF
+    db  $FE, $3D, $DD, $E2, $DE, $2D, $DD, $DF
+    db  $F3, $4D, $DD, $E2, $DE, $2D, $DD, $DF
+    db  $F4, $4D, $DD, $E2, $DE, $2D, $D2, $2F
+    db  $F7, $7D, $DD, $E2, $DE, $2D, $D2, $2F
+    db  $FD, $77, $DD, $E2, $DE, $2D, $11, $DF
+    db  $FF, $78, $DD, $D2, $DD, $2D, $10, $FF
     db  $FF, $D8, $88, $DD, $DD, $D2, $2D, $FF
     db  $F7, $FD, $88, $88, $66, $D2, $DF, $1F
     db  $D8, $8F, $FD, $88, $66, $DF, $F8, $1D
