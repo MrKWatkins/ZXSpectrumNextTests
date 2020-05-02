@@ -1,3 +1,5 @@
+Source in folder: Tests/ULA/ClassicPaletized/
+
 Exercising ULA classic mode with Next palette capabilities and 128k/+3 machine timing.
 
 ------------------------------------------------------------------------------------------

@@ -1,3 +1,5 @@
+Source in folder: Tests/Graphics/NextReg0x69/
+
 The test will set bit 2 of NextReg $08 -> the `in a,(255)` should then read
 the Timex port, not the floating idle bus (for example CSpect doesn't has
 this feature, it keeps reading floating bus, thus almost all tests fail :/ ).

@@ -1,3 +1,5 @@
+Source in folder: Tests/ULA/ChangePaletteTransparency_v3/
+
 This test puts the ULA over Layer2. It fills Layer2 with some data.
 Then it sets INK mask to 7 and PAPER 7 ULANext colour (128+7 index in palette)
 to transparent ($E3), but it keeps ULANext colours OFF (!) (16+7 index for PAPER 7),

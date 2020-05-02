@@ -1,3 +1,5 @@
+Source in folder: Tests/Graphics/LayersMixingHiRes/
+
 This is similar test to "Layer2Colours" test, but the ULA layer is switched to "HiRes"
 mode this time. Following text is same as Layer2Colours (if you read it already...).
 

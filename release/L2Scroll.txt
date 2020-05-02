@@ -1,3 +1,5 @@
+Source in folder: Tests/Graphics/Layer2Scroll/
+
 In this test the X/Y offset of Layer2 is tested.
 
 Layer2 is enabled, filled with colour 1 (set to $FC, set as global transparent colour)

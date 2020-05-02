@@ -1,3 +1,5 @@
+Source in folder: Tests/base/Copper/
+
 EDIT: New core 3.0 runs copper code at 28MHz instead of 14MHz, so currently all
 the pixel sizes/positions in the text below are correct only for Core 2.0.28.
 For actual Core 3.0 output check the extra image in the Tests/base/Copper/

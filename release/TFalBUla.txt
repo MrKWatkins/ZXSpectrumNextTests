@@ -1,3 +1,5 @@
+Source in folder: Tests/ULA/BorderTransparencyFallback/
+
 This test checks border/paper picking up transparency-fallback colour in three modes (need key pressing):
 
 1) Enhanced ULA ON, ink-mask 7, BORDER 0, PAPER:INK 7:0 + 0:7 halves,

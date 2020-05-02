@@ -1,3 +1,5 @@
+Source in folder: Tests/Timing/Changing8kBank_NoContention/
+
 This times how long it takes to swap in and out an 8k bank.
 
 The test code is placed at $6000, memory contention is switched OFF and CPU speed is
