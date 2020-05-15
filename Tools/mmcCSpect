@@ -1,0 +1,9 @@
+#!/bin/bash
+# personal script of Ped to launch "#CSpect" emulator with the "tbblue.mmc" (or first argument is image filename)
+if [[ -n "$1" ]]; then
+  MMCFILE="$1"
+  shift
+else
+  MMCFILE=tbblue.mmc
+fi
+MONO_IOMAP=all mono ~/zx/CSpect/CSpect_current/CSpect.exe -tv -zxnext -s28 -w4 -nextrom -mmc="$MMCFILE"

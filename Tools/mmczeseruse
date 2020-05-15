@@ -1,0 +1,10 @@
+#!/bin/bash
+# personal script of Ped to launch "zeseruse" emulator with the "tbblue.mmc" (or first argument is image filename)
+if [[ -n "$1" ]]; then
+  MMCFILE="$1"
+  shift
+else
+  MMCFILE=tbblue.mmc
+fi
+zeseruse --noconfigfile --vo sdl --ao pulse --mmc-file "$MMCFILE" --enable-mmc --enable-divmmc-ports --machine tbblue --realvideo --tbblue-legacy-border --tbblue-legacy-hicolor --zoom 1 --enabletimexvideo --sna-no-change-machine --nosplash --nowelcomemessage --quickexit --disabletooltips --forcevisiblehotkeys --disablemultitaskmenu "$@"
+# --mmc-no-persistent-writes
