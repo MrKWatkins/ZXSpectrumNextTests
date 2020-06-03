@@ -25,7 +25,7 @@ NextRegDefaultRead:
     db  $FF,$01,$00,$FF,$00,$FF,$FF,$FF,$00,$00,$00,$00,$00,$FF,$2C,$0C ; $60..6F
     db  $00,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FD ; $70..7F
     db  $00,$00,$FD,$FD,$FD,$FD,$FD,$FD,$FD,$FD,$00,$FF,$00,$FF,$08,$FF ; $80..8F
-    db  $00,$00,$00,$00,$FF,$FF,$FF,$FF,$00,$00,$00,$00,$FF,$FF,$FF,$FF ; $90..9F
+    db  $00,$00,$00,$00,$FF,$FF,$FF,$FF,$FE,$FE,$FE,$FE,$FF,$FF,$FF,$FF ; $90..9F
     db  $FE,$FF,$FE,$FF,$FF,$FF,$FF,$FF,$00,$FE,$FF,$FF,$FF,$FF,$FF,$FF ; $A0..AF
     db  $FE,$FE,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $B0..BF
     db  $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $C0..CF
@@ -46,7 +46,7 @@ NextRegWriteInfo:       ; must follow NextRegDefaultRead in memory, at 256B boun
     ; specific modes: $03, $04, ...
     ; $05 register writes back the same value (to not break user's config) = weak test
     ;    x0  x1  x2  x3  x4  x5  x6  x7  x8  x9  xA  xB  xC  xD  xE  xF
-    db  $FF,$FF,$00,$FE,$FE,$80,$03,$01,$74,$18,$07,$FF,$FF,$FF,$FF,$FF ; $00..0F
+    db  $FF,$FF,$00,$FE,$FE,$80,$FC,$01,$74,$18,$07,$FF,$FF,$FF,$FF,$FF ; $00..0F
     db  $FE,$FE,$09,$0A,$25,$02,$55,$56,$FC,$FC,$FC,$FC,$08,$FF,$FF,$FF ; $10..1F
     db  $FF,$FF,$01,$02,$FF,$FF,$02,$01,$FE,$FE,$FE,$FE,$7F,$7F,$7F,$01 ; $20..2F
     db  $03,$06,$02,$01,$7B,$00,$00,$0F,$3F,$0A,$FF,$FF,$FF,$FF,$FF,$FF ; $30..3F
@@ -67,7 +67,7 @@ NextRegWriteInfo:       ; must follow NextRegDefaultRead in memory, at 256B boun
     ; $FF = do NOT test read, $FE = test against original value read
     ; Other values are precise values to be compared with value read from register
     ;    x0  x1  x2  x3  x4  x5  x6  x7  x8  x9  xA  xB  xC  xD  xE  xF
-    db  $FF,$FF,$FF,$FF,$FF,$FE,$03,$11,$74,$10,$07,$FF,$FF,$FF,$FF,$FF ; $00..0F
+    db  $FF,$FF,$FF,$FF,$FF,$FE,$FF,$11,$74,$10,$07,$FF,$FF,$FF,$FF,$FF ; $00..0F
     db  $FF,$FF,$09,$0A,$25,$02,$55,$56,$FF,$FF,$FF,$FF,$24,$FF,$FF,$FF ; $10..1F
     db  $FF,$FF,$01,$02,$FF,$FF,$02,$01,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$01 ; $20..2F
     db  $03,$06,$02,$01,$7B,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF ; $30..3F
@@ -282,6 +282,8 @@ CustomReadDefaultTest:
 
 CustomWriteTest:
     ld      a,b
+    cp      $06
+    jr      z,.Peripheral2CustomTest
     cp      $1B
     jr      c,.ClipWindowCustomTest
     jr      z,.TilemapClipWindowCustomTest
@@ -293,6 +295,16 @@ CustomWriteTest:
     ld      a,b
     call    OutErrValue.OutAOnce
     jp      DisplayResults
+
+; set $03 (hold AY in reset) to NextReg $06, during read test ignore keyboard/mouse bit
+.Peripheral2CustomTest:
+    ; the mouse/keyboard bit is writeable only during config phase, so it will not budge
+    ld      a,$03
+    or      d                   ; write_value = $03|read_value
+    ld      c,a                 ; expected_value = write_value
+    call    WriteNextRegByIo
+    set     3,e                 ; E |= 0x08 to signal write survival
+    jr      TestWrite.TestReRead
 
 ; set 9bit palette custom test
 .Set9bPal:
