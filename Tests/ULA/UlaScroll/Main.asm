@@ -33,6 +33,7 @@ Start:
     call    StartTest
     ; show red border while drawing and preparing...
     BORDER  RED
+    NEXTREG_nn GLOBAL_TRANSPARENCY_NR_14,$E3    ; enforce $E3 (NextZXOS sets $00 lately!)
     NEXTREG_nn TRANSPARENCY_FALLBACK_COL_NR_4A,%101'000'00  ; red border extension
     ;NEXTREG_nn DISPLAY_CONTROL_NR_69,$06   ; Timex 512x192
     ; reset ULA scroll registers
