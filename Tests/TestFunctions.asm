@@ -17,11 +17,15 @@ StartTest:
     call    DetectTBBlue
     ret     nc
     ; if running at TBBlue, enable all Next specific HW in the NextRegisters $82-$85
-    NEXTREG_nn  INTERNAL_PORT_DECODING_0_NR_82,$FF
-    NEXTREG_nn  INTERNAL_PORT_DECODING_1_NR_83,$FF
-    NEXTREG_nn  INTERNAL_PORT_DECODING_2_NR_84,$FF
-    NEXTREG_nn  INTERNAL_PORT_DECODING_3_NR_85,$FF
-    ret
+    ld      a,$FF
+    ld      b,INTERNAL_PORT_DECODING_0_NR_82
+    call    WriteNextRegByIo
+    inc     b               ; INTERNAL_PORT_DECODING_1_NR_83
+    call    WriteNextRegByIo
+    inc     b               ; INTERNAL_PORT_DECODING_2_NR_84
+    call    WriteNextRegByIo
+    inc     b               ; INTERNAL_PORT_DECODING_3_NR_85
+    jr      WriteNextRegByIo
 
 EndTest
 	jr EndTest	; Loop forever so we can take a screengrab.
