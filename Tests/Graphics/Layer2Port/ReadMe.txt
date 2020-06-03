@@ -33,8 +33,10 @@ BORDER is Green, otherwise it is Red (other colours of border mean
 the test is still running, and if that takes more than 0.5s, it's
 stuck, not reaching final stage of test).
 
-Banks 8,9,10 are used for visible Layer2, banks 11,12,13 are used for "shadow" access
-and banks 14,15,16 are used as RAM in the $0000..$BFFF region to verify writes are
+(first version of test did start at Bank 8, but that's very disruptive toward NextZXOS)
+
+Banks 9,10,11 are used for visible Layer2, banks 12,13,14 are used for "shadow" access
+and banks 15,16,17 are used as RAM in the $0000..$BFFF region to verify writes are
 landing only to the desired bank and not also underlying one.
 
 Meaning of four 6x2px blocks in the result rectangle:

@@ -54,16 +54,16 @@ Start:
     NEXTREG_nn CLIP_LAYER2_NR_18,1
     NEXTREG_nn CLIP_LAYER2_NR_18,176
     ; init banks + make layer 2 visible
-    NEXTREG_nn  LAYER2_RAM_BANK_NR_12,8
-    NEXTREG_nn  LAYER2_RAM_SHADOW_BANK_NR_13,11
+    NEXTREG_nn  LAYER2_RAM_BANK_NR_12,9
+    NEXTREG_nn  LAYER2_RAM_SHADOW_BANK_NR_13,12
     ld      bc,LAYER2_ACCESS_P_123B
     ld      a,LAYER2_ACCESS_L2_ENABLED
     out     (c),a
-    ; banks 8, 9, 10 => visible Layer 2 (fill with 0xE3 = transparent)
-    ; banks 11, 12, 13 => shadow layer 2 (fill with 0xE0 = red)
+    ; banks 9, 10, 11 => visible Layer 2 (fill with 0xE3 = transparent)
+    ; banks 12, 13, 14 => shadow layer 2 (fill with 0xE0 = red)
     call    FillLayer2Banks
-    ; banks 14, 15, 16 => fill as 8kiB pages with 0x11, 0x12, .., 0x16
-    ld      a,14*2
+    ; banks 15, 16, 17 => fill as 8kiB pages with 0x11, 0x12, .., 0x16
+    ld      a,15*2
     ld      hl,$E000
     ld      bc,$0611
 .MarkRamLoop:
@@ -72,13 +72,13 @@ Start:
     ld      (hl),c
     inc     c
     djnz    .MarkRamLoop
-    ; map banks 14, 15, 16 to whole region $0000..$BFFF with MMU
-    NEXTREG_nn  MMU0_0000_NR_50,14*2
-    NEXTREG_nn  MMU1_2000_NR_51,14*2+1
-    NEXTREG_nn  MMU2_4000_NR_52,14*2+2
-    NEXTREG_nn  MMU3_6000_NR_53,14*2+3
-    NEXTREG_nn  MMU4_8000_NR_54,14*2+4
-    NEXTREG_nn  MMU5_A000_NR_55,14*2+5
+    ; map banks 15, 16, 17 to whole region $0000..$BFFF with MMU
+    NEXTREG_nn  MMU0_0000_NR_50,15*2
+    NEXTREG_nn  MMU1_2000_NR_51,15*2+1
+    NEXTREG_nn  MMU2_4000_NR_52,15*2+2
+    NEXTREG_nn  MMU3_6000_NR_53,15*2+3
+    NEXTREG_nn  MMU4_8000_NR_54,15*2+4
+    NEXTREG_nn  MMU5_A000_NR_55,15*2+5
     ;; running tests one by one
     BORDER  YELLOW
     ld      e,$F0       ; all tests OK so far (top four bits must stay set to 1, zero bit = some error)
@@ -152,20 +152,20 @@ Start:
 TestWriteOverRom:
     ; normal Layer 2 (NextReg $12)
 .m1 EQU LAYER2_ACCESS_WRITE_OVER_ROM
-    Test16kiBank .m1|LAYER2_ACCESS_OVER_ROM_BANK_0,  8, $0000, $F9, $FA, $11, $12, $E808, 8*2
-    Test16kiBank .m1|LAYER2_ACCESS_OVER_ROM_BANK_1,  9, $0000, $FB, $FC, $11, $12, $E810, 8*2
-    Test16kiBank .m1|LAYER2_ACCESS_OVER_ROM_BANK_2, 10, $0000, $FD, $FE, $11, $12, $E818, 8*2
-    Test16kiBank .m1|LAYER2_ACCESS_OVER_ROM_48K,     8, $0000, $E9, $EA, $11, $12, $F00B, 8*2
-    Test16kiBank .m1|LAYER2_ACCESS_OVER_ROM_48K,     9, $4000, $EB, $EC, $13, $14, $F013, 8*2
-    Test16kiBank .m1|LAYER2_ACCESS_OVER_ROM_48K,    10, $8000, $ED, $EE, $15, $16, $F01B, 8*2
+    Test16kiBank .m1|LAYER2_ACCESS_OVER_ROM_BANK_0,  9, $0000, $F9, $FA, $11, $12, $E808,  9*2
+    Test16kiBank .m1|LAYER2_ACCESS_OVER_ROM_BANK_1, 10, $0000, $FB, $FC, $11, $12, $E810,  9*2
+    Test16kiBank .m1|LAYER2_ACCESS_OVER_ROM_BANK_2, 11, $0000, $FD, $FE, $11, $12, $E818,  9*2
+    Test16kiBank .m1|LAYER2_ACCESS_OVER_ROM_48K,     9, $0000, $E9, $EA, $11, $12, $F00B,  9*2
+    Test16kiBank .m1|LAYER2_ACCESS_OVER_ROM_48K,    10, $4000, $EB, $EC, $13, $14, $F013,  9*2
+    Test16kiBank .m1|LAYER2_ACCESS_OVER_ROM_48K,    11, $8000, $ED, $EE, $15, $16, $F01B,  9*2
     ; shadow Layer 2 (NextReg $13)
 .m2 EQU LAYER2_ACCESS_WRITE_OVER_ROM|LAYER2_ACCESS_SHADOW_OVER_ROM
-    Test16kiBank .m2|LAYER2_ACCESS_OVER_ROM_BANK_0, 11, $0000, $D9, $DA, $11, $12, $E808, 9*2
-    Test16kiBank .m2|LAYER2_ACCESS_OVER_ROM_BANK_1, 12, $0000, $DB, $DC, $11, $12, $E810, 9*2
-    Test16kiBank .m2|LAYER2_ACCESS_OVER_ROM_BANK_2, 13, $0000, $DD, $DE, $11, $12, $E818, 9*2
-    Test16kiBank .m2|LAYER2_ACCESS_OVER_ROM_48K,    11, $0000, $C9, $CA, $11, $12, $F00B, 9*2
-    Test16kiBank .m2|LAYER2_ACCESS_OVER_ROM_48K,    12, $4000, $CB, $CC, $13, $14, $F013, 9*2
-    Test16kiBank .m2|LAYER2_ACCESS_OVER_ROM_48K,    13, $8000, $CD, $CE, $15, $16, $F01B, 9*2
+    Test16kiBank .m2|LAYER2_ACCESS_OVER_ROM_BANK_0, 12, $0000, $D9, $DA, $11, $12, $E808, 10*2
+    Test16kiBank .m2|LAYER2_ACCESS_OVER_ROM_BANK_1, 13, $0000, $DB, $DC, $11, $12, $E810, 10*2
+    Test16kiBank .m2|LAYER2_ACCESS_OVER_ROM_BANK_2, 14, $0000, $DD, $DE, $11, $12, $E818, 10*2
+    Test16kiBank .m2|LAYER2_ACCESS_OVER_ROM_48K,    12, $0000, $C9, $CA, $11, $12, $F00B, 10*2
+    Test16kiBank .m2|LAYER2_ACCESS_OVER_ROM_48K,    13, $4000, $CB, $CC, $13, $14, $F013, 10*2
+    Test16kiBank .m2|LAYER2_ACCESS_OVER_ROM_48K,    14, $8000, $CD, $CE, $15, $16, $F01B, 10*2
     ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -176,20 +176,20 @@ TestReadOverRom:
     ; testing if write goes through into mapped RAM, and if read is overshadowed by Layer2
     ; normal Layer 2 (NextReg $12)
 .m1 EQU LAYER2_ACCESS_READ_OVER_ROM
-    Test16kiBank .m1|LAYER2_ACCESS_OVER_ROM_BANK_0, 14, $0000, $19, $1A, $E9, $EA, $F808, 8*2
-    Test16kiBank .m1|LAYER2_ACCESS_OVER_ROM_BANK_1, 14, $0000, $1B, $1C, $EB, $EC, $F810, 8*2
-    Test16kiBank .m1|LAYER2_ACCESS_OVER_ROM_BANK_2, 14, $0000, $1D, $1E, $ED, $EE, $F818, 8*2
-    Test16kiBank .m1|LAYER2_ACCESS_OVER_ROM_48K,    14, $0000, $19, $1A, $E9, $EA, $E00B, 8*2+1
-    Test16kiBank .m1|LAYER2_ACCESS_OVER_ROM_48K,    15, $4000, $1B, $1C, $EB, $EC, $E013, 8*2+1
-    Test16kiBank .m1|LAYER2_ACCESS_OVER_ROM_48K,    16, $8000, $1D, $1E, $ED, $EE, $E01B, 8*2+1
+    Test16kiBank .m1|LAYER2_ACCESS_OVER_ROM_BANK_0, 15, $0000, $19, $1A, $E9, $EA, $F808,  9*2
+    Test16kiBank .m1|LAYER2_ACCESS_OVER_ROM_BANK_1, 15, $0000, $1B, $1C, $EB, $EC, $F810,  9*2
+    Test16kiBank .m1|LAYER2_ACCESS_OVER_ROM_BANK_2, 15, $0000, $1D, $1E, $ED, $EE, $F818,  9*2
+    Test16kiBank .m1|LAYER2_ACCESS_OVER_ROM_48K,    15, $0000, $19, $1A, $E9, $EA, $E00B,  9*2+1
+    Test16kiBank .m1|LAYER2_ACCESS_OVER_ROM_48K,    16, $4000, $1B, $1C, $EB, $EC, $E013,  9*2+1
+    Test16kiBank .m1|LAYER2_ACCESS_OVER_ROM_48K,    17, $8000, $1D, $1E, $ED, $EE, $E01B,  9*2+1
     ; shadow Layer 2 (NextReg $13)
 .m2 EQU LAYER2_ACCESS_READ_OVER_ROM|LAYER2_ACCESS_SHADOW_OVER_ROM
-    Test16kiBank .m2|LAYER2_ACCESS_OVER_ROM_BANK_0, 14, $0000, $29, $2A, $C9, $CA, $F808, 9*2
-    Test16kiBank .m2|LAYER2_ACCESS_OVER_ROM_BANK_1, 14, $0000, $2B, $2C, $CB, $CC, $F810, 9*2
-    Test16kiBank .m2|LAYER2_ACCESS_OVER_ROM_BANK_2, 14, $0000, $2D, $2E, $CD, $CE, $F818, 9*2
-    Test16kiBank .m2|LAYER2_ACCESS_OVER_ROM_48K,    14, $0000, $29, $2A, $C9, $CA, $E00B, 9*2+1
-    Test16kiBank .m2|LAYER2_ACCESS_OVER_ROM_48K,    15, $4000, $2B, $2C, $CB, $CC, $E013, 9*2+1
-    Test16kiBank .m2|LAYER2_ACCESS_OVER_ROM_48K,    16, $8000, $2D, $2E, $CD, $CE, $E01B, 9*2+1
+    Test16kiBank .m2|LAYER2_ACCESS_OVER_ROM_BANK_0, 15, $0000, $29, $2A, $C9, $CA, $F808, 10*2
+    Test16kiBank .m2|LAYER2_ACCESS_OVER_ROM_BANK_1, 15, $0000, $2B, $2C, $CB, $CC, $F810, 10*2
+    Test16kiBank .m2|LAYER2_ACCESS_OVER_ROM_BANK_2, 15, $0000, $2D, $2E, $CD, $CE, $F818, 10*2
+    Test16kiBank .m2|LAYER2_ACCESS_OVER_ROM_48K,    15, $0000, $29, $2A, $C9, $CA, $E00B, 10*2+1
+    Test16kiBank .m2|LAYER2_ACCESS_OVER_ROM_48K,    16, $4000, $2B, $2C, $CB, $CC, $E013, 10*2+1
+    Test16kiBank .m2|LAYER2_ACCESS_OVER_ROM_48K,    17, $8000, $2D, $2E, $CD, $CE, $E01B, 10*2+1
     ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -262,8 +262,8 @@ TestReadOverRom:
     ENDM
 
 TestReadOverRomCode:
-    TestCodeInLayer 8*2, LAYER2_ACCESS_OVER_ROM_BANK_0, $E818, 8*2+1
-    TestCodeInLayer 11*2, LAYER2_ACCESS_SHADOW_OVER_ROM|LAYER2_ACCESS_OVER_ROM_BANK_0, $E818, 9*2+1
+    TestCodeInLayer  9*2, LAYER2_ACCESS_OVER_ROM_BANK_0, $E818, 9*2+1
+    TestCodeInLayer 12*2, LAYER2_ACCESS_SHADOW_OVER_ROM|LAYER2_ACCESS_OVER_ROM_BANK_0, $E818, 10*2+1
     ret
 
 RomShadowTestCodeSource:
@@ -283,13 +283,13 @@ TestReadOverRomIm1:
     ; set up the IM1 handler in the third layer2's bank (targetting ROM $0038)
     push    de
     ; normal Layer 2
-    NEXTREG_nn MMU7_E000_NR_57,10*2
+    NEXTREG_nn MMU7_E000_NR_57,11*2
     ld      de,$E000+$38
     ld      hl,RomShadowTestIm1Source
     ld      bc,RomShadowTestIm1SourceLength
     ldir
     ; shadow Layer 2
-    NEXTREG_nn MMU7_E000_NR_57,13*2
+    NEXTREG_nn MMU7_E000_NR_57,14*2
     ld      de,$E000+$38
     ld      hl,RomShadowTestIm1Source
     ld      bc,RomShadowTestIm1SourceLength
@@ -306,13 +306,13 @@ TestReadOverRomIm1:
     .4 halt     ; each IM1 should set one bit in D
     di
     ; print result
-    ld      a,8*2+1
+    ld      a,9*2+1
     ld      hl,$F01B
     call    CumulateErrorAndDisplay
     ; shadow Layer 2 - TEST is here
     ld      d,$00           ; clear result (all bad)
     ; make normal layer 2 handler to fail
-    NEXTREG_nn MMU7_E000_NR_57,10*2
+    NEXTREG_nn MMU7_E000_NR_57,11*2
     xor     a
     ld      ($E03A),a       ; `nop` instead of set 4,d
     ld      ($E03B),a
@@ -326,7 +326,7 @@ TestReadOverRomIm1:
     di
     ; clear the visible part of Layer2
     push    de
-    NEXTREG_nn MMU7_E000_NR_57,10*2
+    NEXTREG_nn MMU7_E000_NR_57,11*2
     ld      hl,$E000+$38
     ld      de,$E000+$38+1
     ld      bc,RomShadowTestIm1SourceLength
@@ -334,7 +334,7 @@ TestReadOverRomIm1:
     ldir
     pop     de
     ; print result
-    ld      a,9*2+1
+    ld      a,10*2+1
     ld      hl,$F01B
     jp      CumulateErrorAndDisplay
 
@@ -353,7 +353,7 @@ TestBankOffsetRead:
     ; set up memory banks for the bank-offset tests again
         BORDER  BLUE
         ld      ix,$F000
-        ld      a,8*2
+        ld      a,9*2
 .setMemoryLoop:             ; mark even 8k pages (odd are not tested)
         NEXTREG_A   MMU7_E000_NR_57
         cpl
@@ -362,7 +362,7 @@ TestBankOffsetRead:
         ld      (ix),a
         inc     a
         inc     a
-        cp      (13+8)*2
+        cp      (13+9)*2
         jr      nz,.setMemoryLoop
     ; revert the memory mapping to default rom:5:2:x
         NEXTREG_nn  MMU0_0000_NR_50,255
@@ -374,12 +374,12 @@ TestBankOffsetRead:
     ; run tests
         BORDER  YELLOW
     ; test visible L2 layer first (both 16ki and 48ki tests in one subroutine)
-        ld      iy,(10*2<<8)+8*2    ; test value - visible first bank + result page number
+        ld      iy,(11*2<<8)+9*2    ; test value - visible first bank + result page number
         ld      hl,$E809            ; result output address
         ld      a,LAYER2_ACCESS_OVER_ROM_BANK_0
         call    Test16kiAnd48kiBankOffsets
     ; test shadow L2 layer first (both 16ki and 48ki tests in one subroutine)
-        ld      iy,((10*2+1)<<8)+11*2   ; test value - shadow first bank + result page
+        ld      iy,((11*2+1)<<8)+12*2   ; test value - shadow first bank + result page
         ld      hl,$E009            ; result output address
         ld      a,LAYER2_ACCESS_OVER_ROM_BANK_0|LAYER2_ACCESS_SHADOW_OVER_ROM
     ;  |
@@ -561,18 +561,18 @@ OutputLegend:
     ret
 
 FillLayer2Banks:
-    ld      a,8*2
+    ld      a,9*2
 .fillVisibleL2:
     ld      c,$E3
     call    .fill8kiB
     inc     a
-    cp      11*2
+    cp      12*2
     jr      nz,.fillVisibleL2
 .fillShadowL2:
     ld      c,$E0
     call    .fill8kiB
     inc     a
-    cp      14*2
+    cp      15*2
     jr      nz,.fillShadowL2
     ret
 .fill8kiB:  ; A = page to map into MMU7, C = color to fill, modifies HL,DE,BC
