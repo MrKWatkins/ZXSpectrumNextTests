@@ -6,7 +6,7 @@
 	INCLUDE "../../Macros.asm"
 	INCLUDE "../../TestFunctions.asm"
 
-Start
+Start:
 	call StartTest
 
 	NEXTREG_nn SPRITE_CONTROL_NR_15, %00000001	; Set sprites over Layer2 and ULA and enable sprites.
@@ -46,14 +46,16 @@ ShowSprite:
 	ld a, 64
 	out (c), a
 	out (c), a					; Display the sprite at 64, 64.
-	out (c), 0                  ; pal.ofs=0, mirror/rotation=0, X8=0
+	xor a
+	out (c), a                  ; pal.ofs=0, mirror/rotation=0, X8=0
 	ld a, %10000000             ; visible=1, 4 bytes struct only, pattern=0
 	out (c), a					; Make the sprite visible.
 	ret
 
-LoadPattern
+LoadPattern:
 	ld bc, SPRITE_STATUS_SLOT_SELECT_P_303B
-	out (c), 0					; Write to pattern slot 0.
+	xor a
+	out (c), a					; Write to pattern slot 0.
 
 	ld bc, SPRITE_PATTERN_P_5B  ; b=0 as counter
 	ld hl, Pattern

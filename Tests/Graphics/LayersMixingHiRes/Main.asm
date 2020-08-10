@@ -537,7 +537,8 @@ PrepareSpriteGraphics:
 
     ; upload prepared sprite pattern
     ld      bc,SPRITE_STATUS_SLOT_SELECT_P_303B
-    out     (c), 0  ; Write to pattern/attribute slot 0
+    xor     a
+    out     (c), a  ; Write to pattern/attribute slot 0
     ld      c,SPRITE_PATTERN_P_5B   ; port number for pattern upload
     ld      hl,$8000                ; starting xy L2 coordinates (= memory address)
     call    .UploadOnePatternFromL2
