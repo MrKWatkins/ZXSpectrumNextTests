@@ -445,12 +445,12 @@ TestEightBankOffsets:
         out     (c),a
         ld      bc,%110'000'00'000'110'00   ; red:green (Bad:Correct)
         ex      af,af
-.aR=$+1 ld      a,($1000)
+.aR=$+1:ld      a,($1000)
         cp      iyl
         call    DisplayResultDot
         ld      bc,%111'000'00'000'111'00   ; red:green (Bad:Correct)
         ld      a,iyl
-.aW=$+1 ld      ($1001),a
+.aW=$+1:ld      ($1001),a
         NEXTREG_A MMU7_E000_NR_57
         cp      (ix+1)
         call    DisplayResultDot
