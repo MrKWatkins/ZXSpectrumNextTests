@@ -141,7 +141,12 @@ Start:
     ; draw the LoRes part for pixel combining
     call    DrawLoResPart
 
-    ; reset Layer2 scroll registers
+    ; reset blending mode features to classic core3.0 way of L2+ULA-only one layer
+    NEXTREG_nn ULA_CONTROL_NR_68, 0         ; "ula as blend colour"
+    NEXTREG_nn TILEMAP_CONTROL_NR_6B, 0     ; disable tilemap explicitly
+    ; reset Layer2 scroll registers and control register (new reg since core 3.1+)
+    NEXTREG_nn LAYER2_CONTROL_NR_70,0       ; enforce 256x192 mode, +0 palette offset
+    NEXTREG_nn LAYER2_XOFFSET_MSB_NR_71, 0
     NEXTREG_nn LAYER2_XOFFSET_NR_16, 0
     NEXTREG_nn LAYER2_YOFFSET_NR_17, 0
     ; setup Layer2 bank to 9 (like NextZXOS does)
@@ -178,9 +183,6 @@ Start:
 
     call    DrawCharLabels
 
-    ; map low RAM back to make im1 work (updates counters in $5B00+ area)
-    NEXTREG_nn MMU2_4000_NR_52, $0A
-    NEXTREG_nn MMU3_6000_NR_53, $0B
     ; all drawing is now finished, the test will enter loop just changing layer-modes
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -194,8 +196,7 @@ Start:
     ; => cca 49+T until the layer order is modified
 
 ScanlinesLoop:
-    ei
-    halt
+    WAIT_FOR_SCANLINE   254
     BORDER  CI_WHITE
     ;; SLU "legend" phase (first 52 scanlines)
     ; Set layers to: SLU, enable sprites (no over border), LoRes ON
@@ -205,7 +206,7 @@ ScanlinesLoop:
     ; refresh all dynamic colours every frame
     call    DynamicColoursHandler
 
-    ; wait some fixed time after IM1 handler to get into scanlines 255+
+    ; wait some fixed time after videoline 254 handler to get into scanlines 255+
     IDLE_WAIT   $E001
     ; wait until scanline MSB becomes 0 again (scanline 0)
     WAIT_FOR_SCANLINE_MSB 0
