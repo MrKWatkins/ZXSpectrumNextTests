@@ -3,6 +3,9 @@ Source in folder: Tests/Graphics/LightenDarken_L2_ULA/
 Draws all three basic layers (Sprite, Layer2, ULA-LoRes) in all combinations affecting
 priority and transparency, in both colour mixing modes: S(L+U) and S(L+U-5).
 
+The test was designed back in core2.x times, before the ability to separate U|T for
+blending was introduced, and before extended Layer2 modes.
+
 --- "legend" info ---
 
 At the top of the screen you can see device info and three areas showing how each layer
@@ -78,8 +81,8 @@ sslluT  ss
 sTlluT  ll
 sXlluT  ll
 sslTuu  ss
-sTlTuu  uu
-sXlTuu  uu
+sTlTuu  TT
+sXlTuu  TT
 sslTuT  ss
 sTlTuT  TT
 sXlTuT  TT
@@ -90,8 +93,8 @@ ssppuT  pp
 sTppuT  pp
 sXppuT  pp
 sspTuu  ss
-sTpTuu  uu
-sXpTuu  uu
+sTpTuu  TT
+sXpTuu  TT
 sspTuT  ss
 sTpTuT  TT
 sXpTuT  TT

@@ -1,5 +1,9 @@
 ; this is based on "LayersMixingLoRes" test, but focusing on the colour mixing in the two
 ; new layer-priority modes: U+L and U+L-5 (introduced somewhere in 2.00.xx cores).
+;
+; The blend modes got further modified in later cores (3.1.5 latest at time of edit) and
+; this test covers only the most simple basic ULA + Layer2 case (not tilemode involved,
+; no front-non-blend-sub-layer)
 
     device zxspectrum48
 
@@ -69,7 +73,7 @@ COLOUR_DEF_SZ   equ     $-colourDef
     align   4
 selectedBaseColours:
 selectedBaseColourSprite:
-    db      %00011101   ; starting at %101 (R+B) = magenta
+    db      %01110100   ; starting at %100 (R) = red
 selectedBaseColourLayer2:
     db      %10001110   ; starting at %110 (R+G) = yellow
 selectedBaseColourUla:
@@ -381,12 +385,13 @@ DrawLoResPart:
     call    .Draw4x6TransparentBoxes
     ld      hl,MEM_LORES0_4000 + 128 - 3*7*4
     call    .Draw4x6TransparentBoxes
-    ; make ULA transparent under legend-label area
-    ld      hl,MEM_LORES0_4000 + 7*4*128 + 0
-    ld      bc,$1418
+    ; make ULA transparent under test area area
+    ld      hl,MEM_LORES0_4000 + 6*4*128 + 0
+    ld      bc,$1880
     call    .DrawNxMTransparentBoxes
     ld      hl,MEM_LORES1_6000 + 0
-    call    .Draw4x6TransparentBoxes
+    ld      bc,$1480
+    call    .DrawNxMTransparentBoxes
     ; set attributes of "result" 6x4 boxes
     ld      hl,MEM_LORES0_4000 + 7*4*128 + 7*4
     call    .Draw4x6TestData
@@ -460,25 +465,23 @@ DrawLayer2Part:
 
     ; draw "legend" boxes, draw expected result areas and also the test-areas themselves
 
-    ; fill background under "label/expected" areas (all 2 of them in one fill)
+    ; fill background with Layer2-white under both test areas
     ld      a,8
     ld      de,CI_WHITE*256 + CI_WHITE
-    ld      bc,$0609
-    ld      hl,7*8*256 + 0
+    ld      bc,$200B
+    ld      hl,6*8*256 + 0
     call    FillL2Box
 
     ; draw expected result area for orders: L+U, L+U-5
     ld      hl,9*8*256 + 12
     ; L+U
     call    .DrawExpectedResultTransparent
-    call    .DrawExpectedResultUla
     call    .DrawExpectedResultLayer2
     call    .DrawExpectedResultSprites
     call    .DrawExpectedResultLayer2p
     ; L+U-5
     ld      h,14*8
     call    .DrawExpectedResultTransparent
-    call    .DrawExpectedResultUla
     call    .DrawExpectedResultLayer2
     call    .DrawExpectedResultSprites
     call    .DrawExpectedResultLayer2p
@@ -556,19 +559,27 @@ DrawLayer2Part:
     ; draw also Layer2 TEST pixels (L+U)
     ld      hl,7*8*256 + 8*(7)
     call    FillL2TestData
+    ; draw transparent part
+    ld      de,CI_PINK*256 + CI_PINK
+    ld      bc,$0C08
+    ld      hl,9*8*256 + 8*(7)
+    call    FillL2BoxWithDither2x2
     ; draw transparent priority part
     ld      de,CI_PINK2*256 + CI_PINK2  ; overwrite also transparent half with priority
-    ld      bc,$0C08
-    ld      hl,9*8*256 + 8*(7+3)
+    ld      l,8*(7+3)
     call    FillL2BoxWithDither2x2
 
     ; draw also Layer2 TEST pixels (L+U-5)
     ld      hl,12*8*256 + 8*(7)
     call    FillL2TestData
+    ; draw transparent part
+    ld      de,CI_PINK*256 + CI_PINK
+    ld      bc,$0C08
+    ld      hl,14*8*256 + 8*(7)
+    call    FillL2BoxWithDither2x2
     ; draw transparent priority part
     ld      de,CI_PINK2*256 + CI_PINK2  ; overwrite also transparent half with priority
-    ld      bc,$0C08
-    ld      hl,14*8*256 + 8*(7+3)
+    ld      l,8*(7+3)
     call    FillL2BoxWithDither2x2
 
     ; draw ULA-legend
@@ -599,17 +610,6 @@ DrawLayer2Part:
     call    FillL2BoxWithDither2x2
     pop     hl
     ret
-
-.DrawExpectedResultUla:
-    push    hl
-    ld      de,CI_ULA*256 + CI_ULA
-    ld      bc,$0C02
-    ld      a,2*4
-    add     a,h
-    ld      h,a
-    call    FillL2BoxWithDither2x2
-    pop     hl
-    jp      FillL2BoxWithDither2x2
 
 .DrawExpectedResultTransparent:
     ld      bc,$0C08
