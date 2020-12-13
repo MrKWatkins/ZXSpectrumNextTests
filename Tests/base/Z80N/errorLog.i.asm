@@ -296,7 +296,7 @@ DisplayLogForOneTest:
     ld      a,(iy+LOG_ITEM_TYPE)
     cp      LOG_TYPE_EMPTY      ; verify it is not the special "empty" type
     jp      z,.SkipItem
-    and     (LOG_TYPE_B_CNT_MASK|LOG_TYPE_W_CNT_MASK)
+    and     +(LOG_TYPE_B_CNT_MASK|LOG_TYPE_W_CNT_MASK)
     ld      c,a
     .(LOG_TYPE_W_SHIFT) srl c   ; c = words count (3x srl)
     and     LOG_TYPE_B_CNT_MASK

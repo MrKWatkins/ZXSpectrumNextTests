@@ -1612,7 +1612,7 @@ handleKey_2:            ; commit WR2
 handleKey_WR1_WR2_setPort:
     ld      bc,(DmaPortData)    ; reload C with DMA port number
     ld      e,(iy + StateData_Port.timing)  ; E = new timing
-    or      a,(iy + StateData_Port.adjust)  ; add adjust data
+    or      (iy + StateData_Port.adjust)    ; add adjust data
     rlca
     rlca
     rlca
