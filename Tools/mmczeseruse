@@ -1,10 +1,11 @@
 #!/bin/bash
 # personal script of Ped to launch "zeseruse" emulator with the "tbblue.mmc" (or first argument is image filename)
+# keys 167/168 are PAGE_UP/PAGE_DOWN as those are better choice on my notebook for joystick fires, for --joystickemulated Kempston
 if [[ -n "$1" ]]; then
   MMCFILE="$1"
   shift
 else
   MMCFILE=tbblue.mmc
 fi
-zeseruse --noconfigfile --nologo --vo sdl --ao pulse --mmc-file "$MMCFILE" --enable-mmc --enable-divmmc-ports --nosplash --nowelcomemessage --disabletooltips --forcevisiblehotkeys --disablemultitaskmenu "$@"
+zeseruse --noconfigfile --nologo --vo sdl --ao pulse --mmc-file "$MMCFILE" --enable-mmc --enable-divmmc-ports --nosplash --nowelcomemessage --disabletooltips --forcevisiblehotkeys --disablemultitaskmenu --joyfire1byutilskey 167 --joyfire2byutilskey 168 "$@"
 # --mmc-no-persistent-writes
