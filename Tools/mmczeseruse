@@ -6,5 +6,5 @@ if [[ -n "$1" ]]; then
 else
   MMCFILE=tbblue.mmc
 fi
-zeseruse --noconfigfile --vo sdl --ao pulse --mmc-file "$MMCFILE" --enable-mmc --enable-divmmc-ports --machine tbblue --realvideo --tbblue-legacy-border --tbblue-legacy-hicolor --zoom 1 --enabletimexvideo --sna-no-change-machine --nosplash --nowelcomemessage --quickexit --disabletooltips --forcevisiblehotkeys --disablemultitaskmenu "$@"
+zeseruse --noconfigfile --nologo --vo sdl --ao pulse --mmc-file "$MMCFILE" --enable-mmc --enable-divmmc-ports --nosplash --nowelcomemessage --disabletooltips --forcevisiblehotkeys --disablemultitaskmenu "$@"
 # --mmc-no-persistent-writes
