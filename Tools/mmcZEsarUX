@@ -1,6 +1,6 @@
 #!/bin/bash
 # personal script of Ped to launch "ZEsarUX" emulator with the "tbblue.mmc" (or first argument is image filename)
-if [[ -n "$1" ]]; then
+if [[ -s "$1" ]]; then
   MMCFILE="$1"
   shift
 else

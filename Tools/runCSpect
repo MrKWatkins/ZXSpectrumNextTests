@@ -1,3 +1,3 @@
 #!/bin/bash
 # personal script of Ped to launch "#CSpect" emulator in "current directory" (with arguments like: "runCSpect file.nex")
-MONO_IOMAP=all mono ~/zx/CSpect/CSpect_current/CSpect.exe -tv -zxnext -s28 -w4 -mmc=./ "$@"
+MONO_IOMAP=all mono `readlink ~/.local/bin/CSpect.exe` -tv -zxnext -s28 -w4 -mmc=./ "$@"

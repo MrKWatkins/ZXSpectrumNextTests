@@ -1,7 +1,7 @@
 #!/bin/bash
 # personal script of Ped to launch "zeseruse" emulator with the "tbblue.mmc" (or first argument is image filename)
 # keys 167/168 are PAGE_UP/PAGE_DOWN as those are better choice on my notebook for joystick fires, for --joystickemulated Kempston
-if [[ -n "$1" ]]; then
+if [[ -s "$1" ]]; then
   MMCFILE="$1"
   shift
 else
