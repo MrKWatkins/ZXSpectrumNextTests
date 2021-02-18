@@ -7,5 +7,5 @@ if [[ -s "$1" ]]; then
 else
   MMCFILE=tbblue.mmc
 fi
-zeseruse --noconfigfile --nologo --vo sdl --ao pulse --mmc-file "$MMCFILE" --enable-mmc --enable-divmmc-ports --nosplash --nowelcomemessage --disabletooltips --forcevisiblehotkeys --disablemultitaskmenu --joyfire1byutilskey 167 --joyfire2byutilskey 168 "$@"
+zeseruse --noconfigfile --nologo --vo sdl --ao pulse --mmc-file "$MMCFILE" --enable-mmc --enable-divmmc-ports --nosplash --nowelcomemessage --disabletooltips --forcevisiblehotkeys --disablemultitaskmenu --joyfire1byutilskey 167 --joyfire2byutilskey 168 --realjoystick8BitDo "$@"
 # --mmc-no-persistent-writes
