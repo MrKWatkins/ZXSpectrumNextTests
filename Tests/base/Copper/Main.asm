@@ -1,4 +1,4 @@
-    device zxspectrum48
+    device zxspectrum48,$7FFF
 
     org     $8000
 
@@ -35,6 +35,10 @@ C_BLACK     equ     $00
 C_WHITE     equ     $B6
 C_BLUE      equ     $0E
 C_YELLOW    equ     $F8
+C_WHITE_BR  equ     $DB
+
+animateLineCopperAdr:
+    dw      0
 
     ; does use A and B registers (A stays set to value)
     MACRO   NEXTREG register?, value?
@@ -107,7 +111,7 @@ Start:
     ; now fill up the flag-drawing instructions (5 flags ~= 990 instructions (!))
     ld      de,$0140    ; [1,64]    ; this one should be +1px off from ruler to right
     call    UploadFlagAtDe
-    ld      de,$434D    ; [67,77]   ; move this to 64 in case you need to release few ins.
+    ld      de,$424D    ; [66,77]   ; move this to 66 in case you need to release few ins.
     call    UploadFlagAtDe
     ; do one flag partly over right border
     ld      de,$F85B    ; [248,91]
@@ -120,6 +124,8 @@ Start:
     ; last flag right over the drawn dots
     ld      de,$F276    ; [242,118] ; this one should be +2px off from ruler to right
     call    UploadFlagAtDe
+
+    call    AddExtraTests
 
     ; add HALT at the end of everything (will wait until the frame [0,0] restarts copper)
     ld      a,COPPER_HALT_B
@@ -163,8 +169,105 @@ Start:
     call    OutHexaValue
 
     ; finish the test (the screen is updated automatically by Copper, no CPU work needed)
-    pop     iy
+    pop     iy          ; restore BASIC IY for IM1 functioning correctly
+    ld      c,$90       ; y = 144
+AnimateLinePos:
+    ei
+    halt
+    ld      b,0
+.codeDelay:
+    bit     0,(ix+0)    ; junk ; just making the delay loop duration longer
+    bit     1,(ix+0)    ; junk ; just making the delay loop duration longer
+    bit     2,(ix+0)    ; junk ; just making the delay loop duration longer
+    ld      hl,(animateLineCopperAdr)
+    ld      de,$C000    ; set copper-control bits to %11 to not cause disruption in the run
+    add     hl,de       ; HL = address of byte with current line (144..159)
+    djnz    .codeDelay
+    ; mark the point where y of animated line is overwritten in code by bright-white paper
+    NEXTREG PALETTE_VALUE_NR_41,C_WHITE_BR
+    NEXTREG COPPER_CONTROL_LO_NR_61, l
+    NEXTREG COPPER_CONTROL_HI_NR_62, h
+    NEXTREG COPPER_DATA_NR_60, c        ; overwrite first y in first WAIT
+    inc     hl
+    inc     hl
+    inc     hl
+    inc     hl
+    inc     c                           ; y+1 to reset to white
+    NEXTREG COPPER_CONTROL_LO_NR_61, l
+    NEXTREG COPPER_CONTROL_HI_NR_62, h
+    NEXTREG COPPER_DATA_NR_60, c        ; overwrite second y in second WAIT
+    ; confine y to 144..159 only (for next loop iteration)
+    res     5,c
+    set     4,c
+    NEXTREG PALETTE_VALUE_NR_41,C_WHITE ; restore border back to white to mark end of code patching
+    jr      AnimateLinePos
+
     call    EndTest
+
+; add extra tests after last flag, checking peculiar details of copper code processing
+; 1) add test of same line WAIT doing check for horizontal position being greater/equal
+;   doing that at y = 140
+; 2) add single blue line going from h=0 -> h=0 at y=144
+;   - will be modified by code every frame to move y in 144..159 range
+AddExtraTests:
+
+    ;;; 1) test of WAIT using same line as current, but earlier horizontal compare value
+    ld      de,C_WHITE + (PALETTE_VALUE_NR_41<<8)
+    ld      hl,140 + ((COPPER_WAIT_H + (16<<1))<<8) ; y=140, x-compare 16 = 128px pos = in middle of pixels
+
+    ; create single blue line 64 pixels long (x=128..192)
+    out     (c),h
+    out     (c),l   ; WAIT(h=16,y=140)
+    inc     iy      ; count total instructions
+    out     (c),d
+    ld      a,C_BLUE
+    out     (c),a   ; MOVE $41,C_BLUE
+    inc     iy      ; count total instructions
+
+    ; set yellow color after the blue line
+    ld      h,COPPER_WAIT_H + (24<<1)   ; x-compare 24 = 192px pos (right 3/4 in pixels)
+    out     (c),h
+    out     (c),l   ; WAIT(h=24,y=140)
+    inc     iy      ; count total instructions
+    out     (c),d
+    ld      a,C_YELLOW
+    out     (c),a   ; MOVE $41,C_YELLOW
+    inc     iy      ; count total instructions
+
+    ; try to reset to white instantly by waiting for h=0 on the same line
+    ; => should produce single yellow pixel
+    ld      h,COPPER_WAIT_H + (0<<1)    ; x-compare 0 = 0px pos (should pass instantly)
+    out     (c),h
+    out     (c),l   ; WAIT(h=0,y=140)
+    inc     iy      ; count total instructions
+    out     (c),d
+    out     (c),e   ; MOVE $41,C_WHITE
+    inc     iy      ; count total instructions
+
+    ;;; 2) line changing y position by code overwriting the copper code every frame
+    push    iy      ; remember the position of the initial wait (copper address/2)
+    ld      l,144   ; y=144
+    out     (c),h
+    out     (c),l   ; WAIT(h=0,y=144)
+    inc     iy      ; count total instructions
+    out     (c),d
+    ld      a,C_BLUE
+    out     (c),a   ; MOVE $41,C_BLUE
+    inc     iy      ; count total instructions
+
+    inc     l
+    out     (c),h
+    out     (c),l   ; WAIT(h=0,y=145)
+    inc     iy      ; count total instructions
+    out     (c),d
+    out     (c),e   ; MOVE $41,C_WHITE
+    inc     iy      ; count total instructions
+
+    pop     hl
+    scf
+    adc     hl,hl   ; byte address of the "144" in copper memory
+    ld      (animateLineCopperAdr),hl
+    ret
 
 ; swedish flag: dimensions 5:2:9 horizontally, 4:2:4 vertically, proportion 5:8
 ; Googling for official colours in sRGB turned out to be lot more fun than I expected.
@@ -212,10 +315,8 @@ UploadFlag:
     cp      d
     ret     z       ; last line reached, exit
     ; write WAIT for start of next line
-    ld      a,h
-    out     (c),a
-    ld      a,e
-    out     (c),a
+    out     (c),h
+    out     (c),e
     inc     iy      ; count total instructions
     inc     e       ; next line coordinate adjusted
     ; write L-1 many COPPER_NOOP instructions (to wait for correct pixel)
