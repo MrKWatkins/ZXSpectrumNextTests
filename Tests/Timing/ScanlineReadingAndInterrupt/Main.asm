@@ -216,14 +216,15 @@ MainLoop:
     ; nothing more to do in interrupt type
     halt
     jr      MainLoop
+
 TestReadNr1F:
     ; wait for scanline (reading nextreg $1F) type of test
     SET_PALETTE_ELEMENT %101'101'10     ; white paper
     ld      hl,(TestLineLsb)    ; L = LSB value
     ; read NextReg $1F - LSB of current raster line
+    ld      de,VIDEO_LINE_LSB_NR_1F|(VIDEO_LINE_MSB_NR_1E<<8)   ; E = $1F, D = $1E
     ld      bc,TBBLUE_REGISTER_SELECT_P_243B
-    ld      a,VIDEO_LINE_LSB_NR_1F
-    out     (c),a               ; select NextReg $1F
+    out     (c),e               ; select NextReg $1F
     inc     b                   ; BC = TBBLUE_REGISTER_ACCESS_P_253B
     ; if not yet at scanline, wait for it ... wait for it ...
 .waitLoop:
@@ -231,16 +232,32 @@ TestReadNr1F:
     cp      l
     jr      nz,.waitLoop
     SET_PALETTE_ELEMENT %000'011'00     ; green paper
-    ld      a,8
+    ; read MSB of the target LSB line
+    dec     b
+    out     (c),d               ; select NextReg $1E
+    inc     b
+    in      h,(c)               ; H = current MSB
+    dec     b
+    out     (c),e               ; select NextReg $1F
+    inc     b
+    ; do some dead-waste time loop before next LSB reading
+    ld      a,6
 .wasteTimeLoop:
     dec     a
     jr      nz,.wasteTimeLoop
+    ; read LSB again until it leaves target value
 .waitFullLine:
     in      a,(c)               ; read the raster line LSB
     cp      l
     jr      z,.waitFullLine
     SET_PALETTE_ELEMENT %101'101'10     ; white paper
+    ; for MSB=1 re-run the test loop again, so the house-keeping is done after 0:n line
+    ; (between 1:n and 0:n may be not enough time in 60Hz modes)
+    dec     h
+    jr      z,TestReadNr1F
+    ; for 0:n match continue with regular MainLoop
     jr      MainLoop
+
 TestCopper:
     ; refresh the copper code to latest TestLineLsb value (keep doing that every frame)
     nextreg COPPER_CONTROL_LO_NR_61,0   ; reset low index
