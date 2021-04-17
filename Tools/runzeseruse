@@ -2,5 +2,5 @@
 # Run some snapshot file in ZESERUse emulator, auto-appending breakpoints file "bpx.ini" if it exists
 # keys 167/168 are PAGE_UP/PAGE_DOWN as those are better choice on my notebook for joystick fires, for --joystickemulated Kempston
 [[ -s "bpx.ini" ]] && breakpoints=`cat "bpx.ini"` || breakpoints=""
-zeseruse --noconfigfile --nologo --vo sdl --ao pulse --enable-esxdos-handler --nosplash --disablefooter --nowelcomemessage --disabletooltips --forcevisiblehotkeys --disablemultitaskmenu --joyfire1byutilskey 167 --joyfire2byutilskey 168 --realjoystick8BitDo "$@" $breakpoints
+zeseruse --noconfigfile --nologo --vo sdl --ao pulse --enable-esxdos-handler --disable-autoframeskip --nosplash --disablefooter --nowelcomemessage --disabletooltips --forcevisiblehotkeys --disablemultitaskmenu --joyfire1byutilskey 167 --joyfire2byutilskey 168 --realjoystick8BitDo "$@" $breakpoints
 # --enable-breakpoints --set-breakpoint 1 "PC=60F5h AND B=1Ch"
