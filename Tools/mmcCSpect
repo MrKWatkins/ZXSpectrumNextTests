@@ -6,4 +6,4 @@ if [[ -s "$1" ]]; then
 else
   MMCFILE=tbblue.mmc
 fi
-MONO_IOMAP=all mono `readlink ~/.local/bin/CSpect.exe` -tv -zxnext -s28 -w4 -nextrom -mmc="$MMCFILE" "$@"
+MONO_IOMAP=all mono `readlink ~/.local/bin/CSpect.exe` -analytics -tv -zxnext -s28 -w4 -nextrom -mmc="$MMCFILE" "$@"
