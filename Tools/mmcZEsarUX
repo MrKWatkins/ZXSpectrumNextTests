@@ -6,5 +6,5 @@ if [[ -s "$1" ]]; then
 else
   MMCFILE=tbblue.mmc
 fi
-zesarux --noconfigfile --disablebetawarning "9.2-B1" --vo sdl --ao pulse --mmc-file "$MMCFILE" --enable-mmc --enable-divmmc-ports --machine tbblue --realvideo --tbblue-legacy-border --tbblue-legacy-hicolor --zoom 1 --enabletimexvideo --sna-no-change-machine --disable-autoframeskip --nosplash --nowelcomemessage --quickexit --disabletooltips --forcevisiblehotkeys --disablemultitaskmenu "$@"
+zesarux --noconfigfile --disablebetawarning "10.0-RC" --vo sdl --ao pulse --mmc-file "$MMCFILE" --enable-mmc --enable-divmmc-ports --machine tbblue --realvideo --tbblue-legacy-border --tbblue-legacy-hicolor --zoom 1 --enabletimexvideo --sna-no-change-machine --disable-autoframeskip --nosplash --nowelcomemessage --quickexit --disabletooltips --forcevisiblehotkeys --disablemultitaskmenu "$@"
 # --mmc-no-persistent-writes
