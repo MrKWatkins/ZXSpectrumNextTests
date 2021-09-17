@@ -139,22 +139,23 @@ TestFull_AddBcA:
     push    ix
     ld      ix,.FullTestLoop
 .FullTestLoopSetA:
-    xor     a           ; A=0, CF=0 will hold for the whole test, if everything is OK!
+    xor     a           ; A=0
 .FullTestLoopResetHl:
     ld      hl,(.FullTestLoop+1)    ; reset expected value
 .FullTestLoop:
     ld      bc,$0000
-    db      $ED, $33    ; ADD BC,A  ; if CF is modified, the test will fail!
+    db      $ED, $33    ; ADD BC,A
     ;inc     bc ;;DEBUG
-    sbc     hl,bc       ; 15T  ZF=1, CF=0 if OK
+    or      a           ; 4T force-reset CF as it's state is undefined
+    sbc     hl,bc       ; 15T  ZF=1 if OK
     add     hl,bc       ; 11T restore HL (if OK), ZF is preserved from SBC
-    jr      nz,.errorFound  ; 12/7T = 33T test when OK
+    jr      nz,.errorFound  ; 12/7T = 37T test when OK
     inc     hl          ; update expected result in HL
     inc     a
     jp      nz,.FullTestLoop
     inc     (ix+1)
     jp      nz,.FullTestLoopResetHl
-    call    TestHeartbeat   ; preserves CF=0
+    call    TestHeartbeat
     inc     (ix+2)
     jp      nz,.FullTestLoopSetA
     pop     ix
@@ -177,15 +178,16 @@ TestL1_AddBcA:          ; ADD BC,A has only two levels (L1 and Full)
     cp      (ix+1)
     ret     z           ; if Level1 was already run, don't twice
 .L1TestLoopSetA:
-    xor     a           ; A=0, CF=0
+    xor     a           ; A=0
     ld      hl,(.L1TestLoop+1)    ; reset expected value
 .L1TestLoop:
     ld      bc,$0000
-    db      $ED, $33    ; ADD BC,A  ; if CF is modified, the test will fail!
+    db      $ED, $33    ; ADD BC,A
     ;inc     bc ;;DEBUG
-    sbc     hl,bc       ; 15T  ZF=1, CF=0 if OK
-    add     hl,bc       ; 11T restore HL (if OK), ZF is preserved from SBC
-    jr      nz,.errorFound  ; 12/7T = 33T test when OK
+    or      a
+    sbc     hl,bc       ; ZF=1
+    add     hl,bc       ; restore HL (if OK), ZF is preserved from SBC
+    jr      nz,.errorFound
     inc     hl          ; update expected result in HL
     inc     a
     jp      nz,.L1TestLoop
@@ -216,23 +218,24 @@ TestFull_AddDeA:
     push    ix
     ld      ix,.FullTestLoop
 .FullTestLoopSetA:
-    xor     a           ; A=0, CF=0 will hold for the whole test, if everything is OK!
+    xor     a           ; A=0
 .FullTestLoopResetHl:
     ld      hl,(.FullTestLoop+1)    ; reset expected value
 .FullTestLoop:
     ld      de,$0000
-    db      $ED, $32    ; ADD DE,A  ; if CF is modified, the test will fail!
+    db      $ED, $32    ; ADD DE,A
     ;inc     de ;;DEBUG
-    ex      de,hl       ; 4T
-    sbc     hl,de       ; 15T  ZF=1, CF=0 if OK
-    jr      nz,.errorFound  ; 12/7T = 30T test when OK
-    ex      de,hl       ; 4T
+    ex      de,hl
+    or      a
+    sbc     hl,de       ; ZF=1
+    jr      nz,.errorFound
+    ex      de,hl
     inc     hl          ; update expected result in HL
     inc     a
     jp      nz,.FullTestLoop
     inc     (ix+1)
     jp      nz,.FullTestLoopResetHl
-    call    TestHeartbeat   ; preserves CF=0
+    call    TestHeartbeat
     inc     (ix+2)
     jp      nz,.FullTestLoopSetA
     pop     ix
@@ -240,7 +243,7 @@ TestFull_AddDeA:
     ret
 .errorFound:
     ld      b,a
-    ; restore result of addition (may be -1 due to CF=1)
+    ; restore result of addition
     add     hl,de
     ld      de,(.FullTestLoop+1)
     call    LogAdd1B2W  ; log(B:"A", DE:original DE, HL: DE+A result)
@@ -255,16 +258,17 @@ TestL1_AddDeA:          ; ADD DE,A has only two levels (L1 and Full)
     cp      (ix+1)
     ret     z           ; if Level1 was already run, don't twice
 .L1TestLoopSetA:
-    xor     a           ; A=0, CF=0
+    xor     a           ; A=0
     ld      hl,(.L1TestLoop+1)    ; reset expected value
 .L1TestLoop:
     ld      de,$0000
-    db      $ED, $32    ; ADD DE,A  ; if CF is modified, the test will fail!
+    db      $ED, $32    ; ADD DE,A
     ;inc     de ;;DEBUG
-    ex      de,hl       ; 4T
-    sbc     hl,de       ; 15T  ZF=1, CF=0 if OK
-    jr      nz,.errorFound  ; 12/7T = 30T test when OK
-    ex      de,hl       ; 4T
+    ex      de,hl
+    or      a
+    sbc     hl,de       ; ZF=1
+    jr      nz,.errorFound
+    ex      de,hl
     inc     hl          ; update expected result in HL
     inc     a
     jp      nz,.L1TestLoop
@@ -282,7 +286,7 @@ TestL1_AddDeA:          ; ADD DE,A has only two levels (L1 and Full)
     ret
 .errorFound:
     ld      b,a
-    ; restore result of addition (may be -1 due to CF=1)
+    ; restore result of addition
     add     hl,de
     ld      de,(.L1TestLoop+1)
     call    LogAdd1B2W  ; log(B:"A", DE:original DE, HL: DE+A result)
@@ -300,21 +304,22 @@ TestFull_AddHlA:
     push    ix
     ld      ix,.FullTestLoop
 .FullTestLoopSetA:
-    xor     a           ; A=0, CF=0 will hold for the whole test, if everything is OK!
+    xor     a           ; A=0
 .FullTestLoopResetDe:
     ld      de,(.FullTestLoop+1)    ; reset expected value
 .FullTestLoop:
     ld      hl,$0000
-    db      $ED, $31    ; ADD HL,A  ; if CF is modified, the test will fail!
+    db      $ED, $31    ; ADD HL,A
     ;inc     hl ;;DEBUG
-    sbc     hl,de       ; 15T  ZF=1, CF=0 if OK
-    jr      nz,.errorFound  ; 12/7T = 22T test when OK
+    or      a
+    sbc     hl,de       ; ZF=1
+    jr      nz,.errorFound
     inc     de          ; update expected result in DE
     inc     a
     jp      nz,.FullTestLoop
     inc     (ix+1)
     jp      nz,.FullTestLoopResetDe
-    call    TestHeartbeat   ; preserves CF=0
+    call    TestHeartbeat
     inc     (ix+2)
     jp      nz,.FullTestLoopSetA
     pop     ix
@@ -322,7 +327,7 @@ TestFull_AddHlA:
     ret
 .errorFound:
     ld      b,a
-    ; restore result of addition (may be -1 due to CF=1)
+    ; restore result of addition
     add     hl,de
     ld      de,(.FullTestLoop+1)
     call    LogAdd1B2W  ; log(B:"A", DE:original HL, HL: HL+A result)
@@ -337,14 +342,15 @@ TestL1_AddHlA:          ; ADD HL,A has only two levels (L1 and Full)
     cp      (ix+1)
     ret     z           ; if Level1 was already run, don't twice
 .L1TestLoopSetA:
-    xor     a           ; A=0, CF=0
+    xor     a           ; A=0
     ld      de,(.L1TestLoop+1)    ; reset expected value
 .L1TestLoop:
     ld      hl,$0000
-    db      $ED, $31    ; ADD HL,A  ; if CF is modified, the test will fail!
+    db      $ED, $31    ; ADD HL,A
     ;inc     hl ;;DEBUG
-    sbc     hl,de       ; 15T  ZF=1, CF=0 if OK
-    jr      nz,.errorFound  ; 12/7T = 22T test when OK
+    or      a
+    sbc     hl,de       ; ZF=1
+    jr      nz,.errorFound
     inc     de          ; update expected result in DE
     inc     a
     jp      nz,.L1TestLoop
@@ -362,7 +368,7 @@ TestL1_AddHlA:          ; ADD HL,A has only two levels (L1 and Full)
     ret
 .errorFound:
     ld      b,a
-    ; restore result of addition (may be -1 due to CF=1)
+    ; restore result of addition
     add     hl,de
     ld      de,(.L1TestLoop+1)
     call    LogAdd1B2W  ; log(B:"A", DE:original HL, HL: HL+A result)
