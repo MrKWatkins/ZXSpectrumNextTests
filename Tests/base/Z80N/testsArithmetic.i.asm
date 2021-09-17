@@ -133,7 +133,7 @@ TestFull_MulDE:
     ld      (ix+1),RESULT_ERR   ; set result to ERR
     ret                 ; terminate test
 
-;;;;;;;;;;;;;;;;;;;;;;;; Test ADD BC,A (1:20) ;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;; Test ADD BC,A (a bit more than 1:20) ;;;;;;;;;;;;;;;;;;
 TestFull_AddBcA:
     INIT_HEARTBEAT_256
     push    ix
@@ -212,7 +212,7 @@ TestL1_AddBcA:          ; ADD BC,A has only two levels (L1 and Full)
     ld      (ix+1),RESULT_ERR   ; set result to ERR
     ret                 ; terminate test
 
-;;;;;;;;;;;;;;;;;;;;;;;; Test ADD DE,A (1:15) ;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;; Test ADD DE,A (a bit more than 1:15) ;;;;;;;;;;;;;;;;;;
 TestFull_AddDeA:
     INIT_HEARTBEAT_256
     push    ix
@@ -293,12 +293,12 @@ TestL1_AddDeA:          ; ADD DE,A has only two levels (L1 and Full)
     ld      (ix+1),RESULT_ERR   ; set result to ERR
     ret                 ; terminate test
 
-;;;;;;;;;;;;;;;;;;;;;;;; Test ADD HL,A (1:12) ;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;; Test ADD HL,A (a bit more than 1:12) ;;;;;;;;;;;;;;;;;;
 TestFull_AddHlA:
     ; this "ADD HL,A" test was written first, and started as straightforward simple
     ; emulation of ADD HL,A vs real instruction... then I measured it would take about
     ; 20min to run it for all [HL,A] combinations, which seemed a bit way too much, so
-    ; instead this optimized one evolved (this test will catch CF=1 by ADD HL,A).
+    ; instead this optimized one evolved.
     ; Will take something under 5min (about 1:12 in 14MHz mode)
     INIT_HEARTBEAT_256
     push    ix

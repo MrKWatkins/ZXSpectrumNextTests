@@ -39,54 +39,52 @@ Details of possible errors (explaining the error log) per instruction:
   - expected result (16b), result (16b), $nnnn used (16b)
   * the "full" test does NOT EXIST! (would take hours?), "OK1" is "best" result for now
 
- ADD BC,A       ED  33              BC += uint16_t(A), no flags change
-  - displays A (8b), BC (16b) and result (16b), if result seems correct, the CF=1 was set
+ ADD BC,A       ED  33              BC += uint16_t(A), CF is undefined
+  - displays A (8b), BC (16b) and result (16b)
 
  ADD DE,$nnnn   ED  35  low  high   DE += n, flags undefined at this moment
   - expected result (16b), result (16b), $nnnn used (16b)
   * the "full" test does NOT EXIST! (would take hours?), "OK1" is "best" result for now
 
- ADD DE,A       ED  32              DE += uint16_t(A), no flags
-  - displays A (8b), DE (16b) and result (16b), if the instruction does set CF=1 (error),
-  the "result" will be -1 to the true result
+ ADD DE,A       ED  32              DE += uint16_t(A), CF is undefined
+  - displays A (8b), DE (16b) and result (16b)
 
  ADD HL,$nnnn   ED  34  low  high   HL += n, flags undefined at this moment
   - expected result (16b), result (16b), $nnnn used (16b)
   * the "full" test does NOT EXIST! (would take hours?), "OK1" is "best" result for now
 
- ADD HL,A       ED  31              HL += uint16_t(A), no flags
-  - displays A (8b), HL (16b) and result (16b), if the instruction does set CF=1 (error),
-  the "result" will be -1 to the true result
+ ADD HL,A       ED  31              HL += uint16_t(A), CF is undefined
+  - displays A (8b), HL (16b) and result (16b)
 
- LDDRX          ED  BC              do LDDX until BC=0, no flags
+ LDDRX          ED  BC              do LDDX until BC=0, no flags (maybe same flags as LDDR)
   - if the adjustments of HL/DE/BC are wrong, message is displayed (values calculated by
   the instruction are not shown, you will have to use your own debugger).
   - message is displayed, when value A was written into memory, displays A (8b)
   - message is displayed when non-A value was not written, displays expected (8b) vs
   value in memory (8b)
 
- LDDX           ED  AC              if (A != *HL) { *DE = *HL } HL-- DE++ BC--, no flags
+ LDDX           ED  AC              if (A != *HL) { *DE = *HL } HL-- DE++ BC--, no flags (maybe same flags as LDD)
   - if the adjustments of HL/DE/BC are wrong, message is displayed (values calculated by
   the instruction are not shown, you will have to use your own debugger).
   - message is displayed, when value A was written into memory, displays A (8b)
   - message is displayed when non-A value was not written, displays expected (8b) vs
   value in memory (8b)
 
- LDIRX          ED  B4              do LDIX until BC=0, no flags
+ LDIRX          ED  B4              do LDIX until BC=0, no flags (maybe same flags as LDDR)
   - if the adjustments of HL/DE/BC are wrong, message is displayed (values calculated by
   the instruction are not shown, you will have to use your own debugger).
   - message is displayed, when value A was written into memory, displays A (8b)
   - message is displayed when non-A value was not written, displays expected (8b) vs
   value in memory (8b)
 
- LDIX           ED  A4              if (A != *HL) { *DE = *HL } HL++ DE++ BC--, no flags
+ LDIX           ED  A4              if (A != *HL) { *DE = *HL } HL++ DE++ BC--, no flags (maybe same flags as LDI)
   - if the adjustments of HL/DE/BC are wrong, message is displayed (values calculated by
   the instruction are not shown, you will have to use your own debugger).
   - message is displayed, when value A was written into memory, displays A (8b)
   - message is displayed when non-A value was not written, displays expected (8b) vs
   value in memory (8b)
 
- LDPIRX         ED  B7              do { t = HL&0xFFF8 | E&7; if (A != *t) { *DE = *t } DE++ BC-- } until (BC=0), no flags
+ LDPIRX         ED  B7              do { t = HL&0xFFF8 | E&7; if (A != *t) { *DE = *t } DE++ BC-- } until (BC=0), no flags (maybe same flags as LDIR)
   - if the adjustments of HL/DE/BC are wrong, message is displayed (values calculated by
   the instruction are not shown, you will have to use your own debugger).
   - if unexpected value, two values are displayed: expected (8b) vs value in memory (8b).
