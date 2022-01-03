@@ -27,6 +27,7 @@ base:
  - NextReg mirrors
  - core3 limits (128 sprites, 64 patterns)
  - exhausting pixel throughput on single line
+ - clipping in various modes even "invalid" like $15 enabling clipping over border, but not enabling sprites over border
 
 * Copper:
  - writing code on fly, changing index while keeping mode, etc..
