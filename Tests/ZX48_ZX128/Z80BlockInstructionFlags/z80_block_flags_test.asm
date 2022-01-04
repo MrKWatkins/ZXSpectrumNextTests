@@ -146,13 +146,15 @@ test_start:
         ei
 
     ; calibrate initial BC delay before launching block instruction (delay depends on ZX type and prologue code)
-        halt
+        halt                    ; BC = 0 from ldir for IM2 (to detect too fast machines)
         ld      bc,3500
         call    init_and_delay  ; long enough delay to be interrupted by IM2 (remaining BC is stored in im_saved_regs)
         ; calculate calibrated delay to interrupt block instructions ASAP
         ld      bc,(im_saved_regs.bc)
+        ld      a,b
+        or      c
+        jp      z,too_fast_machine
         ld      hl,3500-5       ; -5 to make sure the interrupt happens after at least one iteration in block ins.
-        or      a
         sbc     hl,bc
         ld      (next_test.del),hl
         ; check availability of IN ports $FE and $1F for $1xxx'xxxx and $0xxx'xxxx readings for INxR tests
@@ -236,7 +238,7 @@ next_test:
         jp      nz,next_instruction
 
     ; restore IM1 ROM mode and return to BASIC
-        di
+.exit:  di
         ld      a,$3F
         ld      i,a
         im      1
@@ -244,6 +246,12 @@ next_test:
         ld      a,7
         out     (254),a
         ret
+
+too_fast_machine:
+        ld      de,calibrate_fail_txt
+        ld      bc,calibrate_fail_txt.l
+        call    ROM_PRINT
+        jr      next_test.exit
 
 ; BC = delay, final delay is (BC + 5) * 21 T (from those 30T are after the busy-loop LDIR doing wait)
 ; change border to "init_and_delay.af & 7", set HL=DE=TEST_AREA, BC=init_and_delay.bc (16), AF=init_and_delay.af
@@ -312,6 +320,10 @@ restore_color:
 skip_txt:
         DB      " error IN $1F or $FE"
 .l:     EQU     $-skip_txt
+
+calibrate_fail_txt:
+        DB      $10,2,"failed delay calibration\ris frame > 73500T?",13
+.l:     EQU     $-calibrate_fail_txt
 
 ; default settings of init_and_delay for testing block instructions (used by LDIR/LDDR/CPIR/CPDR test)
 inst_default_init:
@@ -559,7 +571,6 @@ PF = ((T & 7) ^ Bo).parity ^ ((Bo + 1) & 7).parity ^ 1 <=> ((T & 7) ^ Bo ^ ((Bo 
 PF = ((T & 7) ^ Bo).parity ^ (Bo & 7).parity ^ 1 <=> ((T & 7) ^ Bo ^ (Bo & 7)).parity
 
 TODO: check also https://floooh.github.io/visualz80remix/ if it does match these and maybe check for edge-case details
-TODO: detect 7/14/28MHz modes during calibration delay and end with error.
 
 */
 
