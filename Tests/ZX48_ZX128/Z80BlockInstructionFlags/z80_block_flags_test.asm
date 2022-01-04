@@ -15,9 +15,10 @@
 ;   (green <actual> after "=" is as expected, red <actual> after "!=" differs)
 ;
 ; memory setup:
-; - CLEAR $7FFF, entry point $8000, test does self-modify the code, do not re-run it
+; - CLEAR $7FFF, entry point $8000, test does self-modify the code but should be capable to re-run (inits all)
 ; - block instructions used to test behaviour are at four identical blocks starting at $8002, $8802, $A002, $A802
-; - main test code and IM2 interrupt table + routine are in remainder of $8000..$8800 region
+; - main test code and IM2 interrupt table + routine are in remainder of $8000..$8700 region
+; - stack area is in $8701..$7FF region (test needs about 30-40 bytes of stack at most)
 ; - block instructions target area around $E000 (both directions), but whole $C000..FFFF is filled with filler value
 
     OPT --syntax=abf
@@ -132,8 +133,10 @@ test_start:
         ld      hl,test_code_80
         ld      (next_test.call),hl
 
-    ; setup IM2 handler: fill the im2 table with im2isr address, enable IM2
+    ; setup stack and IM2 handler: fill the im2 table with im2isr address, enable IM2
         di
+        ld      (next_test.sp),sp
+        ld      sp,STACK_TOP
         ld      hl,im2tab
         ld      a,h
         ld      i,a
@@ -239,6 +242,7 @@ next_test:
 
     ; restore IM1 ROM mode and return to BASIC
 .exit:  di
+.sp+1:  ld      sp,0            ; restore original SP
         ld      a,$3F
         ld      i,a
         im      1
@@ -596,7 +600,9 @@ im2isr:
         ret
 
 im2tab: EQU     ($ + 255) & $FF00
-        ASSERT im2tab < $8700
+        ASSERT im2tab <= $8600
+
+STACK_TOP:  EQU     $8800
 
 code_end:
 
