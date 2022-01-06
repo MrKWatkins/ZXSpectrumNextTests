@@ -1,6 +1,6 @@
 ; (C): copyright 2022 Peter Ped Helcmanovsky, license: MIT
 ; name: Test of flag register value of block-instructions interrupted
-; history: 2022-??-??: WIP  - check for too fast machines (4+MHz), whole test in uncontended memory
+; history: 2022-??-??: WIP  - check for too fast machines (4+MHz), whole test in uncontended memory, TRD output
 ;                             added INIR.3 case (using floating bus at $FF for $FF value)
 ;          2022-01-03: v4.1 - no code change, only extra credit to D.Banks and upload to public github repo
 ;          2022-01-01: v4.0 - added OTDR, INIR, INDR (basic cases)
@@ -23,11 +23,9 @@
 ; - stack area is in $8701..$7FF region (test needs about 30-40 bytes of stack at most)
 ; - block instructions target area around $E000 (both directions), but whole $C000..FFFF is filled with filler value
 ;
-; TODO: optional SAVETRD for TR-DOS users
 ; TODO: INxR/OTxR checking HF for CF=1 case, when it should change every 16th B value
 ; TODO: check also https://floooh.github.io/visualz80remix/ if it does match these and maybe check for edge-case details
 ; TODO: there's also http://www.visual6502.org/JSSim/expert-z80.html ... not sure how it is related to floooh's remix
-
 
     OPT --syntax=abf
     DEVICE zxspectrum48, $7FFF
@@ -559,7 +557,7 @@ i_meta:     ; name of instruction + expected flag when interrupted by IM2 during
         ; INIR 3 (port $FF) (M+((C+1)&$FF) < 256): N=1 (M.7), C=0, Z=0 (B>0), S=0 (--B.7), H=0, P=((M & 7) ^ Bo ^ (Bo & 7)).parity, YF=PC.13, XF=PC.11
         INST_META   { { "  .3" }, inxr3_init, inir1_checkF, $02, $0A, $22, $2A }
         ; can't think of commonly available 8bit-address-port producing data $01..$7F near interrupt to overflow (port + data)
-        ; so skipping third case for INIR (maybe AY could be used for this, but needs decoding of AY port to depend only on few top bits of B)
+        ; so skipping that case for INIR (maybe AY could be used for this, but needs decoding of AY port to depend only on few top bits of B)
         ; INDR 1 (M+((C-1)&$FF) < 256): N=0 (M.7), C=0, Z=0 (B>0), S=0 (--B.7), H=0, P=(((M+((C-1)&$FF)) & 7) ^ Bo ^ (Bo & 7)).parity, YF=PC.13, XF=PC.11
         INST_META   { { "INDR" }, inxr1_init, indr1_checkF, $00, $08, $20, $28 }
         ; INDR 2 (M+((C-1)&$FF) > 255): N=1 (M.7), C=1, Z=0 (B>0), S=0 (--B.7), H=0 (B=12..13), P=(((M+((C-1)&$FF)) & 7) ^ Bo ^ ((Bo - 1) & 7)).parity, YF=PC.13, XF=PC.11
@@ -607,6 +605,18 @@ else ; counter is zero, flags are same as single INI/IND/OUTI/OUTD
 PF = ((T & 7) ^ Bo).parity ^ ((Bo - 1) & 7).parity ^ 1 <=> ((T & 7) ^ Bo ^ ((Bo - 1) & 7)).parity
 PF = ((T & 7) ^ Bo).parity ^ ((Bo + 1) & 7).parity ^ 1 <=> ((T & 7) ^ Bo ^ ((Bo + 1) & 7)).parity
 PF = ((T & 7) ^ Bo).parity ^ (Bo & 7).parity ^ 1 <=> ((T & 7) ^ Bo ^ (Bo & 7)).parity
+
+// the "if B" case flag calculations can be further simplified by recognising the ALU usage applied to Bo driven by CF and NF:
+    T = ...
+    ZF = 0
+    SF = Bo.7
+    YF = PCi.13
+    XF = PCi.11
+    NF = M.7
+    CF = T > 255
+    Balu = Bo + (NF ? -CF : CF);
+    HF = (Balu ^ Bo).4;
+    PV ^= Balu & 7;  // or full: PV = ((T & 7) ^ Bo ^ (Balu & 7)).parity
 */
 
 im_saved_regs:      SAVED_REGS
@@ -640,38 +650,71 @@ code_end:
     ;; produce SNA file with test code
         SAVESNA "z80bltst.sna", code_start
 
-    ;; produce TAP file with the test code
-        DEFINE tape_file "z80bltst.tap"
-        DEFINE prog_name "z80bltst"
-
 CODE        EQU     $AF
 USR         EQU     $C0
 LOAD        EQU     $EF
 CLEAR       EQU     $FD
 RANDOMIZE   EQU     $F9
+REM         EQU     $EA
 
+    ;; produce TAP file with the test code
+        DEFINE tape_file "z80bltst.tap"
+        DEFINE prog_name "z80bltst"
+
+        ;; 10 CLEAR 32767:LOAD "z80bltst"CODE
+        ;; 20 RANDOMIZE USR 32768
         ORG     $5C00
-baszac: DB      0,10    ;; Line number 10
-        DW      lin1len ;; Line length
-lin1zac:DB      CLEAR,'8',$0E,0,0
+tap_bas:
+        DB      0,10    ;; Line number 10
+        DW      .l10ln  ;; Line length
+.l10:   DB      CLEAR,'8',$0E,0,0
         DW      code_start-1
         DB      0,':'
         DB      LOAD,'"'
-codnam: DS      10,' '
-        ORG     codnam
-        DB      prog_name
-        ORG     codnam+10
-        DB      '"',CODE
-        DB      $0D
-lin1len:EQU     $-lin1zac
+.fname: DB      prog_name
+        ASSERT  ($ - .fname) <= 10
+        DB      '"',CODE,$0D
+.l10ln: EQU     $-.l10
         DB      0,20    ;; Line number 20
-        DW      lin2len
-lin2zac:DB      RANDOMIZE,USR,"32768",$0E,0,0
+        DW      .l20ln
+.l20:   DB      RANDOMIZE,USR,"32768",$0E,0,0
         DW      code_start
         DB      0,$0D
-lin2len EQU     $-lin2zac
-baslen  EQU     $-baszac
+.l20ln: EQU     $-.l20
+.l:     EQU     $-tap_bas
 
         EMPTYTAP tape_file
-        SAVETAP  tape_file,BASIC,prog_name,baszac,baslen,1
+        SAVETAP  tape_file,BASIC,prog_name,tap_bas,tap_bas.l,1
         SAVETAP  tape_file,CODE,prog_name,code_start,code_end-code_start,code_start
+
+    ;; produce TRD file with the test code
+        DEFINE trd_file "z80bltst.trd"
+
+        ;; 10 CLEAR 32767:RANDOMIZE USR 15619:REM:LOAD "z80bltst"CODE
+        ;; 20 RANDOMIZE USR 32768
+        ORG     $5C00
+trd_bas:
+        DB      0,10    ;; Line number 10
+        DW      .l10ln  ;; Line length
+.l10:   DB      CLEAR,'8',$0E,0,0
+        DW      code_start-1
+        DB      0,':'
+        DB      RANDOMIZE,USR,"15619",$0E,0,0
+        DW      15619
+        DB      0,':',REM,':',LOAD,'"'
+.fname: DB      "z80bltst"
+        ASSERT  ($ - .fname) <= 8
+        DB      '"',CODE,$0D
+.l10ln: EQU     $-.l10
+.l20:   DB      0,20    ;; Line number 20
+        DW      .l20ln
+        ASSERT  32768 == code_start
+        DB      RANDOMIZE,USR,"32768",$0E,0,0
+        DW      code_start
+        DB      0,$0D
+.l20ln: EQU     $-.l20
+.l:     EQU     $-trd_bas
+
+        EMPTYTRD trd_file
+        SAVETRD  trd_file,"boot.B",trd_bas,trd_bas.l,10
+        SAVETRD  trd_file,"z80bltst.C",code_start,code_end-code_start
