@@ -1,6 +1,8 @@
 ; (C): copyright 2022 Peter Ped Helcmanovsky, license: MIT
 ; name: Test of flag register value of block-instructions interrupted
-; history: 2022-01-03: v4.1 - no code change, only extra credit to D.Banks and upload to public github repo
+; history: 2022-??-??: WIP  - check for too fast machines (4+MHz), whole test in uncontended memory
+;                             added INIR.3 case (using floating bus at $FF for $FF value)
+;          2022-01-03: v4.1 - no code change, only extra credit to D.Banks and upload to public github repo
 ;          2022-01-01: v4.0 - added OTDR, INIR, INDR (basic cases)
 ;          2021-12-31: v3.0 - added OTIR three basic cases
 ;          2021-12-30: v2.0 - test of LDIR, LDDR, CPIR, CPDR
@@ -20,6 +22,12 @@
 ; - main test code and IM2 interrupt table + routine are in remainder of $8000..$8700 region
 ; - stack area is in $8701..$7FF region (test needs about 30-40 bytes of stack at most)
 ; - block instructions target area around $E000 (both directions), but whole $C000..FFFF is filled with filler value
+;
+; TODO: optional SAVETRD for TR-DOS users
+; TODO: INxR/OTxR checking HF for CF=1 case, when it should change every 16th B value
+; TODO: check also https://floooh.github.io/visualz80remix/ if it does match these and maybe check for edge-case details
+; TODO: there's also http://www.visual6502.org/JSSim/expert-z80.html ... not sure how it is related to floooh's remix
+
 
     OPT --syntax=abf
     DEVICE zxspectrum48, $7FFF
@@ -27,6 +35,7 @@
 ROM_ATTR_P: EQU     $5C8D
 ROM_CLS:    EQU     $0DAF
 ROM_PRINT:  EQU     $203C
+LAST_ATTR:  EQU     $5AFF
 TEST_AREA:  EQU     $E000
 TEST_FILL:  EQU     $DE
 
@@ -78,6 +87,8 @@ test_code_80:                   ; first LDIR+RET at $8002
         inir                    ; inir1
         ret
         inir                    ; inir2
+        ret
+        inir                    ; inir3
         ret
         indr                    ; indr1
         ret
@@ -160,12 +171,16 @@ test_start:
         ld      hl,3500-5       ; -5 to make sure the interrupt happens after at least one iteration in block ins.
         sbc     hl,bc
         ld      (next_test.del),hl
-        ; check availability of IN ports $FE and $1F for $1xxx'xxxx and $0xxx'xxxx readings for INxR tests
+        ; check availability of IN ports $FE, $1F and $FF for $1xxx'xxxx, $0xxx'xxxx and $FF readings for INxR tests
+        ld      a,$FF           ; write $FF to last attribute of VRAM
+        ld      (LAST_ATTR),a   ; to have also +2A/+3 models read $FF on port $FF (all test code is in fast memory)
         halt
         in      a,($FE)
         ld      (ulaB7),a       ; should be %1xxx'xxxx if ULA keyboard reads like Issue2+ model
         in      a,($1F)
         ld      (kempB7),a      ; should be %00xx'xxxx if Kempston interface is connected
+        in      a,($FF)
+        ld      (float),a       ; expected value $FF from floating bus
 
 next_instruction:
         ld      de,ix           ; fake-ok ; DE = string mnemonics of instruction to PRINT it
@@ -182,6 +197,8 @@ next_instruction:
 
     ; test code - calling the <block instruction> and timing the IM2 interrupt to happen during it
 next_test:
+        ld      a,$FF           ; write $FF to last attribute of VRAM
+        ld      (LAST_ATTR),a   ; to have also +2A/+3 models read $FF on port $FF (all test code is in fast memory)
         halt
 .del+1: ld      bc,3500
         call    init_and_delay  ; delay to start block instruction late ahead of IM2 (dynamically calibrated value)
@@ -296,11 +313,12 @@ printHexDigit:                  ; Convert nibble to ASCII
 
 ulaB7:  DB      $00
 kempB7: DB      $FF
+float:  DB      $00
 
 head_txt:
         DB      $15,1           ; `OVER 1` for "!=" mixing
-        DB      "v4.1 2022-01-01 Ped7g",13
-        DB      "based on David Banks's research",13
+        DB      "v4.1+ 2022-01-01 Ped7g",13
+        DB      "based on David Banks' research",13
         DB      "F of IM2 interrupted block inst",13
         DB      "Instr   @80xx @88xx @A0xx @A8xx",13
 .l:     EQU     $-head_txt
@@ -322,7 +340,7 @@ restore_color:
 .l:     EQU     $-restore_color
 
 skip_txt:
-        DB      " error IN $1F or $FE"
+        DB      " unexpected IN 1F,FE,FF"
 .l:     EQU     $-skip_txt
 
 calibrate_fail_txt:
@@ -426,7 +444,7 @@ otxr3_checkF:                   ; PF = (((M+Lo) & 7) ^ Bo ^ ((Bo + 1) & 7)).pari
 inxr1_init:
         ld      a,(kempB7)
         rla
-        jr      c,init_skipTest ; Kempston port doesn't read as expected with b7=0 in values, skip whole test
+        jp      c,init_skipTest ; Kempston port doesn't read as expected with b7=0 in values, skip whole test
         ld      hl,TEST_AREA    ; to end delay with HL=DE=TEST_AREA (doesn't matter for INIR/INDR)
         ld      (init_and_delay.hl),hl
         ld      hl,$101F        ; B = 16, port = $1F
@@ -454,6 +472,19 @@ indr1_checkF:                   ; PF = (((M+((Co-1)&$FF)) & 7) ^ Bo ^ (Bo & 7)).
         ld      hl,(in_instr_regs.hl)
         inc     hl              ; HL points at value read from I/O port, aka M
         jr      inir1_checkF.doT
+
+; INIR case 3 - reads port $FF for value $FF, testing if the C+1 is truncated by `& $FF` producing just zero
+inxr3_init:
+        ld      a,(float)
+        inc     a
+        jr      nz,init_skipTest; port $FF doesn't read as $FF value, skip whole test
+        ld      hl,TEST_AREA    ; to end delay with HL=DE=TEST_AREA (doesn't matter for INIR/INDR)
+        ld      (init_and_delay.hl),hl
+        ld      hl,$10FF        ; B = 16, port = $FF
+        ld      (init_and_delay.bc),hl
+        ld      hl,$A101        ; A=$A1, F=$01 (CF=1)
+        ld      (init_and_delay.af),hl
+        ret
 
 ; INIR/INDR case 2 - reads ULA port $FE (%1xxx'xxxx values), thus M+((C+1)&$FF) is always >= 256 (CF=1 case), and M.b7=1
 inxr2_init:
@@ -525,6 +556,8 @@ i_meta:     ; name of instruction + expected flag when interrupted by IM2 during
         INST_META   { { "INIR" }, inxr1_init, inir1_checkF, $00, $08, $20, $28 }
         ; INIR 2 (M+((C+1)&$FF) > 255): N=1 (M.7), C=1, Z=0 (B>0), S=0 (--B.7), H=0 (B=12..13), P=(((M+((C+1)&$FF)) & 7) ^ Bo ^ ((Bo - 1) & 7)).parity, YF=PC.13, XF=PC.11
         INST_META   { { "  .2" }, inxr2_init, inir2_checkF, $03, $0B, $23, $2B }
+        ; INIR 3 (port $FF) (M+((C+1)&$FF) < 256): N=1 (M.7), C=0, Z=0 (B>0), S=0 (--B.7), H=0, P=((M & 7) ^ Bo ^ (Bo & 7)).parity, YF=PC.13, XF=PC.11
+        INST_META   { { "  .3" }, inxr3_init, inir1_checkF, $02, $0A, $22, $2A }
         ; can't think of commonly available 8bit-address-port producing data $01..$7F near interrupt to overflow (port + data)
         ; so skipping third case for INIR (maybe AY could be used for this, but needs decoding of AY port to depend only on few top bits of B)
         ; INDR 1 (M+((C-1)&$FF) < 256): N=0 (M.7), C=0, Z=0 (B>0), S=0 (--B.7), H=0, P=(((M+((C-1)&$FF)) & 7) ^ Bo ^ (Bo & 7)).parity, YF=PC.13, XF=PC.11
@@ -539,9 +572,10 @@ if instruction == INIR
         T = M + ((Co + 1) & 0xFF)
 else if instruction == INDR
         T = M + ((Co - 1) & 0xFF)
+    // WARNING: to verify the "& 0xFF" part (ie. bit-width of (C-1) intermediate) one would need to
+    //  read value 00 from port 00, which is not possible on regular ZX machine with common peripherals -> giving up.
 else if (instruction == OTIR) || (instruction == OTDR)
         T = M + Lo
-    // TODO: add test for INIR/INDR, if it really does &FF to C part, or just M+C+1 / M+C-1 truncated to 8b
 
 NF = M.7
 CF = T > 255
@@ -573,16 +607,13 @@ else ; counter is zero, flags are same as single INI/IND/OUTI/OUTD
 PF = ((T & 7) ^ Bo).parity ^ ((Bo - 1) & 7).parity ^ 1 <=> ((T & 7) ^ Bo ^ ((Bo - 1) & 7)).parity
 PF = ((T & 7) ^ Bo).parity ^ ((Bo + 1) & 7).parity ^ 1 <=> ((T & 7) ^ Bo ^ ((Bo + 1) & 7)).parity
 PF = ((T & 7) ^ Bo).parity ^ (Bo & 7).parity ^ 1 <=> ((T & 7) ^ Bo ^ (Bo & 7)).parity
-
-TODO: check also https://floooh.github.io/visualz80remix/ if it does match these and maybe check for edge-case details
-
 */
 
 im_saved_regs:      SAVED_REGS
 in_instr_regs:      SAVED_REGS
 
     ; IM2 interrupt handler (must start at specific $xyxy address)
-    IF low $ < high $
+    IF low $ <= high $
         DS high $ - low $, 0    ; pad to $xyxy address for im2isr
     ELSE
         DS (high $ - low $) + 257, 0    ; pad to $xyxy address for im2isr
