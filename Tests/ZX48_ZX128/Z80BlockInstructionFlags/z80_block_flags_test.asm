@@ -24,6 +24,8 @@
 ; - block instructions target area around $E000 (both directions), but whole $C000..FFFF is filled with filler value
 ;
 ; TODO: INxR/OTxR checking HF for CF=1 case, when it should change every 16th B value
+; TODO: LDxR/INxR tests overwriting the instruction itself (interrupting it without interrupt)
+; TODO: CPxR test when A == (HL) (fill TEST_AREA with A value, make test block consist of multiple CPxR, one will be hit by IM2)
 ; TODO: check also https://floooh.github.io/visualz80remix/ if it does match these and maybe check for edge-case details
 ; TODO: there's also http://www.visual6502.org/JSSim/expert-z80.html ... not sure how it is related to floooh's remix
 
@@ -158,9 +160,10 @@ test_start:
         ei
 
     ; calibrate initial BC delay before launching block instruction (delay depends on ZX type and prologue code)
-        halt                    ; BC = 0 from ldir for IM2 (to detect too fast machines)
-        ld      bc,3500
-        call    init_and_delay  ; long enough delay to be interrupted by IM2 (remaining BC is stored in im_saved_regs)
+        ld      hl,3500         ; long enough delay to be interrupted by IM2 (remaining BC is stored in im_saved_regs)
+        ld      (init_and_delay.del),hl
+        halt                    ; here is BC = 0 from ldir for IM2 (to detect too fast machines)
+        call    init_and_delay
         ; calculate calibrated delay to interrupt block instructions ASAP
         ld      bc,(im_saved_regs.bc)
         ld      a,b
@@ -168,7 +171,7 @@ test_start:
         jp      z,too_fast_machine
         ld      hl,3500-5       ; -5 to make sure the interrupt happens after at least one iteration in block ins.
         sbc     hl,bc
-        ld      (next_test.del),hl
+        ld      (init_and_delay.del),hl
         ; check availability of IN ports $FE, $1F and $FF for $1xxx'xxxx, $0xxx'xxxx and $FF readings for INxR tests
         ld      a,$FF           ; write $FF to last attribute of VRAM
         ld      (LAST_ATTR),a   ; to have also +2A/+3 models read $FF on port $FF (all test code is in fast memory)
@@ -198,7 +201,6 @@ next_test:
         ld      a,$FF           ; write $FF to last attribute of VRAM
         ld      (LAST_ATTR),a   ; to have also +2A/+3 models read $FF on port $FF (all test code is in fast memory)
         halt
-.del+1: ld      bc,3500
         call    init_and_delay  ; delay to start block instruction late ahead of IM2 (dynamically calibrated value)
 .call+1 call    0               ; test_code_80 ; call block instruction to be interrupted with IM2
 
@@ -272,9 +274,10 @@ too_fast_machine:
         call    ROM_PRINT
         jr      next_test.exit
 
-; BC = delay, final delay is (BC + 5) * 21 T (from those 30T are after the busy-loop LDIR doing wait)
 ; change border to "init_and_delay.af & 7", set HL=DE=TEST_AREA, BC=init_and_delay.bc (16), AF=init_and_delay.af
 init_and_delay:
+.del+1: ld      bc,0            ; delay value (to be self-modified by test)
+    ; final delay of following code is (BC + 5) * 21 T (from those 30T are after the busy-loop LDIR doing wait)
 .af+1:  ld      hl,0
         push    hl
         ld      a,h
@@ -348,11 +351,12 @@ calibrate_fail_txt:
 ; default settings of init_and_delay for testing block instructions (used by LDIR/LDDR/CPIR/CPDR test)
 inst_default_init:
         ld      hl,TEST_AREA    ; to end delay with HL=DE=TEST_AREA
+        ld      bc,16           ; BC=16 for block instructions
+        ld      de,$A100        ; A=$A1, F=$00
+.set:
         ld      (init_and_delay.hl),hl
-        ld      hl,16           ; BC=16 for block instructions
-        ld      (init_and_delay.bc),hl
-        ld      hl,$A100        ; A=$A1, F=$00
-        ld      (init_and_delay.af),hl
+        ld      (init_and_delay.bc),bc
+        ld      (init_and_delay.af),de
         ret
 
 ; default check F function, should return in L expected F value (used by LDIR/LDDR/CPIR/CPDR test)
@@ -366,12 +370,9 @@ otxr1_init:
         xor     a
         call    fill_test_area
         ld      hl,TEST_AREA+$10; to end delay with HL=DE=TEST_AREA+$10 (works for both OTIR/OTDR)
-        ld      (init_and_delay.hl),hl
-        ld      hl,$10FE        ; B = 16, port = $FE
-        ld      (init_and_delay.bc),hl
-        ld      hl,$A101        ; A=$A1, F=$01 (CF=1)
-        ld      (init_and_delay.af),hl
-        ret
+        ld      bc,$10FE        ; B = 16, port = $FE
+        ld      de,$A101        ; A=$A1, F=$01 (CF=1)
+        jr      inst_default_init.set
 
 otxr1_checkF:                   ; PF = (((M+Lo) & 7) ^ Bo ^ (Bo & 7)).parity
         ld      a,(in_instr_regs.bc+1)
@@ -393,12 +394,9 @@ otxr2_init:
         ld      a,$FF
         call    fill_test_area
         ld      hl,TEST_AREA+$10; to end delay with HL=DE=TEST_AREA+$10 (works for both OTIR/OTDR)
-        ld      (init_and_delay.hl),hl
-        ld      hl,$10FE        ; B = 16, port = $FE
-        ld      (init_and_delay.bc),hl
-        ld      hl,$A100        ; A=$A1, F=$00 (CF=0)
-        ld      (init_and_delay.af),hl
-        ret
+        ld      bc,$10FE        ; B = 16, port = $FE
+        ld      de,$A100        ; A=$A1, F=$00 (CF=0)
+        jr      inst_default_init.set
 
 otxr2_checkF:                   ; PF = (((M+Lo) & 7) ^ Bo ^ ((Bo - 1) & 7)).parity
         ld      a,(in_instr_regs.bc+1)
@@ -418,12 +416,9 @@ otxr3_init:
         ld      a,$47
         call    fill_test_area
         ld      hl,TEST_AREA+$E0; to end delay with HL=DE=TEST_AREA+$E0 (works for both OTIR/OTDR)
-        ld      (init_and_delay.hl),hl
-        ld      hl,$10FE        ; B = 16, port = $FE
-        ld      (init_and_delay.bc),hl
-        ld      hl,$A100        ; A=$A1, F=$00 (CF=0)
-        ld      (init_and_delay.af),hl
-        ret
+        ld      bc,$10FE        ; B = 16, port = $FE
+        ld      de,$A100        ; A=$A1, F=$00 (CF=0)
+        jr      inst_default_init.set
 
 otxr3_checkF:                   ; PF = (((M+Lo) & 7) ^ Bo ^ ((Bo + 1) & 7)).parity
         ld      a,(in_instr_regs.bc+1)
@@ -444,12 +439,9 @@ inxr1_init:
         rla
         jp      c,init_skipTest ; Kempston port doesn't read as expected with b7=0 in values, skip whole test
         ld      hl,TEST_AREA    ; to end delay with HL=DE=TEST_AREA (doesn't matter for INIR/INDR)
-        ld      (init_and_delay.hl),hl
-        ld      hl,$101F        ; B = 16, port = $1F
-        ld      (init_and_delay.bc),hl
-        ld      hl,$A101        ; A=$A1, F=$01 (CF=1)
-        ld      (init_and_delay.af),hl
-        ret
+        ld      bc,$101F        ; B = 16, port = $1F
+        ld      de,$A101        ; A=$A1, F=$01 (CF=1)
+        jp      inst_default_init.set
 
 inir1_checkF:                   ; PF = (((M+((Co+1)&$FF)) & 7) ^ Bo ^ (Bo & 7)).parity
         ld      a,(in_instr_regs.bc)
@@ -477,12 +469,9 @@ inxr3_init:
         inc     a
         jr      nz,init_skipTest; port $FF doesn't read as $FF value, skip whole test
         ld      hl,TEST_AREA    ; to end delay with HL=DE=TEST_AREA (doesn't matter for INIR/INDR)
-        ld      (init_and_delay.hl),hl
-        ld      hl,$10FF        ; B = 16, port = $FF
-        ld      (init_and_delay.bc),hl
-        ld      hl,$A101        ; A=$A1, F=$01 (CF=1)
-        ld      (init_and_delay.af),hl
-        ret
+        ld      bc,$10FF        ; B = 16, port = $FF
+        ld      de,$A101        ; A=$A1, F=$01 (CF=1)
+        jp      inst_default_init.set
 
 ; INIR/INDR case 2 - reads ULA port $FE (%1xxx'xxxx values), thus M+((C+1)&$FF) is always >= 256 (CF=1 case), and M.b7=1
 inxr2_init:
@@ -490,12 +479,9 @@ inxr2_init:
         rla
         jr      nc,init_skipTest; ULA port doesn't read as expected with b7=1 in values, skip whole test
         ld      hl,TEST_AREA    ; to end delay with HL=DE=TEST_AREA (doesn't matter for INIR/INDR)
-        ld      (init_and_delay.hl),hl
-        ld      hl,$10FE        ; B = 16, port = $FE
-        ld      (init_and_delay.bc),hl
-        ld      hl,$A100        ; A=$A1, F=$00 (CF=0)
-        ld      (init_and_delay.af),hl
-        ret
+        ld      bc,$10FE        ; B = 16, port = $FE
+        ld      de,$A100        ; A=$A1, F=$00 (CF=0)
+        jp      inst_default_init.set
 
 inir2_checkF:                   ; PF = (((M+((Co+1)&$FF)) & 7) ^ Bo ^ ((Bo - 1) & 7)).parity
         ld      a,(in_instr_regs.bc)
