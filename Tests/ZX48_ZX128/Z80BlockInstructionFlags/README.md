@@ -30,7 +30,8 @@ sjasmplus z80_block_flags_test.asm
 
 This test has been tried on real hardware confirming the results of the research of David Banks with NMOS Z80 CPU:
 
-![ZX Spectrum+](z80_block_flags_test_v4_arjun_zx48+_sgs_z8400ab1.jpg)
+![ZX Spectrum 128 toastrack v5.0](z80_block_flags_test_v5_shrek_zx128.jpg "v5.0 version before final colors change, Spectrum 128")
+![ZX Spectrum+ v4.0](z80_block_flags_test_v4_arjun_zx48+_sgs_z8400ab1.jpg "v4.0 Spectrum+")
 
 ## License
 
