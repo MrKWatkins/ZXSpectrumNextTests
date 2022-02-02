@@ -5,7 +5,8 @@
 ; to assemble (with z00m's sjasmplus https://github.com/z00m128/sjasmplus/ v1.18.3+)
 ; run: sjasmplus ccf_per_scanline.asm
 ;
-; history: 2022-02-01: v1.0 - initial version
+; history: 2022-02-02: v1.1 - added: key to stop alternating buffers, "no error" marker + forget key
+;          2022-02-01: v1.0 - initial version
 ;
 ; purpose: hunting down randomness of YF/XF values on some machines/CPUs after CCF/SCF instructions, this test
 ;  shows the random values in time-position within frame (first cca 64k T of frame, so 90% of it on regular ZX48)
@@ -38,12 +39,17 @@ ROM_CLS             EQU     $0DAF
 ROM_PRINT           EQU     $203C
 
 IVT_BASE            EQU     $9200   ; table for IM2
-HL_TEST_RANGE       EQU     23      ; 23 to get 1961T per attribute block, and it's prime number
+HL_TEST_RANGE       EQU     23      ; 23 to get 1987T per attribute block, and it's prime number
 TEST_AREA1          EQU     $9000   ; non-contented memory for area1 (and stack goes right below it)
 TEST_AREA2          EQU     $7E00   ; contended memory for area2 (and scrap buffer to hide first row of full-red)
 FRAMES_CNT          EQU     50      ; amount of frames to keep testing one HL range
 TEST_ATTR_BASE      EQU     $5800+32*4
 RULER_VRAM_BASE     EQU     $4000+$300+32*2 ; 1.5 line above TEST_ATTR_BASE area
+
+UIS_BIT_ALTER_RANGE EQU     7       ; bit: is range alteration automatic
+UIS_BIT_ALTER_DRAW  EQU     6       ; bit: range alteration needs UI redraw
+UIS_BIT_CCFSCF_DRAW EQU     5       ; bit: the text of instruction needs UI redraw (flip SCF<->CCF)
+UIS_BIT_NO_ERROR    EQU     4       ; bit: is some error detected (1 = error)
 
         ORG $8000
     ;; init the test
@@ -69,8 +75,6 @@ code_start:
         inc     de
         inc     ixh
         djnz    .store_fnt_xor_c_s
-    ; flip the starting SCF to CCF (as the test has "ccf" in name, and to verify the flip works)
-        call    flip_ccf_scf
     ; print ruler with 2k, 4k, ... 64k
         ld      hl,RULER_VRAM_BASE
         ld      bc,$2002            ; B = 32 columns to print, C = 2k as first value
@@ -81,6 +85,7 @@ code_start:
         inc     c                   ; C += 2 (2k, 4k, 6k, ..
         djnz    .ruler_loop
         ld      sp,TEST_AREA1       ; move stack below TEST_AREA1, into uncontended memory
+        ld      ix,data_ui_status
     ; create 257 bytes interrupt vector table pointing at ISR block_loop
         ld      hl,IVT_BASE+256
         ld      a,high block_loop
@@ -97,36 +102,33 @@ code_start:
     ; continue with setup of next-row for test
         jr      entry_for_start
 
+handle_keys:
+    ; all handlers must preserve HL and A (last one can destroy A)
+        rra
+        call    c,flip_range_alternation
+        rra
+        call    c,flip_ccf_scf
+        rra
+        rra
+        ret     nc
+        ;  |
+        ; fallthrough into forget_errors
+        ;  |
+        ;  v
+forget_errors:
+        res     UIS_BIT_NO_ERROR,(ix)
+        ret
+
 flip_ccf_scf:
+        push    af
     ; flip instructions themselves
         ld      a,(block_loop.scf1)
         xor     $08                 ; scf <-> ccf
         ld      (block_loop.scf1),a
         ld      (entry_for_start.scf2),a
-    ; flip text at top of screen
-        push    hl
-        ld      de,$4020
-        ld      hl,fnt_xor_c_s
-.xor_loop:
-        ld      a,(de)
-        xor     (hl)
-        ld      (de),a
-        inc     hl
-        inc     d
-        bit     3,d
-        jr      z,.xor_loop
-        pop     hl
-        ret
-
-get_v_digit_fnt:
-    ; A = digit value (0..9), put 8x4 vertical font address into DE
-        add     a,a
-        add     a,a                 ; A *= 4
-        add     a,low v_fnt_0
-        ld      e,a
-        adc     a,high v_fnt_0
-        sub     e
-        ld      d,a
+    ; request instruction flip in UI
+        set     UIS_BIT_CCFSCF_DRAW,(ix)
+        pop     af
         ret
 
     ; IM2 interrupt handler block_loop (must start at specific $xyxy address), but keep frame_loop just ahead it
@@ -150,8 +152,8 @@ block_loop:
     ; block timing:
         ; =4+10+10 =24T block init
         ; =11+10+4+11+10+4+7+4+4+4+13 =82T per taken loop, 77T last loop
-        ; =4+10+7+10+4+7+4+10 =56T block end
-        ; total block time =75+82*n .. for n=23: 1961T
+        ; =4+10+10+23+10+4+7+4+10 =82T block end
+        ; total block time =101+82*n .. for n=23: 1987T
     ; block init
         exx
 .hl+1:  ld      hl,TEST_AREA1       ; start of test value range (self-modify value)
@@ -174,10 +176,13 @@ block_loop:
         jp      z,.block_ok
         ; "block-error" branch changing attribute color
         ld      (hl),$5F            ; bright 1, purple paper 3, white ink 7
-        jp      .block_end
+        set     UIS_BIT_NO_ERROR,(ix)   ; remember any error, 23T
+        jp      .block_end          ; 10+23 = 33T (accessing memory at HL and IX), 6 bytes
 .block_ok:
         ; "block-OK" branch doing nothing, only keeping same timing including contention on VRAM (hl)
         ld      a,(hl)
+        ld      a,(ix)
+        and     0                       ; 7+19+7 = 33T (accessing memory at HL and IX), 6 bytes
         jp      .block_end
 .block_end:
         inc     l
@@ -194,17 +199,20 @@ entry_for_start:
         ld      a,l
         add     a,b
         ld      l,a
+        bit     UIS_BIT_ALTER_RANGE,(ix)
+        jr      z,.skip_alternation
         sbc     a,a                 ; alternate H between TEST_AREA1 and TEST_AREA2 every 256 bytes
         and     (high TEST_AREA1)^(high TEST_AREA2)
         xor     h
         ld      h,a
+.skip_alternation:
         ld      (block_loop.hl),hl  ; self-modify the start value for next test
-    ; check for key being held, to flip SCF/CCF
-        xor     a
+    ; check for keys being held, to flip SCF/CCF and enable/disable range alternations
+        ld      a,~2                ; second row (keys ASDFG)
         in      a,($FE)
         cpl
         and     $1F
-        call    nz,flip_ccf_scf     ; extra ~600 T when key is being held, otherwise 36 T to test key
+        call    nz,handle_keys      ; extra few hundreds T when keys are being held, otherwise 39 T to test key
     ; produce expected test values (into buffer at HL)
 .set_loop:
         push    hl
@@ -268,9 +276,57 @@ entry_for_start:
         add     a,HL_TEST_RANGE-1
         ld      e,a
         call    print_hex_de
+    ; refresh other parts of UI which take longer to redraw (chars modified by key handlers)
+        bit     UIS_BIT_CCFSCF_DRAW,(ix)
+        call    nz,refresh_ccf_scf_ui
+        bit     UIS_BIT_ALTER_DRAW,(ix)
+        call    nz,refresh_alter_range_ui
+        ld      hl,AT_ERROR_CHECK_ADR
+        ld      de,fnt_checkbox_off
+        bit     UIS_BIT_NO_ERROR,(ix)
+        jr      nz,.some_error_already
+        ld      de,fnt_checkbox_on
+.some_error_already:
+        call    print_rom_adr
     ; run 50 times frame_loop for the new range
         ld      b,FRAMES_CNT
         jp      frame_loop
+
+flip_range_alternation:
+        push    af
+    ; flip range alternation on/off and request UI redraw
+        ld      a,(ix)
+        xor     1<<UIS_BIT_ALTER_RANGE
+        or      1<<UIS_BIT_ALTER_DRAW
+        ld      (ix),a
+        pop     af
+        ret
+
+refresh_ccf_scf_ui:
+        res     UIS_BIT_CCFSCF_DRAW,(ix)
+    ; flip text at top of screen
+        push    hl
+        ld      de,$4020
+        ld      hl,fnt_xor_c_s
+.xor_loop:
+        ld      a,(de)
+        xor     (hl)
+        ld      (de),a
+        inc     hl
+        inc     d
+        bit     3,d
+        jr      z,.xor_loop
+        pop     hl
+        ret
+
+refresh_alter_range_ui:
+        res     UIS_BIT_ALTER_DRAW,(ix)
+        ld      hl,AT_RANGE_CHECK_ADR
+        ld      de,fnt_checkbox_off
+        bit     UIS_BIT_ALTER_RANGE,(ix)
+        jr      z,print_rom_adr
+        ld      de,fnt_checkbox_on
+        jr      print_rom_adr
 
 print_hex_de:
     ; DE - value to be printed as four-digit hexa number, HL = VRAM address to print to, will be advanced
@@ -323,6 +379,17 @@ print_rom_adr:                      ; HL = VRAM address, DE = font data (aligned
         ex      de,hl
         jr      print_ascii_char.fnt_adr_known
 
+get_v_digit_fnt:
+    ; A = digit value (0..9), put 8x4 vertical font address into DE
+        add     a,a
+        add     a,a                 ; A *= 4
+        add     a,low v_fnt_0
+        ld      e,a
+        adc     a,high v_fnt_0
+        sub     e
+        ld      d,a
+        ret
+
 print_ruler_column:
     ; C = number to print (2..64), HL = VRAM address
         push    hl
@@ -370,6 +437,9 @@ down_hl:
         add     a,h
         ld      h,a
         ret
+
+data_ui_status:
+        DB      (1<<UIS_BIT_ALTER_RANGE)|(1<<UIS_BIT_ALTER_DRAW)
 
 v_fnt_sp:
         DG      - ----- -#
@@ -432,14 +502,43 @@ v_fnt_k:
         DG      - ##### -#
         DG      - ----- -#
 
+fnt_checkbox_off:
+        DG      --------
+        DG      --------
+        DG      -##--##-
+        DG      --####--
+        DG      ---##---
+        DG      --####--
+        DG      -##--##-
+        DG      --------
+fnt_checkbox_on:
+        DG      --------
+        DG      ------#-
+        DG      -----##-
+        DG      -----##-
+        DG      -##-##--
+        DG      --###---
+        DG      ---#----
+        DG      --------
+        ASSERT high $ == high fnt_checkbox_off
+
 BRIGHT  EQU     $13
+INVERSE EQU     $14
 AT      EQU     $16
 
+; no error checkbox is AT 5,28
+AT_ERROR_CHECK_ADR  EQU     $4000+5*32+28
+; alter range checkbox is AT 9,28
+AT_RANGE_CHECK_ADR  EQU     $4000+$800+1*32+28
+
 head_txt:
-        DB      "v1.0 2022-02-01 Ped7g, checks",13
+        DB      "v1.1 2022-02-01 Ped7g, checks",13
         DB      BRIGHT,1,"SCF",BRIGHT,0," outcome stability per frame"
-        DB      AT,8,16,"hold any key to"
-        DB      AT,9,16,"switch CCF/SCF"
+        DB      AT, 5,16,"No error:"
+        DB      AT, 8,16,"Hold key to:"
+        DB      AT, 9,16,INVERSE,1,"A",INVERSE,0,"lter range"
+        DB      AT,10,16,INVERSE,1,"S",INVERSE,0,"witch CCF/SCF"
+        DB      AT,11,16,INVERSE,1,"F",INVERSE,0,"orget errors"
 .sz:    EQU     $-head_txt
 
 code_end:
