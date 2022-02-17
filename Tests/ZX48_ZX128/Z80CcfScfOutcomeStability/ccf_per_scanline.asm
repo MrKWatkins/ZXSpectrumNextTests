@@ -5,7 +5,8 @@
 ; to assemble (with z00m's sjasmplus https://github.com/z00m128/sjasmplus/ v1.18.3+)
 ; run: sjasmplus ccf_per_scanline.asm
 ;
-; history: 2022-02-02: v1.1 - added: key to stop alternating buffers, "no error" marker + forget key
+; history: 2022-02-17: v1.1 - small fix in TRD BASIC loader (no change in test code)
+;          2022-02-02: v1.1 - added: key to stop alternating buffers, "no error" marker + forget key
 ;          2022-02-01: v1.0 - initial version
 ;
 ; purpose: hunting down randomness of YF/XF values on some machines/CPUs after CCF/SCF instructions, this test
@@ -612,10 +613,10 @@ trd_bas:
         ASSERT  ($ - .fname) <= 8
         DB      '"',CODE,$0D
 .l10ln: EQU     $-.l10
-.l20:   DB      0,20    ;; Line number 20
+        DB      0,20    ;; Line number 20
         DW      .l20ln
         ASSERT  32768 == code_start
-        DB      RANDOMIZE,USR,"32768",$0E,0,0
+.l20:   DB      RANDOMIZE,USR,"32768",$0E,0,0
         DW      code_start
         DB      0,$0D
 .l20ln: EQU     $-.l20

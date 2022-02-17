@@ -2,7 +2,8 @@
 ; name: Test of flag register value of block-instructions interrupted
 ; public git repo: https://github.com/MrKWatkins/ZXSpectrumNextTests/
 ;
-; history: 2022-01-11: v5.0 - check for too fast machines (4+MHz), whole test in uncontended memory, TRD output
+; history: 2022-02-17: v5.0 - small fix in TRD BASIC loader (no change in test code)
+;          2022-01-11: v5.0 - check for too fast machines (4+MHz), whole test in uncontended memory, TRD output
 ;                             added INIR.3 case (using floating bus at $FF for $FF value)
 ;                             added tests checking HF behaviour of OTxR/INxR with CF=1 for different B values
 ;          2022-01-03: v4.1 - no code change, only extra credit to D.Banks and upload to public github repo
@@ -843,10 +844,10 @@ trd_bas:
         ASSERT  ($ - .fname) <= 8
         DB      '"',CODE,$0D
 .l10ln: EQU     $-.l10
-.l20:   DB      0,20    ;; Line number 20
+        DB      0,20    ;; Line number 20
         DW      .l20ln
         ASSERT  32768 == code_start
-        DB      RANDOMIZE,USR,"32768",$0E,0,0
+.l20:   DB      RANDOMIZE,USR,"32768",$0E,0,0
         DW      code_start
         DB      0,$0D
 .l20ln: EQU     $-.l20
