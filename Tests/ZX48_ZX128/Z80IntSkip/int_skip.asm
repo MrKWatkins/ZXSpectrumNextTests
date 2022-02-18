@@ -14,8 +14,10 @@
 ; Press keys 1/2/3/4 to modify the prefix opcode block.
 ;
 
+CLEAR_ADR   EQU     $7FFF
+
     OPT --syntax=abf
-    DEVICE ZXSPECTRUM48
+    DEVICE ZXSPECTRUM48,CLEAR_ADR
 
 STACK_TOP   EQU     $FF00
 ROM_ATTR_P: EQU     $5C8D
@@ -24,6 +26,7 @@ ROM_PRINT:  EQU     $203C
 
     ORG $8000
 code_start:
+    ASSERT CLEAR_ADR < $
     ; CLS + print info text
     ld      a,7<<3
     ld      (ROM_ATTR_P),a  ; ATTR-P = PAPER 7 : INK 0 : BRIGHT 0 : FLASH 0
@@ -190,7 +193,8 @@ tkREM       EQU     $EA
 tap_bas:
         DB      0,10    ;; Line number 10
         DW      .l10ln  ;; Line length
-.l10:   DB      tkCLEAR,"32767",$0E,0,0,low (code_start-1),high (code_start-1),0,':'
+        ASSERT 32767 == CLEAR_ADR
+.l10:   DB      tkCLEAR,"32767",$0E,0,0,low (CLEAR_ADR),high (CLEAR_ADR),0,':'
         DB      tkLOAD,'"'
 .fname: DB      prog_name
         ASSERT  ($ - .fname) <= 10
@@ -213,13 +217,14 @@ tap_bas:
     ;; produce TRD file with the test code
         DEFINE trd_file "int_skip.trd"
 
-        ;; 10 CLEAR 31000:RANDOMIZE USR 15619:REM:LOAD "int_skip"CODE
+        ;; 10 CLEAR 32767:RANDOMIZE USR 15619:REM:LOAD "int_skip"CODE
         ;; 20 RANDOMIZE USR 32768
         ORG     $5C00
 trd_bas:
         DB      0,10    ;; Line number 10
         DW      .l10ln  ;; Line length
-.l10:   DB      tkCLEAR,"32767",$0E,0,0,low (code_start-1),high (code_start-1),0,':'
+        ASSERT 32767 == CLEAR_ADR
+.l10:   DB      tkCLEAR,"32767",$0E,0,0,low (CLEAR_ADR),high (CLEAR_ADR),0,':'
         DB      tkRANDOMIZE,tkUSR,"15619",$0E,0,0,low 15619,high 15619,0,':'
         DB      tkREM,':',tkLOAD,'"'
 .fname: DB      "int_skip"
