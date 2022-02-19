@@ -5,7 +5,10 @@
 ; to assemble (with z00m's sjasmplus https://github.com/z00m128/sjasmplus/ v1.18.3+)
 ; run: sjasmplus int_skip.asm
 ;
-; history: 2022-02-17: v1.0 - initial version
+; history: 2022-02-19: v2.0 - complete rewrite of test logic:
+;                             * result is displayed as text OK/ERR and returns to BASIC
+;                             * test works also on faster machines (up to 30MHz) with slightly unstable IRQ period
+;          2022-02-17: v1.0 - initial version
 ;
 ; purpose: to check if Z80 skips interrupt when it is inside long block of XX prefixes,
 ; where XX is one of the DD/FD values (test has also 00 "nop" block for comparison)
@@ -14,17 +17,28 @@
 ; Press keys 1/2/3/4 to modify the prefix opcode block.
 ;
 
-CLEAR_ADR   EQU     $7FFF
-
-    OPT --syntax=abf
-    DEVICE ZXSPECTRUM48,CLEAR_ADR
-
-STACK_TOP   EQU     $FF00
+CLEAR_ADR   EQU     $8FFF   ; 36863 - have BASIC stack high in uncontended memory (just in case)
+XX_BLOCK_SZ EQU     40*256  ; 10240 bytes of XX prefix = ~41k T per one run
 ROM_ATTR_P: EQU     $5C8D
 ROM_CLS:    EQU     $0DAF
 ROM_PRINT:  EQU     $203C
 
-    ORG $8000
+    OPT --syntax=abf
+    DEVICE ZXSPECTRUM48,CLEAR_ADR
+
+TEST_FLAG_BENCHMARK EQU     1
+TEST_FLAG_ALLOWS    EQU     2
+TEST_FLAG_INHIBITS  EQU     3
+
+    STRUCT  S_TEST_DATA
+prefix1     BYTE
+prefix2     BYTE
+counter     BYTE
+name        TEXT    8, { ' ' }
+flag        BYTE    TEST_FLAG_BENCHMARK
+    ENDS
+
+    ORG $9000
 code_start:
     ASSERT CLEAR_ADR < $
     ; CLS + print info text
@@ -35,12 +49,6 @@ code_start:
     ld      bc,head_txt.sz
     call    ROM_PRINT
     di
-    ld      sp,STACK_TOP
-    ; set default block to DD...
-    ld      de,$DDDD
-    call    set_block
-    ld      hl,BLOCK_CHOICE_ATTR
-    ld      (hl),$80|$38    ; flash "1" as current block
     ; setup IM2 - create 257 byte table
     ld      hl,im2_ivt
 .set_ivt:
@@ -54,68 +62,59 @@ code_start:
     ld      i,a
     im      2
 
+    ; start testing of different blocks
+    ld      a,low txt_verdict_s_ok
+    ld      (global_err_flag),a         ; reset global error flag
+    ld      ix,test_data
 mainloop:
-    ; black border
-    xor     a
-    out     ($FE),a
-    ; read the keyboard, change xx_block if key is pressed
-    ld      a,~(1<<3)
-    in      a,($FE)         ; read 12345 keys
-    cpl
-    and     $0F             ; only "1234" are active
-    call    nz,key_pressed
-    ; halt + wait for ISR
-    ei
-    halt
-    ; ISR will change border to white and delay a lot to make it visible
-    ; back to black border, wait long enough to be near INT to run the DD block
-    xor     a
-    out     ($FE),a
-    ld      bc,$0874
-    call    delay
-    ; green border, run the DD block which should inhibit the interrupts and skip it
-    ld      a,4
-    out     ($FE),a
-    jp      xx_block
+    ; run the test + output results for current S_TEST_DATA at IX
+    call    run_test
 
-delay:
-    nop
-    dec     c
-    jr      nz,delay
-    djnz    delay
+    ; repeat test through all defined blocks
+    ld      bc,S_TEST_DATA
+    add     ix,bc
+    ld      a,low test_data.end
+    cp      ixl
+    jr      nz,mainloop
+
+    ; change border color depending on the global result
+    ld      a,(global_err_flag)
+    cp      low txt_verdict_s_ok
+    ld      a,4
+    jr      z,.all_ok
+    ld      a,2
+.all_ok:
+    out     ($FE),a                     ; border green/red
+
+    ; return back to basic
+    im      1
+    ld      a,$3F
+    ld      i,a
+    ei
     ret
 
-key_pressed:
-    di
-    push    af
-    ; switch off the flashing attribute for current selection
-    ld      a,$38
-    ld      (BLOCK_CHOICE_ATTR+0*7),a
-    ld      (BLOCK_CHOICE_ATTR+1*7),a
-    ld      (BLOCK_CHOICE_ATTR+2*7),a
-    ld      (BLOCK_CHOICE_ATTR+3*7),a
-    pop     af
-    ld      hl,BLOCK_CHOICE_ATTR-7
-    ld      de,block_values-2
-    ; select the new block and set it up
-.key_loop:
-    .7 inc  hl
-    .2 inc  de
-    rra
-    jr      nc,.key_loop
-    ld      (hl),$80|$38        ; make it flash
-    ex      de,hl
-    ld      e,(hl)
-    inc     hl
-    ld      d,(hl)              ; de = value to set
-    ;  |
-    ; fallthrough into set_block
-    ;  |
-    ;  v
-; DE = values to set in the block, E/D/E/D/E...
-set_block:
+txt_verdict_benchmark:
+    DB      " |   |benchmark\r"
+.sz EQU     $-txt_verdict_benchmark
+
+txt_verdict_s_ok:
+    DB      " |OK |"
+txt_verdict_s_err:
+    DB      " |ERR|"
+txt_verdict.small_sz    EQU     $-txt_verdict_s_err
+
+; In: IX = S_TEST_DATA pointer
+set_block_and_run_test:
     ld      hl,xx_block
-    ld      b,high 8000     ; about 8ki XX bytes will be set
+    ; fill the stack Nx with xx_block address to Nx execute the block as part of test
+    ld      b,3500000/41000         ; run the block for 1 second at 3.5MHz (~6 frames at 28MHz, ~50 frames at 3.5MHz)
+.fill_stack:
+    push    hl
+    djnz    .fill_stack             ; all of this will be executed after `ret` is reached in each xx_block
+    ; setup the block itself (fill memory with prefix data)
+    ld      b,high (XX_BLOCK_SZ)    ; set about XX_BLOCK_SZ bytes
+    ld      e,(ix+S_TEST_DATA.prefix1)
+    ld      d,(ix+S_TEST_DATA.prefix2)
 .set_loop:
     ld      (hl),e
     inc     l
@@ -124,28 +123,15 @@ set_block:
     jr      nz,.set_loop
     inc     h
     djnz    .set_loop
-    ; append `nop : jp mainloop` after the block
-    ld      (hl),$00
+    ; append `nop : ret` after the block
+    ld      (hl),b                  ; nop
     inc     l
-    ld      de,mainloop
-    ld      (hl),$C3
-    inc     l
-    ld      (hl),e
-    inc     l
-    ld      (hl),d
+    ld      (hl),$C9                ; ret
+    ; reset counter, sync with halt to first ISR, and run the prefix blocks N times
+    ld      (ix+S_TEST_DATA.counter),b  ; reset counter to 0
+    ei
+    halt
     ret
-
-block_values:
-    DW      $DDDD, $FDFD, $0000, $FDDD
-
-BLOCK_CHOICE_ATTR:  EQU     $5800+8*$20+0
-
-head_txt:
-    DB      "<- top border\r<- green/white: XX inhibits IM2\r"
-    DB      "<- white: IM2 during XX\r<-\r<- (only for 50Hz @3.5MHz)\r<-\r\r"
-    DB      "press key to change block:\r"
-    DB      "1: DD, 2: FD, 3: 00, 4: DD+FD"
-.sz EQU     $-head_txt
 
     ; IM2 interrupt handler (must start at specific $xyxy address)
     IF low $ <= high $
@@ -155,16 +141,129 @@ head_txt:
     ENDIF
 im2_isr:
     ASSERT low im2_isr == high im2_isr
-    push    af,,bc
-    ld      a,7
-    out     ($FE),a             ; white border
-    ld      bc,$061F
-    call    delay
-    pop     bc,,af
+    push    af
+    inc     (ix+S_TEST_DATA.counter)    ; increment the test-counter
+    pop     af
     ei
     ret
 
+; In: IX = S_TEST_DATA pointer
+; Out: (IX + S_TEST_DATA.counter) = count of Interrupts during running test sequence
+run_test:
+    ; set the block to designed prefix and run it N-times, before returning here
+    call    set_block_and_run_test
+    di
+    ; print result - name
+    ld      de,ix                       ; fake ; ld e,ixl : ld d,ixh
+    ld      hl,S_TEST_DATA.name
+    add     hl,de
+    ex      de,hl                       ; DE = test.name
+    ld      bc,S_TEST_DATA.flag-S_TEST_DATA.name
+    call    ROM_PRINT
+    ld      de,txt_verdict_benchmark+1  ; use part of this for framing
+    ld      bc,2
+    call    ROM_PRINT
+    ; print result - count
+    ld      a,(ix+S_TEST_DATA.counter)
+    ld      c,a
+    call    printDecimalA
+    ld      b,(ix+S_TEST_DATA.flag)
+    djnz    .not_benchmark
+    ; TEST_FLAG_BENCHMARK - print fixed string
+    ld      de,txt_verdict_benchmark
+    ld      bc,txt_verdict_benchmark.sz
+    jp      ROM_PRINT
+.not_benchmark:
+    ; check if block did inhibit ISR or not
+    ld      a,(test_data.counter)       ; NOP-block counter
+    srl     a
+    cp      c                           ; (NOP.counter/2) - test.counter
+    sbc     a,a                         ; A = 00 inhibits / FF allows
+    ld      c,a
+    ; check if the result is as expected by test: OK/ERR verdict
+    djnz    .allows_expected            ; TEST_FLAG_INHIBITS
+    cpl                                 ; TEST_FLAG_ALLOWS
+.allows_expected:
+    ; A = 00 ok / FF error
+    push    bc
+    ld      de,txt_verdict_s_ok
+    ld      bc,txt_verdict.small_sz
+    ASSERT (high txt_verdict_s_ok == high txt_verdict_s_err) && (txt_verdict_s_err == txt_verdict_s_ok + txt_verdict.small_sz)
+    and     c
+    add     a,e
+    ld      e,a                         ; DE = txt_verdict_s_ok / txt_verdict_s_err
+    ; tamper global error flag in case there was error in any test
+    ld      a,(global_err_flag)
+    ASSERT low txt_verdict_s_ok != low txt_verdict_s_ok | low txt_verdict_s_err ; if this fails, use `and e` instead
+    or      e
+    ld      (global_err_flag),a
+    ; print OK/ERR verdict
+    call    ROM_PRINT
+    ; print long description verdict
+    pop     af                          ; CF=0 inhibits / 1 allows
+    ASSERT txt_verdict_allows == txt_verdict_inhibits + txt_verdict.long_sz
+    ld      hl,txt_verdict_inhibits
+    ld      bc,txt_verdict.long_sz
+    jr      nc,.did_inhibit
+    add     hl,bc                       ; HL = txt_verdict_allows
+.did_inhibit:
+    ex      de,hl
+    jp      ROM_PRINT
+
+printDecimalA:
+    push    bc
+    ld      e,' '                   ; align with space
+    ld      bc,$FF00 | 100          ; b = -1, c = 100
+    call    .FindAndOutDigitOrSpace
+    ld      a,c
+    ld      bc,$FF00 | 10           ; b = -1, c = 10
+    call    .FindAndOutDigitOrSpace
+    ; output final digit (even zero)
+    ld      a,c
+    pop     bc
+    jr      .OutDecDigit
+.FindAndOutDigitOrSpace:
+    inc     b
+    sub     c       ; if A is less than current 10th power, CF will be set
+    jr      nc,.FindAndOutDigitOrSpace
+    add     a,c     ; fix A back above zero (B is OK, as it started at -1)
+    ld      c,a
+    ld      a,b
+    add     a,e     ; test also against previously displayed digits, to catch any non-zero
+    ld      e,a     ; remember the new mix
+    cp      ' '
+    jp      z,$10   ; if still no non-zero digit was printed, print space
+    ld      a,b
+.OutDecDigit:
+    add     a,'0'
+    rst     $10
+    ret
+
+txt_verdict_inhibits:
+    DB      "inhibits ISR\r"
+txt_verdict_allows:
+    DB      "allows ISR  \r"
+txt_verdict.long_sz     EQU     $-txt_verdict_allows
+
+head_txt:
+    DB      "v2.0 2022-02-19 Ped7g, count\r"
+    DB      "interrupts while executing\r"
+    DB      "long block of DD/FD prefixes\r\r"
+    DB      "block of|count|verdict\r"
+    DB      "--------+-----+----------------\r"
+.sz EQU     $-head_txt
+
+test_data   S_TEST_DATA     { $00, $00, $00, {"NOP"}, TEST_FLAG_BENCHMARK }     ; nop chain
+            S_TEST_DATA     { $DD, $DD, $00, {"DD"}, TEST_FLAG_INHIBITS }       ; DD chain
+            S_TEST_DATA     { $FD, $FD, $00, {"FD"}, TEST_FLAG_INHIBITS }       ; FD chain
+            S_TEST_DATA     { $DD, $FD, $00, {"DDFD"}, TEST_FLAG_INHIBITS }     ; DDFD chain
+            S_TEST_DATA     { $37, $3F, $00, {"SCF+CCF"}, TEST_FLAG_ALLOWS }    ; scf, ccf chain (verify NOP-like)
+.end
+
 code_end:   ; this is enough to store into TAP file, rest is initialised by code
+
+global_err_flag:
+    ds      1
 
     ALIGN   256
 im2_ivt:
@@ -172,6 +271,7 @@ im2_ivt:
 
     ALIGN   256
 xx_block:
+    ds      XX_BLOCK_SZ+16
 
     ;; produce SNA file with the test code
         SAVESNA "int_skip.sna", code_start
@@ -187,14 +287,14 @@ tkREM       EQU     $EA
         DEFINE tape_file "int_skip.tap"
         DEFINE prog_name "int_skip"
 
-        ;; 10 CLEAR 32767:LOAD "int_skip"CODE
-        ;; 20 RANDOMIZE USR 32768
+        ;; 10 CLEAR 36863:LOAD "int_skip"CODE
+        ;; 20 RANDOMIZE USR 36864
         ORG     $5C00
 tap_bas:
         DB      0,10    ;; Line number 10
         DW      .l10ln  ;; Line length
-        ASSERT 32767 == CLEAR_ADR
-.l10:   DB      tkCLEAR,"32767",$0E,0,0,low (CLEAR_ADR),high (CLEAR_ADR),0,':'
+        ASSERT 36863 == CLEAR_ADR
+.l10:   DB      tkCLEAR,"36863",$0E,0,0,low (CLEAR_ADR),high (CLEAR_ADR),0,':'
         DB      tkLOAD,'"'
 .fname: DB      prog_name
         ASSERT  ($ - .fname) <= 10
@@ -202,7 +302,7 @@ tap_bas:
 .l10ln: EQU     $-.l10
         DB      0,20    ;; Line number 20
         DW      .l20ln
-.l20:   DB      tkRANDOMIZE,tkUSR,"32768",$0E,0,0,low code_start,high code_start,0,"\r"
+.l20:   DB      tkRANDOMIZE,tkUSR,"36864",$0E,0,0,low code_start,high code_start,0,"\r"
 .l20ln: EQU     $-.l20
         DB      0,99    ;; Line number 99
         DW      .l99ln
@@ -217,14 +317,14 @@ tap_bas:
     ;; produce TRD file with the test code
         DEFINE trd_file "int_skip.trd"
 
-        ;; 10 CLEAR 32767:RANDOMIZE USR 15619:REM:LOAD "int_skip"CODE
-        ;; 20 RANDOMIZE USR 32768
+        ;; 10 CLEAR 36863:RANDOMIZE USR 15619:REM:LOAD "int_skip"CODE
+        ;; 20 RANDOMIZE USR 36864
         ORG     $5C00
 trd_bas:
         DB      0,10    ;; Line number 10
         DW      .l10ln  ;; Line length
-        ASSERT 32767 == CLEAR_ADR
-.l10:   DB      tkCLEAR,"32767",$0E,0,0,low (CLEAR_ADR),high (CLEAR_ADR),0,':'
+        ASSERT 36863 == CLEAR_ADR
+.l10:   DB      tkCLEAR,"36863",$0E,0,0,low (CLEAR_ADR),high (CLEAR_ADR),0,':'
         DB      tkRANDOMIZE,tkUSR,"15619",$0E,0,0,low 15619,high 15619,0,':'
         DB      tkREM,':',tkLOAD,'"'
 .fname: DB      "int_skip"
@@ -233,8 +333,8 @@ trd_bas:
 .l10ln: EQU     $-.l10
         DB      0,20    ;; Line number 20
         DW      .l20ln
-        ASSERT  32768 == code_start
-.l20:   DB      tkRANDOMIZE,tkUSR,"32768",$0E,0,0,low code_start,high code_start,0,"\r"
+        ASSERT  36864 == code_start
+.l20:   DB      tkRANDOMIZE,tkUSR,"36864",$0E,0,0,low code_start,high code_start,0,"\r"
 .l20ln: EQU     $-.l20
         DB      0,99    ;; Line number 99
         DW      .l99ln
