@@ -5,7 +5,8 @@
 ; to assemble (with z00m's sjasmplus https://github.com/z00m128/sjasmplus/ v1.18.3+)
 ; run: sjasmplus int_skip.asm
 ;
-; history: 2022-02-19: v2.0 - complete rewrite of test logic:
+; history: 2022-02-19: v2.1 - adding EI and DI test blocks, removing the sync-halt induced +1 from counter
+;          2022-02-19: v2.0 - complete rewrite of test logic:
 ;                             * result is displayed as text OK/ERR and returns to BASIC
 ;                             * test works also on faster machines (up to 30MHz) with slightly unstable IRQ period
 ;          2022-02-17: v1.0 - initial version
@@ -107,7 +108,7 @@ txt_verdict.small_sz    EQU     $-txt_verdict_s_err
 set_block_and_run_test:
     ld      hl,xx_block
     ; fill the stack Nx with xx_block address to Nx execute the block as part of test
-    ld      b,3500000/41000         ; run the block for 1 second at 3.5MHz (~6 frames at 28MHz, ~50 frames at 3.5MHz)
+    ld      b,3500000/40000         ; run the block for 1 second at 3.5MHz (~6 frames at 28MHz, ~50 frames at 3.5MHz)
 .fill_stack:
     push    hl
     djnz    .fill_stack             ; all of this will be executed after `ret` is reached in each xx_block
@@ -127,10 +128,10 @@ set_block_and_run_test:
     ld      (hl),b                  ; nop
     inc     l
     ld      (hl),$C9                ; ret
-    ; reset counter, sync with halt to first ISR, and run the prefix blocks N times
-    ld      (ix+S_TEST_DATA.counter),b  ; reset counter to 0
+    ; sync with halt, reset counter, and run the prefix blocks N times
     ei
     halt
+    ld      (ix+S_TEST_DATA.counter),b  ; reset counter to 0 (after halt did already modify it once)
     ret
 
     ; IM2 interrupt handler (must start at specific $xyxy address)
@@ -246,7 +247,7 @@ txt_verdict_allows:
 txt_verdict.long_sz     EQU     $-txt_verdict_allows
 
 head_txt:
-    DB      "v2.0 2022-02-19 Ped7g, count\r"
+    DB      "v2.1 2022-02-19 Ped7g, count\r"
     DB      "interrupts while executing\r"
     DB      "long block of DD/FD prefixes\r\r"
     DB      "block of|count|verdict\r"
@@ -258,6 +259,8 @@ test_data   S_TEST_DATA     { $00, $00, $00, {"NOP"}, TEST_FLAG_BENCHMARK }     
             S_TEST_DATA     { $FD, $FD, $00, {"FD"}, TEST_FLAG_INHIBITS }       ; FD chain
             S_TEST_DATA     { $DD, $FD, $00, {"DDFD"}, TEST_FLAG_INHIBITS }     ; DDFD chain
             S_TEST_DATA     { $37, $3F, $00, {"SCF+CCF"}, TEST_FLAG_ALLOWS }    ; scf, ccf chain (verify NOP-like)
+            S_TEST_DATA     { $FB, $FB, $00, {"EI"}, TEST_FLAG_INHIBITS }       ; ei chain
+            S_TEST_DATA     { $F3, $F3, $00, {"DI"}, TEST_FLAG_INHIBITS }       ; di chain (your emulator +1 here = LOL)
 .end
 
 code_end:   ; this is enough to store into TAP file, rest is initialised by code
