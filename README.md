@@ -9,3 +9,5 @@ Simple test programs for the ZX Spectrum Next (couple of them also for classic Z
 
  * [Interactive DMA test (port $0B and $6B)](Tests/Misc/DmaInteractive/)
  * [Undocumented flags behaviour when interrupt happens during block instructions](Tests/ZX48_ZX128/Z80BlockInstructionFlags/)
+ * [Inhibition of interrupt by long block of EI/0xDD/0xFD prefixes](Tests/ZX48_ZX128/Z80IntSkip/)
+ * [Undocumented flags stability after CCF/SCF across frame timing](Tests/ZX48_ZX128/Z80CcfScfOutcomeStability/)
