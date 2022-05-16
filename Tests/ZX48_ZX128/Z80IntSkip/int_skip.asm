@@ -2,25 +2,28 @@
 ; name: test to see if block of bytes XX (0xDD/0xFD/0x00/0xDD+0xFD) does inhibit processing of /INT signal
 ; public git repo: https://github.com/MrKWatkins/ZXSpectrumNextTests/
 ;
-; to assemble (with z00m's sjasmplus https://github.com/z00m128/sjasmplus/ v1.18.3+)
+; to assemble (with z00m's sjasmplus https://github.com/z00m128/sjasmplus/ v1.19.0+)
 ; run: sjasmplus int_skip.asm
 ;
-; history: 2022-02-19: v2.1 - adding EI and DI test blocks, removing the sync-halt induced +1 from counter
+; history: 2022-05-16: v3.0 - added "ISR entries per /INT signal" check (should be 2+ if emulating /INT as 32T signal)
+;                           - set resulting BORDER color also into sysvar, so will retain in BASIC
+;          2022-02-19: v2.1 - adding EI and DI test blocks, removing the sync-halt induced +1 from counter
 ;          2022-02-19: v2.0 - complete rewrite of test logic:
 ;                             * result is displayed as text OK/ERR and returns to BASIC
 ;                             * test works also on faster machines (up to 30MHz) with slightly unstable IRQ period
 ;          2022-02-17: v1.0 - initial version
 ;
 ; purpose: to check if Z80 skips interrupt when it is inside long block of XX prefixes,
-; where XX is one of the DD/FD values (test has also 00 "nop" block for comparison)
+; where XX is one of the DD/FD values and miscellaneous others (nop,ei,di,...)
 ;
-; Test requires ZX48/128 timing in 50Hz at 3.5MHz (Pentagon timing is close enough too?)
-; Press keys 1/2/3/4 to modify the prefix opcode block.
+; ISR entries number depends on CPU frequency, but with 3.5MHz and 32T /INT it should count at least two entries.
+; (if "1" is displayed, the emulator/machine does end /INT upon interrupt ACK, triggering it only once per frame)
 ;
 
 CLEAR_ADR   EQU     $8FFF   ; 36863 - have BASIC stack high in uncontended memory (just in case)
 XX_BLOCK_SZ EQU     40*256  ; 10240 bytes of XX prefix = ~41k T per one run
 ROM_ATTR_P: EQU     $5C8D
+ROM_BORDCR: EQU     $5C48
 ROM_CLS:    EQU     $0DAF
 ROM_PRINT:  EQU     $203C
 
@@ -63,6 +66,30 @@ code_start:
     ld      i,a
     im      2
 
+    ; IM2 re-entry test (roughly measuring /INT signal lenth or whether it's "trigger" once-only)
+    ld      hl,im2_isr_entries_test
+    ld      de,im2_isr
+    ld      bc,im2_isr_entries_test.sz
+    ldir                    ; setup IM2 handler fore re-entry test
+    ld      b,8             ; try 8 times to measure the max, here C = 0 (max)
+    ei
+re_entry_test:
+    halt
+    djnz    re_entry_test
+    ; print result of re-entrance test
+    di
+    ld      a,c
+    call    printDecimalA
+    ld      de,head_txt2    ; remaining header text
+    ld      bc,head_txt2.sz
+    call    ROM_PRINT
+
+    ; setup IM2 handler for block-test
+    ld      hl,im2_isr_block_test
+    ld      de,im2_isr
+    ld      bc,im2_isr_block_test.sz
+    ldir
+
     ; start testing of different blocks
     ld      a,low txt_verdict_s_ok
     ld      (global_err_flag),a         ; reset global error flag
@@ -86,6 +113,8 @@ mainloop:
     ld      a,2
 .all_ok:
     out     ($FE),a                     ; border green/red
+    .3 add     a,a
+    ld      (ROM_BORDCR),a              ; set also BASIC sysvar for border color
 
     ; return back to basic
     im      1
@@ -134,19 +163,38 @@ set_block_and_run_test:
     ld      (ix+S_TEST_DATA.counter),b  ; reset counter to 0 (after halt did already modify it once)
     ret
 
-    ; IM2 interrupt handler (must start at specific $xyxy address)
-    IF low $ <= high $
-        DS high $ - low $, 0    ; pad to $xyxy address for im2_isr
-    ELSE
-        DS (high $ - low $) + 257, 0    ; pad to $xyxy address for im2_isr
-    ENDIF
-im2_isr:
-    ASSERT low im2_isr == high im2_isr
+    ; IM2 interrupt handler 1 - testing block instruction inhibition
+im2_isr_block_test:
+    DISP im2_isr
     push    af
     inc     (ix+S_TEST_DATA.counter)    ; increment the test-counter
     pop     af
     ei
     ret
+    ENT
+.sz:    EQU     $-im2_isr_block_test
+
+    ; IM2 interrupt handler 2 - checking re-entrance with long-enough /INT signal
+im2_isr_entries_test:
+    DISP im2_isr
+    ei
+    nop                                 ; 8T until ready for re-entry of handler (ACK is 11T, so 19T total)
+    ; reaching here when INT goes back up, count entries by examining stack content
+    ASSERT 0 == (0x200 & re_entry_test) && 0x200 == (0x200 & im2_isr)
+    ; B = test-loop counter, C = 0 (max)
+    xor     a                           ; current counter
+.count_entries:
+    inc     a
+    pop     hl
+    bit     1,h                         ; 0x92xx return address => count as re-entry
+    jr      nz,.count_entries
+    cp      c
+    jr      c,.keep_old_max
+    ld      c,a                         ; new max re-entry
+.keep_old_max:
+    jp      (hl)                        ; return back into test-loop
+    ENT
+.sz:    EQU     $-im2_isr_entries_test
 
 ; In: IX = S_TEST_DATA pointer
 ; Out: (IX + S_TEST_DATA.counter) = count of Interrupts during running test sequence
@@ -247,12 +295,15 @@ txt_verdict_allows:
 txt_verdict.long_sz     EQU     $-txt_verdict_allows
 
 head_txt:
-    DB      "v2.1 2022-02-19 Ped7g, count\r"
+    DB      "v3.0 2022-05-16 Ped7g, count\r"
     DB      "interrupts while executing\r"
     DB      "long block of DD/FD prefixes\r\r"
-    DB      "block of|count|verdict\r"
-    DB      "--------+-----+----------------\r"
+    DB      "ISR entries per /INT signal:"
 .sz EQU     $-head_txt
+head_txt2:
+    DB      "\r\rblock of|count|verdict\r"
+    DB      "--------+-----+----------------\r"
+.sz EQU     $-head_txt2
 
 test_data   S_TEST_DATA     { $00, $00, $00, {"NOP"}, TEST_FLAG_BENCHMARK }     ; nop chain
             S_TEST_DATA     { $DD, $DD, $00, {"DD"}, TEST_FLAG_INHIBITS }       ; DD chain
@@ -267,6 +318,16 @@ code_end:   ; this is enough to store into TAP file, rest is initialised by code
 
 global_err_flag:
     ds      1
+
+    ; IM2 interrupt handler (must start at specific $xyxy address)
+    IF low $ <= high $
+        DS high $ - low $, 0    ; pad to $xyxy address for im2_isr
+    ELSE
+        DS (high $ - low $) + 257, 0    ; pad to $xyxy address for im2_isr
+    ENDIF
+im2_isr:
+    ASSERT low im2_isr == high im2_isr
+    DS      im2_isr_block_test.sz >? im2_isr_entries_test.sz
 
     ALIGN   256
 im2_ivt:
