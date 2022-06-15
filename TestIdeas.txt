@@ -10,6 +10,7 @@ base:
  - CSpect seems to render 9b colours $B600/$B601 weird, the blue value seems shifted in either case.
  - exercise all ways to upload/download + autoincrement on/off (layer2 + auto-inc + 9b = bug in .27)
  - exercise ink masks / borders
+ - check tilemap first/second select duality, if they are readable on both bits, etc. ($43 vs $6B)
 
 * Layer2:
  . "hidden" SRAM access under Bank 5 and 1/2 Bank 7 (hidden by FPGA BRAM redirection)
@@ -31,6 +32,7 @@ base:
 
 * Copper:
  - writing code on fly, changing index while keeping mode, etc..
+ - write to $60 at even address is latched also for $63, check if some emulator breaks on this
 
 ("." points are optional, more like examples/documenting current ZXN board, than trying
 to preserve those features for future ... "-" points are like serious tests where emulator
