@@ -1,0 +1,24 @@
+#!/bin/bash
+# personal script of Ped to mount sd-card image into directory `next-card` (or second argument of script)
+if [[ -s "$1" ]]; then
+  MMCFILE="$1"
+else
+  MMCFILE=tbblue.mmc
+fi
+if [[ -n "$2" ]]; then
+  DIRECTORY="$2"
+else
+  DIRECTORY=next-card
+fi
+if [[ -s "$MMCFILE" && -d "$DIRECTORY" ]]; then
+  echo "mounting file [$MMCFILE] to directory [$DIRECTORY]"
+  sudo mount "$MMCFILE" "$DIRECTORY/" -o loop,offset=$((`fdisk -l -o Start "$MMCFILE" | tail -1` * 512)),user,uid=`id -u`,gid=`id -g`
+else
+  echo "Usage: mmcmount [<card_image_file>=\"tbblue.mmc\" [<directory_for_mount>=\"next-card\"]]"
+  if [[ ! -s "$MMCFILE" ]]; then
+    echo "image file [$MMCFILE] is missing or has zero length"
+  fi
+  if [[ ! -d "$DIRECTORY" ]]; then
+    echo "directory to mount into [$DIRECTORY] is not valid/missing"
+  fi
+fi
