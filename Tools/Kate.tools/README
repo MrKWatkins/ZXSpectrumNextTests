@@ -8,6 +8,9 @@ The Kate syntax highlight has been "forked" and specialized for sjasmplus, where
 contributing directly to the development, and where the fresh syntax file can be found:
 https://github.com/z00m128/sjasmplus/blob/master/asm-z80-sj.xml
 
+And of course I build own sjasmplus binary under linux and run it natively, not using the
+windows exe any more.
+
 -----------------------------------------------
 
 Some hints how to configure Kate editor (KDE5) to support Z80 assembly highlighting, ...
