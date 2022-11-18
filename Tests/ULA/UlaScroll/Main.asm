@@ -19,9 +19,9 @@ LegendTxts:
     DB      '$26, $27',0
     DB      ' ',0
     DB      ' ',0
-    DB      ' Green',0
-    DB      'border:',0
-    DB      ' OPQA R',0
+    DB      '  Green',0
+    DB      ' border:',0
+    DB      ' OPQA HR',0
     DB      ' ',0
     DB      ' ',0
     DB      'ULA clip:',0
@@ -72,10 +72,10 @@ Start:
     xor     a
     or      (hl)
     jr      nz,.OutputFullLegend
-    ; OPQA highlight
-    FILL_AREA   MEM_ZX_ATTRIB_5800+$20*7+19, 7, P_GREEN|BLACK
-    FILL_AREA   MEM_ZX_ATTRIB_5800+$20*8+19, 7, P_GREEN|BLACK
-    FILL_AREA   MEM_ZX_ATTRIB_5800+$20*9+19, 7, A_BRIGHT|P_CYAN|BLACK
+    ; OPQA HR highlight
+    FILL_AREA   MEM_ZX_ATTRIB_5800+$20*7+19, 9, P_GREEN|BLACK
+    FILL_AREA   MEM_ZX_ATTRIB_5800+$20*8+19, 9, P_GREEN|BLACK
+    FILL_AREA   MEM_ZX_ATTRIB_5800+$20*9+19, 9, A_BRIGHT|P_CYAN|BLACK
     ld      hl,MEM_ZX_SCREEN_4000+29
     ld      a,$01
     ld      de,32
@@ -152,20 +152,40 @@ Start:
     NEXTREG_A ULA_XOFFSET_NR_26
     ld      a,iyh
     NEXTREG_A ULA_YOFFSET_NR_27
+    ld      a,%1111'1011    ; QWERT row
+    in      a,(ULA_P_FE)
+    and     %000'01000      ; check R to skip scroll loop
+    jr      z,.SkipScroll
     djnz    .ScrollLoop
     dec     c
     jr      nz,.ScrollLoop
-    ; signal end of test, read keyboard OPQA to modify scroll
+    ; signal end of test, read keyboard OPQAHR to modify scroll
+.SkipScroll:
     BORDER  GREEN
     NEXTREG_nn TRANSPARENCY_FALLBACK_COL_NR_4A,%000'101'00  ; green border extension
+    ; ULA_CONTROL_NR_68 was already set to zero by test init, so no need to read "current" value
+.ResetScrollCoordinates:
+    ld      e,0             ; NR_68 value -> does include half-scroll bit 2 (0x04)
+    ld      ixh,e           ; reset scroll coordinates
+    ld      iyh,e
 .InteractiveLoop:
     ; set croll registers
     ld      a,ixh
     NEXTREG_A ULA_XOFFSET_NR_26
     ld      a,iyh
     NEXTREG_A ULA_YOFFSET_NR_27
+    ld      a,e
+    NEXTREG_A ULA_CONTROL_NR_68
     halt
     ; read keys, adjust regs
+    ld      a,%1011'1111    ; H (bit 4) row
+    in      a,(ULA_P_FE)
+    and     %000'10000
+    jr      nz,.notH
+    ld      a,1<<2          ; H pressed, flip half-scroll bit
+    xor     e
+    ld      e,a
+.notH:
     ld      a,%1101'1111    ; O (bit 1) and P (bit 0) row
     in      a,(ULA_P_FE)
     rra
@@ -201,12 +221,9 @@ Start:
 .notA:
     pop     af              ; R is in the same row as Q (already read)
     and     %000'01000
-    jr      nz,.notR
-    ld      ixh,0           ; reset scroll coordinates
-    ld      iyh,0
-.notR:
+    jr      z,.ResetScrollCoordinates
     jr      .InteractiveLoop
-    
+
     call EndTest
 
     ALIGN   256
