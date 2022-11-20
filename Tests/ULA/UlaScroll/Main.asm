@@ -2,6 +2,14 @@
 
     org     $C000       ; must be in last 16k as I'm using all-RAM mapping for Layer2
 
+ModesTableNR69:
+    DB      $00                     ; regular Bank 4 ULA
+    DB      $40                     ; ZX128 shadow ULA Bank 7
+    DB      $06                     ; Timex 512x192
+    DB      $02                     ; Timex 8x1 HiColor
+.c  EQU     $-ModesTableNR69
+    ASSERT  4 == .c && 0 == low ModesTableNR69
+
     INCLUDE "../../Constants.asm"
     INCLUDE "../../Macros.asm"
     INCLUDE "../../TestFunctions.asm"
@@ -18,15 +26,18 @@ LegendTxts:
     DB      'NextRegs:',0
     DB      '$26, $27',0
     DB      ' ',0
-    DB      ' ',0
     DB      '  Green',0
     DB      ' border:',0
-    DB      ' OPQA HR',0
-    DB      ' ',0
+    DB      ' OPQA HRM',0
     DB      ' ',0
     DB      'ULA clip:',0
     DB      '[8,8] ->',0
     DB      '[239,175]',0
+    DB      ' ',0
+    DB      'ULA BANK4',0
+    DB      'ULA BANK7',0
+    DB      'Timex 512',0
+    DB      'Timex 8x1',0
     DB      0
 
 Start:
@@ -35,11 +46,11 @@ Start:
     BORDER  RED
     NEXTREG_nn GLOBAL_TRANSPARENCY_NR_14,$E3    ; enforce $E3 (NextZXOS sets $00 lately!)
     NEXTREG_nn TRANSPARENCY_FALLBACK_COL_NR_4A,%101'000'00  ; red border extension
-    ;NEXTREG_nn DISPLAY_CONTROL_NR_69,$06   ; Timex 512x192
     ; reset ULA scroll registers
     NEXTREG_nn ULA_XOFFSET_NR_26, 0
     NEXTREG_nn ULA_YOFFSET_NR_27, 0
     NEXTREG_nn ULA_CONTROL_NR_68, 0     ; half-scroll + completely classic ULA
+    NEXTREG_nn DISPLAY_CONTROL_NR_69,0  ; Layer2 off, Bank4 ULA, Timex = 0x00
     ; reset LoRes scroll registers
     NEXTREG_nn LORES_XOFFSET_NR_32, 0
     NEXTREG_nn LORES_YOFFSET_NR_33, 0
@@ -73,9 +84,9 @@ Start:
     or      (hl)
     jr      nz,.OutputFullLegend
     ; OPQA HR highlight
-    FILL_AREA   MEM_ZX_ATTRIB_5800+$20*7+19, 9, P_GREEN|BLACK
-    FILL_AREA   MEM_ZX_ATTRIB_5800+$20*8+19, 9, P_GREEN|BLACK
-    FILL_AREA   MEM_ZX_ATTRIB_5800+$20*9+19, 9, A_BRIGHT|P_CYAN|BLACK
+    FILL_AREA   MEM_ZX_ATTRIB_5800+$20*6+19, 10, P_GREEN|BLACK
+    FILL_AREA   MEM_ZX_ATTRIB_5800+$20*7+19, 10, P_GREEN|BLACK
+    FILL_AREA   MEM_ZX_ATTRIB_5800+$20*8+19, 10, A_BRIGHT|P_CYAN|BLACK
     ld      hl,MEM_ZX_SCREEN_4000+29
     ld      a,$01
     ld      de,32
@@ -116,6 +127,28 @@ Start:
     ld      (hl),a
     add     hl,de
     djnz    .DrawLeftAttrEdge
+    ; fill Timex 8x1 and 512x192 second buffer with some debug data which display at least something
+    ld      hl,MEM_TIMEX_SCR1_6000
+    ld      de,MEM_TIMEX_SCR1_6000+1
+    ld      bc,32*192-1
+    ld      (hl),P_WHITE|BLUE
+    ldir
+    ; copy Bank4 ULA to Bank7 (ZX128 Shadow ULA)
+    NEXTREG_nn MMU0_0000_NR_50, 14
+    ld      hl,MEM_ZX_SCREEN_4000
+    ld      de,0
+    ld      bc,$2000
+    ldir
+    FILL_AREA $1800+$20*15+19, 9, A_BRIGHT|P_BLUE|WHITE ; highlight BANK 7
+    NEXTREG_nn MMU0_0000_NR_50, 255
+    FILL_AREA MEM_ZX_ATTRIB_5800+$20*14+19, 9, A_BRIGHT|P_BLUE|WHITE ; highlight BANK 4
+    ; highlight Timex 8x1
+    FILL_AREA MEM_TIMEX_SCR1_6000+$1100+$20*1+19, 9, A_BRIGHT|P_BLUE|GREEN
+    FILL_AREA MEM_TIMEX_SCR1_6000+$1200+$20*1+19, 9, A_BRIGHT|P_BLUE|CYAN
+    FILL_AREA MEM_TIMEX_SCR1_6000+$1300+$20*1+19, 9, A_BRIGHT|P_BLUE|WHITE
+    FILL_AREA MEM_TIMEX_SCR1_6000+$1400+$20*1+19, 9, A_BRIGHT|P_BLUE|WHITE
+    FILL_AREA MEM_TIMEX_SCR1_6000+$1500+$20*1+19, 9, A_BRIGHT|P_BLUE|CYAN
+    FILL_AREA MEM_TIMEX_SCR1_6000+$1600+$20*1+19, 9, A_BRIGHT|P_BLUE|GREEN
     ; blue border to signal next phase of test
     BORDER  BLUE
     NEXTREG_nn TRANSPARENCY_FALLBACK_COL_NR_4A,%000'000'10  ; blue border extension
@@ -178,6 +211,22 @@ Start:
     NEXTREG_A ULA_CONTROL_NR_68
     halt
     ; read keys, adjust regs
+    ld      a,%0111'1111    ; M (bit 2) row
+    in      a,(ULA_P_FE)
+    and     %000'00100
+    jr      nz,.notM
+.mN+1:  ld      a,0         ; index into ModesTableNR69
+    inc     a
+    and     ModesTableNR69.c-1
+    ld      (.mN),a
+    ld      l,a
+    ld      h,high ModesTableNR69
+    ld      a,(hl)          ; fetch mode value from the table
+    NEXTREG_A DISPLAY_CONTROL_NR_69     ; set new mode
+    ld      b,10
+    halt
+    djnz    $-1             ; slight delay (10 frames = 0.2s)
+.notM:
     ld      a,%1011'1111    ; H (bit 4) row
     in      a,(ULA_P_FE)
     and     %000'10000
@@ -185,6 +234,9 @@ Start:
     ld      a,1<<2          ; H pressed, flip half-scroll bit
     xor     e
     ld      e,a
+    ld      b,10
+    halt
+    djnz    $-1             ; slight delay (10 frames = 0.2s)
 .notH:
     ld      a,%1101'1111    ; O (bit 1) and P (bit 0) row
     in      a,(ULA_P_FE)
