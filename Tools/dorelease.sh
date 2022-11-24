@@ -37,8 +37,8 @@ done
 cp release-README.txt "release/!!README.txt"
 # compile/copy the basic loader every time, if available
 command -v bas2tap 1>/dev/null \
-    && echo -e "\e[95mBuilding\e[0m BASIC autoloader \e[96mauto.bas\e[0m\e[0m" \
-    && bas2tap -q -a1 -s"auto.bas" Tools/auto.bas.txt release/auto.tap
-[[ -s Tools/auto.bas ]] && cp Tools/auto.bas release/auto.bas
+    && echo -e "\e[95mBuilding\e[0m BASIC autoexec loader \e[96msetautoexec.tap\e[0m\e[0m" \
+    && bas2tap -q -n -a9990 -s"setautoexe" Tools/setautoexec.bas.txt release/setautoexec.tap
+[[ -s Tools/setautoexec.bas ]] && cp Tools/setautoexec.bas release/setautoexec.bas
 # check if some file got leftovers (there should be "3" files of same base name at most)
 source Tools/chkReleaseAbundance.sh

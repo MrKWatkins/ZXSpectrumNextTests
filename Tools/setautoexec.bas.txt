@@ -1,0 +1,30 @@
+    10 REM set 28MHz turbo, init DATA, load from file next test index
+    20 RUN AT 3 : GO SUB 1000 : RESTORE 500 : LOAD "c:/TMP/NxtTstN.bin"CODE t
+    30 REM read number of next test from memory and find its name
+    40 LET n=1+PEEK t : FOR x=1 TO n : READ a$ : NEXT x
+    50 IF a$="" THEN STOP
+    60 GO SUB 1100
+   100 REM run the test
+   110 PRINT "Testing ";n;": ";a$ : PAUSE SQR PI : SPECTRUM "d:/a0_dev/tests/"+a$
+   499 REM filenames of all tests
+   500 DATA "!Copper.sna",  "!NextReg.sna", "!Z80N.sna",    "!Z80Nc2.sna"
+   510 DATA "CPalTrV2.sna", "CPalTrV3.sna", "CPalTran.sna", "Chg8kB_2.sna"
+   520 DATA "Chg8kBan.sna", "DIHalt.sna",   "DefTrans.sna", "L2Colour.sna"
+   530 DATA "L2Scroll.sna", "LmixLoRs.sna", "Lmix_LxU.sna", "LmxHiCol.sna"
+   540 DATA "LmxHiRes.sna", "SprBig4b.sna", "SpritBig.sna", "SpritRel.sna"
+   550 DATA "SpritTra.sna", "Ula_Pal.sna",  "TFalBUla.sna", "L2Port.sna"
+   560 DATA "SprDelay.sna", "NReg0x69.sna", "UlaScrol.sna", "!dma.sna"
+   570 DATA "zilogDMA.sna", "dmaDebug.sna", "linesIRQ.sna", "int_skip.sna"
+   970 REM empty string = terminator
+   980 DATA "" : STOP
+  1000 LET t=65535 : LET a$=""
+  1010 RETURN
+  1100 REM if no more tests = reset value, store value
+  1110 IF a$="" THEN LET n=0
+  1120 POKE t,n: SAVE "c:/TMP/NxtTstN.bin"CODE t,1
+  1130 RETURN
+  9900 STOP
+  9990 REM set up the autoexec test-runner
+  9991 PRINT "Overwrite autoexec.bas?","BREAK to STOP" : PAUSE 0
+  9995 GO SUB 1000 : GO SUB 1100
+  9999 SAVE "c:/NextZXOS/autoexec.bas" LINE 1
