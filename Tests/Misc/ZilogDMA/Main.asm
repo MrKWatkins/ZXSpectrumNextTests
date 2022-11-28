@@ -105,6 +105,8 @@ AutoDetectTBBlue:
     ; (technically the port already *is* $0B in the DmaPortData, but enforcing it here)
     ld      a,ZILOG_DMA_P_0B
     ld      (DmaPortData),a
+    ; enforce 3.5MHz speed, no matter what user had selected
+    NEXTREG_nn TURBO_CONTROL_NR_07, %00
     ret
 
 Start:
