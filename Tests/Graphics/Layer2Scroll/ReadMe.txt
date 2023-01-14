@@ -1,6 +1,6 @@
 Source in folder: Tests/Graphics/Layer2Scroll/
 
-In this test the X/Y offset of Layer2 is tested.
+In this test the X/Y offset of Layer2 is tested (and non-trivial clipping).
 
 Layer2 is enabled, filled with colour 1 (set to $FC, set as global transparent colour)
 ULA classic is under Layer2, white paper, blue ink
@@ -19,5 +19,11 @@ Without X/Y HW scroll implemented the Layer2 lines are all over place.
 
 update: there is now animation going from [0,0] to final [196,133] in 128 steps (~2.5s).
 
-update2: the clip windows (ULA+L2) are set to [8,8] -> [239,175]
+update 2: the clip windows (ULA+L2) are set to [8,8] -> [239,175]
 There are stripes in Layer2 which should be fully clipped when scroll is at [196,133]
+
+update 3:
+- press R to reset scroll coordinates
+- press R during blue border part (auto-scroll) to skip to user-controlled mode (green border)
+- added new Layer2 modes 320x256x8bpp and 640x256x4bpp (press M to switch modes)
+- press C to switch off clipping (setting nextreg $18 to non-standard [0, 255, 0, 255])
