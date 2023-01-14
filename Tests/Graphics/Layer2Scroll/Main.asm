@@ -665,7 +665,7 @@ DrawLayer2Part_320x256_and_640x256:
     ld      a,5             ; 5 lines loop
     call    DoLinesLoop
     ld      e,$01           ; +1 down
-    ld      l,(32+78+YOFS)     ; start 2px over ULA line (overdraw)
+    ld      l,32+78+YOFS    ; start 2px over ULA line (overdraw)
     ld      ixl,$01         ; +1 down
     call    DoLinesLoop
     ; draw horizontal almost-black part of lines (connecting to ULA lines)
