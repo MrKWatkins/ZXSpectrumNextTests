@@ -5,7 +5,8 @@
 ; to assemble (with z00m's sjasmplus https://github.com/z00m128/sjasmplus/ v1.19.0+)
 ; run: sjasmplus int_skip.asm
 ;
-; history: 2023-05-21: v4.0 - added `OUT (C),0` visual test and `LD A,I`, `LD A,R` IFF2 reading bug test
+; history: 2023-05-21: v4.1 - make `OUT (C),0` visual test part of the end-screen with infinite loop, bugfixes
+;          2023-05-21: v4.0 - added `OUT (C),0` visual test and `LD A,I`, `LD A,R` IFF2 reading bug test
 ;          2022-05-16: v3.0 - added "ISR entries per /INT signal" check (should be 2+ if emulating /INT as 32T signal)
 ;                           - set resulting BORDER color also into sysvar, so will retain in BASIC
 ;          2022-02-19: v2.1 - adding EI and DI test blocks, removing the sync-halt induced +1 from counter
@@ -119,23 +120,26 @@ mainloop:
     cp      ixl
     jr      nz,mainloop
 
-    ; change border color depending on the global result
+    ; change border color depending on the global result and keeps displaying result border + out0
     ld      a,(global_err_flag)
     cp      low txt_verdict_s_ok
     ld      a,4
     jr      z,.all_ok
     ld      a,2
 .all_ok:
-    out     ($FE),a                     ; border green/red
-    .3 add     a,a
-    ld      (ROM_BORDCR),a              ; set also BASIC sysvar for border color
-
-    ; return back to basic
-    im      1
-    ld      a,$3F
-    ld      i,a
+    ld      ix,test_data                ; reuse the test IM2 handler, so make IX safe for ++counter
     ei
-    ret
+    halt
+    ld      c,254
+    out     (c),0                       ; out (c),0 border (black or white) ; out0-ok
+    ld      h,b
+    ld      d,b
+    ld      l,e
+    ld      b,6
+    ldir                                ; $600 x pointless LDIR in ROM area as delay
+    out     ($FE),a                     ; border green/red to show result
+    xor     ~7                          ; make same sound for both CMOS/NMOS CPUs
+    jr      .all_ok
 
 txt_verdict_benchmark:
     DB      " |   |benchmark\r"
@@ -368,10 +372,10 @@ txt_verdict_allows:
 txt_verdict.long_sz     EQU     $-txt_verdict_allows
 
 head_txt:
-    DB      "v4.0 2023-05-21 Ped7g, count\r"
+    DB      "v4.1 2023-05-21 Ped7g, count\r"
     DB      "interrupts while executing\r"
     DB      "long block of DD/FD prefixes\r\r"
-    DB      "BORDER is now B/W by OUT (C),0\r"
+    DB      "<== BORDER by ED71 OUT (C),0 ==>"
     DB      "ISR entries per /INT signal:"
 .sz EQU     $-head_txt
 head_txt3:
@@ -407,7 +411,7 @@ global_err_flag:
     ENDIF
 im2_isr:
     ASSERT low im2_isr == high im2_isr
-    DS      im2_isr_block_test.sz >? im2_isr_entries_test.sz
+    DS      (im2_isr_block_test.sz >? im2_isr_entries_test.sz) >? im2_isr_iff2_test.sz
 
     ALIGN   256
 im2_ivt:
