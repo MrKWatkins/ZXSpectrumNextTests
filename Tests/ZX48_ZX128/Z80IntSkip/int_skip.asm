@@ -5,7 +5,8 @@
 ; to assemble (with z00m's sjasmplus https://github.com/z00m128/sjasmplus/ v1.19.0+)
 ; run: sjasmplus int_skip.asm
 ;
-; history: 2022-05-16: v3.0 - added "ISR entries per /INT signal" check (should be 2+ if emulating /INT as 32T signal)
+; history: 2023-05-21: v4.0 - added `OUT (C),0` visual test and `LD A,I`, `LD A,R` IFF2 reading bug test
+;          2022-05-16: v3.0 - added "ISR entries per /INT signal" check (should be 2+ if emulating /INT as 32T signal)
 ;                           - set resulting BORDER color also into sysvar, so will retain in BASIC
 ;          2022-02-19: v2.1 - adding EI and DI test blocks, removing the sync-halt induced +1 from counter
 ;          2022-02-19: v2.0 - complete rewrite of test logic:
@@ -18,6 +19,12 @@
 ;
 ; ISR entries number depends on CPU frequency, but with 3.5MHz and 32T /INT it should count at least two entries.
 ; (if "1" is displayed, the emulator/machine does end /INT upon interrupt ACK, triggering it only once per frame)
+;
+; OUT (C),0 test is visual: during block tests BORDER should be either black (0) or white (255)
+;
+; IFF2 reading reports "CPU bug" when LD A,I||R reads IFF2 as zero during int-ack, "correct" when
+; it is read as one during int-ack, and "tst fail" when machine CPU speed is non-standard and
+; the /INT signal did happen outside of LD A,I||R instruction, thus test failed.
 ;
 
 CLEAR_ADR   EQU     $8FFF   ; 36863 - have BASIC stack high in uncontended memory (just in case)
@@ -49,28 +56,30 @@ code_start:
     ld      a,7<<3
     ld      (ROM_ATTR_P),a  ; ATTR-P = PAPER 7 : INK 0 : BRIGHT 0 : FLASH 0
     call    ROM_CLS
+    ld      c,254
+    out     (c),0           ; test `OUT (C),0` visually ; out0-ok
     ld      de,head_txt     ; text at top of screen
     ld      bc,head_txt.sz
     call    ROM_PRINT
     di
-    ; setup IM2 - create 257 byte table
+    ; setup IM2 - create 257 byte table and setup IM2, set R.7
+    ld      de,im2_isr
     ld      hl,im2_ivt
+    ld      a,h
+    ld      i,a
+    ld      r,a             ; set R.7
+    im      2
 .set_ivt:
-    ld      (hl),low im2_isr
+    ld      (hl),e
     dec     l
     jr      nz,.set_ivt
     inc     h
-    ld      (hl),low im2_isr
-    ; setup IM2 - rest of the setup
-    ld      a,high im2_ivt
-    ld      i,a
-    im      2
+    ld      (hl),e
 
     ; IM2 re-entry test (roughly measuring /INT signal lenth or whether it's "trigger" once-only)
     ld      hl,im2_isr_entries_test
-    ld      de,im2_isr
     ld      bc,im2_isr_entries_test.sz
-    ldir                    ; setup IM2 handler fore re-entry test
+    ldir                    ; setup IM2 handler for re-entry test
     ld      b,8             ; try 8 times to measure the max, here C = 0 (max)
     ei
 re_entry_test:
@@ -80,6 +89,11 @@ re_entry_test:
     di
     ld      a,c
     call    printDecimalA
+
+    ; IFF2 bug test
+    call    iff2_test
+
+    ; opcodes BLOCK tests
     ld      de,head_txt2    ; remaining header text
     ld      bc,head_txt2.sz
     call    ROM_PRINT
@@ -133,6 +147,19 @@ txt_verdict_s_err:
     DB      " |ERR|"
 txt_verdict.small_sz    EQU     $-txt_verdict_s_err
 
+; IN: E D = bytes to fill, HL = target address, returns B = 0, HL += XX_BLOCK_SZ
+set_block:
+    ld      b,high (XX_BLOCK_SZ)    ; set about XX_BLOCK_SZ bytes
+.set_loop:
+    ld      (hl),e
+    inc     l
+    ld      (hl),d
+    inc     l
+    jr      nz,.set_loop
+    inc     h
+    djnz    .set_loop
+    ret
+
 ; In: IX = S_TEST_DATA pointer
 set_block_and_run_test:
     ld      hl,xx_block
@@ -142,17 +169,9 @@ set_block_and_run_test:
     push    hl
     djnz    .fill_stack             ; all of this will be executed after `ret` is reached in each xx_block
     ; setup the block itself (fill memory with prefix data)
-    ld      b,high (XX_BLOCK_SZ)    ; set about XX_BLOCK_SZ bytes
     ld      e,(ix+S_TEST_DATA.prefix1)
     ld      d,(ix+S_TEST_DATA.prefix2)
-.set_loop:
-    ld      (hl),e
-    inc     l
-    ld      (hl),d
-    inc     l
-    jr      nz,.set_loop
-    inc     h
-    djnz    .set_loop
+    call    set_block
     ; append `nop : ret` after the block
     ld      (hl),b                  ; nop
     inc     l
@@ -195,6 +214,19 @@ im2_isr_entries_test:
     jp      (hl)                        ; return back into test-loop
     ENT
 .sz:    EQU     $-im2_isr_entries_test
+
+    ; IM2 interrupt handler 3 - testing IFF2 reading bug
+im2_isr_iff2_test:
+    pop     de                          ; throw away return address into test routine
+    ld      bc,iff2_result_txt.sz
+    ld      de,iff2_unknown_txt
+    ei                                  ; keep interrupts enabled (first: HALT, second: LD A,I||R)
+    ret     p                           ; SF = 0 means the `ld a,i|r` block was not hit by /INT
+    ld      de,iff2_fixed_txt
+    ret     pe                          ; P/V = 1 means the CPU has fixed IFF2 bug
+    ld      de,iff2_bug_txt
+    ret                                 ; P/V = 0 means the CPU has bug in IFF2 reading
+.sz:    EQU     $-im2_isr_iff2_test
 
 ; In: IX = S_TEST_DATA pointer
 ; Out: (IX + S_TEST_DATA.counter) = count of Interrupts during running test sequence
@@ -288,6 +320,47 @@ printDecimalA:
     rst     $10
     ret
 
+iff2_test:
+    ld      de,im2_isr
+    ld      hl,im2_isr_iff2_test
+    ld      bc,im2_isr_iff2_test.sz
+    ldir                    ; setup IM2 handler for iff2 bug test
+    ld      de,head_txt3    ; LD A,I header text
+    ld      bc,head_txt3.sz
+    call    ROM_PRINT
+    ld      de,$57ED        ; create ED57 block = LD A,I
+    call    .run_test
+    di
+    call    ROM_PRINT       ; print result
+    ld      de,head_txt4    ; LD A,R header text
+    ld      bc,head_txt4.sz
+    call    ROM_PRINT
+    ld      de,$5FED        ; create ED5F block = LD A,R
+    call    .run_test
+    di
+    jp      ROM_PRINT       ; print result and exit into main loop
+
+.run_test:                  ; E D = opcode bytes to test
+    ld      hl,xx_block
+    push    hl              ; address for im2_isr_iff2_test to start xx_block after HALT
+    push    hl
+    call    set_block
+    ld      (hl),$AF        ; XOR A
+    inc     l
+    ld      (hl),$E9        ; JP (HL)
+    pop     hl              ; HL = xx_block for JP (HL) after the block of LD instructions
+    ei
+    halt                    ; start block of `ld a,i||r` instructions to test IFF2 reading bug
+    ; the test should RET one level up (to xx_block and then caller), not continue here
+
+iff2_unknown_txt:
+    DB      "tst fail"
+iff2_fixed_txt:
+    DB      "correct "
+iff2_bug_txt:
+    DB      "CPU bug "
+iff2_result_txt.sz EQU $-iff2_bug_txt
+
 txt_verdict_inhibits:
     DB      "inhibits ISR\r"
 txt_verdict_allows:
@@ -295,11 +368,18 @@ txt_verdict_allows:
 txt_verdict.long_sz     EQU     $-txt_verdict_allows
 
 head_txt:
-    DB      "v3.0 2022-05-16 Ped7g, count\r"
+    DB      "v4.0 2023-05-21 Ped7g, count\r"
     DB      "interrupts while executing\r"
     DB      "long block of DD/FD prefixes\r\r"
+    DB      "BORDER is now B/W by OUT (C),0\r"
     DB      "ISR entries per /INT signal:"
 .sz EQU     $-head_txt
+head_txt3:
+    DB      "\rLD A,I IFF2 reading: "
+.sz EQU     $-head_txt3
+head_txt4:
+    DB      "\rLD A,R IFF2 reading: "
+.sz EQU     $-head_txt4
 head_txt2:
     DB      "\r\rblock of|count|verdict\r"
     DB      "--------+-----+----------------\r"
