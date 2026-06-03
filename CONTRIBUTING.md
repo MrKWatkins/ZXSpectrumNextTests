@@ -94,7 +94,7 @@ The "base" tests should have name starting with exclamation mark (to be at the b
 
 Use only characters: a..z 0..9 - _ ! $
 
-The Cirrus CI task is trying to validate these rules for every commit, see scripts [Tools/validateSnapNames.sh](Tools/validateSnapNames.sh), [Tools/dorelease.sh](Tools/dorelease.sh) and [Tools/chkReleaseAbundance.sh](Tools/chkReleaseAbundance.sh).
+The Github Actions task is trying to validate these rules for every commit, see scripts [Tools/validateSnapNames.sh](Tools/validateSnapNames.sh), [Tools/dorelease.sh](Tools/dorelease.sh) and [Tools/chkReleaseAbundance.sh](Tools/chkReleaseAbundance.sh).
 
 ### Do not edit/keep files directly in "release" folder
 
