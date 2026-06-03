@@ -1,0 +1,54 @@
+name: build
+  # this name becomes visible on the badge in readme, so keeping it simple "build" intentionally
+
+# List of GH runners and their details:
+#   repo: https://github.com/actions/runner-images#available-images
+#   docs: https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners
+
+on:
+  push:
+    paths-ignore: ['release/**']
+  pull_request:
+    paths-ignore: ['release/**']
+  workflow_dispatch:
+
+env:
+  # git release tag of desired sjasmplus version
+  SJASMPLUS_VERSION: v1.23.0
+
+# Cancel superseded runs on the same ref.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Least privilege for GITHUB_TOKEN.
+permissions:
+  contents: read
+
+jobs:
+  sjasmplus:
+    runs-on: ubuntu-slim
+    steps:
+      - uses: actions/checkout@v6
+      - name: SW versions
+        run: |
+          echo "nproc: $(nproc)"
+          bash --version
+          git --version
+          gcc --version
+          make --version
+      - name: build sjasmplus assembler
+        run: |
+          tmpdir="$(mktemp -d)"
+          trap 'rm -rf "$tmpdir"' EXIT
+          git clone -j$(nproc) --depth=1 --single-branch --branch "$SJASMPLUS_VERSION" \
+            --recurse-submodules --shallow-submodules \
+            https://github.com/ped7g/sjasmplus.git "$tmpdir/sjasmplus"
+          make -C "$tmpdir/sjasmplus" -j$(nproc)
+          sudo make -C "$tmpdir/sjasmplus" install
+      - name: check installed sjasmplus version
+        run: sjasmplus --version
+      - name: try build script
+        run: Tools/buildTests.sh
+      - name: try release script
+        run: Tools/dorelease.sh
