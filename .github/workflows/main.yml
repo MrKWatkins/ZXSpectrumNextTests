@@ -27,12 +27,12 @@ permissions:
 
 jobs:
   sjasmplus:
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
       - name: SW versions
         run: |
-          echo "nproc: $(nproc)"
+          echo "nproc: $(nproc)" && set -x
           bash --version
           git --version
           gcc --version
@@ -41,13 +41,15 @@ jobs:
         run: |
           tmpdir="$(mktemp -d)"
           trap 'rm -rf "$tmpdir"' EXIT
-          git clone -j$(nproc) --depth=1 --single-branch --branch "$SJASMPLUS_VERSION" \
-            --recurse-submodules --shallow-submodules \
+          git clone --jobs=$(nproc) --depth=1 --single-branch --branch "$SJASMPLUS_VERSION" \
             https://github.com/ped7g/sjasmplus.git "$tmpdir/sjasmplus"
+          git -C "$tmpdir/sjasmplus" submodule update --init --depth=1 --jobs "$(nproc)"
           make -C "$tmpdir/sjasmplus" -j$(nproc)
           sudo make -C "$tmpdir/sjasmplus" install
       - name: check installed sjasmplus version
-        run: sjasmplus --version
+        run: |
+          set -x
+          sjasmplus --version
       - name: try build script
         run: Tools/buildTests.sh
       - name: try release script
