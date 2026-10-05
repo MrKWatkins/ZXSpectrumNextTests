@@ -22,3 +22,8 @@ IFF2 reading reports "CPU bug" when LD A,I||R reads IFF2 as zero during
 int-ack, "correct" when it is read as one during int-ack, and "tst fail"
 when machine CPU speed is non-standard and the /INT signal did happen
 outside of LD A,I||R instruction, thus test failed.
+
+v5.0 update: LD A,I||R instructions are supposedly bugfixed by making them
+inhibit interrupt acceptance in same way how DI/EI does, so I added them
+to the test blocks to verify this with HW.
+Knowledge by dr-Titus: https://github.com/dr-Titus/z80-silicon-rtl/issues/3

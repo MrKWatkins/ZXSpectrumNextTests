@@ -5,7 +5,9 @@
 ; to assemble (with z00m's sjasmplus https://github.com/z00m128/sjasmplus/ v1.19.0+)
 ; run: sjasmplus int_skip.asm
 ;
-; history: 2023-05-21: v4.1 - make `OUT (C),0` visual test part of the end-screen with infinite loop, bugfixes
+; history: 2026-10-05: v5.0 - add `LD A,I/R` test block so knowledge nugget of dr-titus can be verified
+;                           - print "[int_skip.sna]" on screen for screenshots (says SNA also in TAP/TRD, sorry, not sorry)
+;          2023-05-21: v4.1 - make `OUT (C),0` visual test part of the end-screen with infinite loop, bugfixes
 ;          2023-05-21: v4.0 - added `OUT (C),0` visual test and `LD A,I`, `LD A,R` IFF2 reading bug test
 ;          2022-05-16: v3.0 - added "ISR entries per /INT signal" check (should be 2+ if emulating /INT as 32T signal)
 ;                           - set resulting BORDER color also into sysvar, so will retain in BASIC
@@ -39,8 +41,9 @@ ROM_PRINT:  EQU     $203C
     DEVICE ZXSPECTRUM48,CLEAR_ADR
 
 TEST_FLAG_BENCHMARK EQU     1
-TEST_FLAG_ALLOWS    EQU     2
-TEST_FLAG_INHIBITS  EQU     3
+TEST_FLAG_ANY       EQU     2
+TEST_FLAG_ALLOWS    EQU     3
+TEST_FLAG_INHIBITS  EQU     4
 
     STRUCT  S_TEST_DATA
 prefix1     BYTE
@@ -265,12 +268,19 @@ run_test:
     cp      c                           ; (NOP.counter/2) - test.counter
     sbc     a,a                         ; A = 00 inhibits / FF allows
     ld      c,a
+    push    bc
+    djnz    .not_any
+    ; skip to long description for TEST_FLAG_ANY (no ERR/OK verdict)
+    ld      de,txt_verdict_benchmark
+    ld      bc,txt_verdict.small_sz     ; print empty cell instead of ERR/OK
+    call    ROM_PRINT
+    jr      .print_long_desc            ; and print just the long description
+.not_any:
     ; check if the result is as expected by test: OK/ERR verdict
-    djnz    .allows_expected            ; TEST_FLAG_INHIBITS
+    djnz    .allows_expected            ; jump taken when TEST_FLAG_INHIBITS
     cpl                                 ; TEST_FLAG_ALLOWS
 .allows_expected:
     ; A = 00 ok / FF error
-    push    bc
     ld      de,txt_verdict_s_ok
     ld      bc,txt_verdict.small_sz
     ASSERT (high txt_verdict_s_ok == high txt_verdict_s_err) && (txt_verdict_s_err == txt_verdict_s_ok + txt_verdict.small_sz)
@@ -284,6 +294,7 @@ run_test:
     ld      (global_err_flag),a
     ; print OK/ERR verdict
     call    ROM_PRINT
+.print_long_desc:
     ; print long description verdict
     pop     af                          ; CF=0 inhibits / 1 allows
     ASSERT txt_verdict_allows == txt_verdict_inhibits + txt_verdict.long_sz
@@ -372,7 +383,10 @@ txt_verdict_allows:
 txt_verdict.long_sz     EQU     $-txt_verdict_allows
 
 head_txt:
-    DB      "v4.1 2023-05-21 Ped7g, count\r"
+    DB      22,21,16
+    DB      "[int_skip.sna]"
+    DB      22,0,0
+    DB      "v5.0 2026-10-05 Ped7g, count\r"
     DB      "interrupts while executing\r"
     DB      "long block of DD/FD prefixes\r\r"
     DB      "<== BORDER by ED71 OUT (C),0 ==>"
@@ -396,6 +410,10 @@ test_data   S_TEST_DATA     { $00, $00, $00, {"NOP"}, TEST_FLAG_BENCHMARK }     
             S_TEST_DATA     { $37, $3F, $00, {"SCF+CCF"}, TEST_FLAG_ALLOWS }    ; scf, ccf chain (verify NOP-like)
             S_TEST_DATA     { $FB, $FB, $00, {"EI"}, TEST_FLAG_INHIBITS }       ; ei chain
             S_TEST_DATA     { $F3, $F3, $00, {"DI"}, TEST_FLAG_INHIBITS }       ; di chain (your emulator +1 here = LOL)
+            ; added in v5.0: according to dr-Titus the IFF2 bugfix was done by LD A,I/R instructions inhibiting INT ack
+            ; (in same way like EI/DI do): https://github.com/dr-Titus/z80-silicon-rtl/issues/3#issuecomment-5995666622
+            S_TEST_DATA     { $ED, $57, $00, {"LD A,I"}, TEST_FLAG_ANY }        ; ld a,i chain (may inhibit/allow based on IFF2 bug fix)
+            S_TEST_DATA     { $ED, $5F, $00, {"LD A,R"}, TEST_FLAG_ANY }        ; ld a,r chain
 .end
 
 code_end:   ; this is enough to store into TAP file, rest is initialised by code
